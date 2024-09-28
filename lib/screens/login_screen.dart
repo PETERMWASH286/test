@@ -3,12 +3,12 @@ import 'home_screen.dart';
 import 'sign_up_screen.dart'; // Signup screen
 
 class LoginScreen extends StatelessWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final TextEditingController _emailController = TextEditingController();
-    final TextEditingController _passwordController = TextEditingController();
+    final TextEditingController emailController = TextEditingController();
+    final TextEditingController passwordController = TextEditingController();
 
     return Scaffold(
       appBar: AppBar(
@@ -39,7 +39,7 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 20),
                 // Email field
                 TextField(
-                  controller: _emailController,
+                  controller: emailController,
                   decoration: const InputDecoration(
                     labelText: 'Email',
                     border: OutlineInputBorder(),
@@ -49,7 +49,7 @@ class LoginScreen extends StatelessWidget {
                 const SizedBox(height: 20),
                 // Password field
                 TextField(
-                  controller: _passwordController,
+                  controller: passwordController,
                   obscureText: true,
                   decoration: const InputDecoration(
                     labelText: 'Password',

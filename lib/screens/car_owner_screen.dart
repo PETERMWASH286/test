@@ -3,19 +3,19 @@ import 'package:flutter/material.dart';
 void main() => runApp(const MyApp());
 
 class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: const CarOwnerScreen(),
+      home: CarOwnerScreen(),
     );
   }
 }
 
 class CarOwnerScreen extends StatefulWidget {
-  const CarOwnerScreen({Key? key}) : super(key: key);
+  const CarOwnerScreen({super.key});
 
   @override
   _CarOwnerScreenState createState() => _CarOwnerScreenState();
@@ -81,7 +81,7 @@ class _CarOwnerScreenState extends State<CarOwnerScreen> {
 
 // Home Page
 class HomePage extends StatelessWidget {
-  const HomePage({Key? key}) : super(key: key);
+  const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +149,7 @@ class HomePage extends StatelessWidget {
 
 // Repairs Page
 class RepairsPage extends StatelessWidget {
-  const RepairsPage({Key? key}) : super(key: key);
+  const RepairsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -209,7 +209,7 @@ class RepairsPage extends StatelessWidget {
 
 // Find Mechanic Page
 class FindMechanicPage extends StatelessWidget {
-  const FindMechanicPage({Key? key}) : super(key: key);
+  const FindMechanicPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -278,7 +278,7 @@ class FindMechanicPage extends StatelessWidget {
 
 // Explore Page
 class ExplorePage extends StatelessWidget {
-  const ExplorePage({Key? key}) : super(key: key);
+  const ExplorePage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -337,7 +337,7 @@ class ExplorePage extends StatelessWidget {
 
 // Account Page
 class AccountPage extends StatelessWidget {
-  const AccountPage({Key? key}) : super(key: key);
+  const AccountPage({super.key});
 
   @override
   Widget build(BuildContext context) {

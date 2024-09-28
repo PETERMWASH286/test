@@ -6,11 +6,11 @@ class MechanicCard extends StatelessWidget {
   final String specialty;
 
   const MechanicCard({
-    Key? key,
+    super.key,
     required this.name,
     required this.location,
     required this.specialty,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

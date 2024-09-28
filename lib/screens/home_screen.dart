@@ -4,7 +4,7 @@ import 'car_owner_screen.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // FontAwesome
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -79,11 +79,11 @@ class CrazyButton extends StatelessWidget {
   final VoidCallback onPressed;
 
   const CrazyButton({
-    Key? key,
+    super.key,
     required this.icon,
     required this.label,
     required this.onPressed,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -112,7 +112,7 @@ class CrazyButton extends StatelessWidget {
 
 // Placeholder for Enterprise Screen
 class EnterpriseScreen extends StatelessWidget {
-  const EnterpriseScreen({Key? key}) : super(key: key);
+  const EnterpriseScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -121,8 +121,8 @@ class EnterpriseScreen extends StatelessWidget {
         title: const Text('Enterprise Options'),
         backgroundColor: Colors.deepPurple,
       ),
-      body: Center(
-        child: const Text('Enterprise Functionality Coming Soon!'),
+      body: const Center(
+        child: Text('Enterprise Functionality Coming Soon!'),
       ),
     );
   }

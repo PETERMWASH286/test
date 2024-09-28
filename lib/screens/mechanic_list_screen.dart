@@ -4,7 +4,7 @@ import 'dart:convert';
 import '../widgets/mechanic_card.dart';
 
 class MechanicListScreen extends StatefulWidget {
-  const MechanicListScreen({Key? key}) : super(key: key);
+  const MechanicListScreen({super.key});
 
   @override
   _MechanicListScreenState createState() => _MechanicListScreenState();
@@ -22,7 +22,7 @@ class _MechanicListScreenState extends State<MechanicListScreen> {
 
 Future<void> fetchMechanics() async {
     try {
-        final response = await http.get(Uri.parse('http://10.0.2.2:5000/mechanics'));
+        final response = await http.get(Uri.parse('http://10.88.0.4:5000/mechanics'));
         
         if (response.statusCode == 200) {
             setState(() {
@@ -38,7 +38,7 @@ Future<void> fetchMechanics() async {
 
 
 static final List<Widget> _bottomNavPages = <Widget>[
-  MechanicListScreenBody(mechanics: []), // Mechanics list page
+  MechanicListScreenBody(mechanics: const []), // Mechanics list page
   JobsPage(),                // Jobs assigned to mechanic
   MessagesPage(),            // Mechanic's messages
   ProfilePage(),             // Mechanic's profile
@@ -72,8 +72,8 @@ static final List<Widget> _bottomNavPages = <Widget>[
           // Quick action for creating new jobs or tasks
         },
         backgroundColor: Colors.deepPurple,
-        child: const Icon(Icons.add),
         tooltip: 'Add Job or Task',
+        child: const Icon(Icons.add),
       ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
@@ -109,7 +109,7 @@ class MechanicListScreenBody extends StatelessWidget {
   final List<dynamic> mechanics;
 
   // Constructor to receive mechanics data
-  MechanicListScreenBody({required this.mechanics});
+  const MechanicListScreenBody({super.key, required this.mechanics});
 
   @override
   Widget build(BuildContext context) {
@@ -131,9 +131,11 @@ class MechanicListScreenBody extends StatelessWidget {
 
 // Page for Mechanic's Jobs
 class JobsPage extends StatelessWidget {
+  const JobsPage({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return const Center(
       child: Text('Jobs Page'),
     );
   }
@@ -141,9 +143,11 @@ class JobsPage extends StatelessWidget {
 
 // Page for Mechanic's Messages
 class MessagesPage extends StatelessWidget {
+  const MessagesPage({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return const Center(
       child: Text('Messages Page'),
     );
   }
@@ -151,9 +155,11 @@ class MessagesPage extends StatelessWidget {
 
 // Page for Mechanic's Profile
 class ProfilePage extends StatelessWidget {
+  const ProfilePage({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return Center(
+    return const Center(
       child: Text('Profile Page'),
     );
   }

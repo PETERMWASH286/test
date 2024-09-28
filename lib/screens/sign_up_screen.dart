@@ -1,47 +1,63 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
+import 'dart:convert'; // For jsonEncode
+import 'fingerprint_setup_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
-  const SignUpScreen({Key? key}) : super(key: key);
+  const SignUpScreen({super.key});
 
   @override
   _SignUpScreenState createState() => _SignUpScreenState();
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  final TextEditingController fullNameController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController _fullNameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
-  Future<void> signUp() async {
-    final String apiUrl = 'http://your-flask-server-ip:5000/signup'; // Update with your Flask server URL
+  Future<void> _signup() async {
+    if (_passwordController.text != _confirmPasswordController.text) {
+      // Handle password mismatch
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Passwords do not match")),
+      );
+      return;
+    }
 
     final response = await http.post(
-      Uri.parse(apiUrl),
+      Uri.parse(
+          'http://10.88.0.4:5000/signup'), // Use the IP address of your Flask server
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
       },
       body: jsonEncode(<String, String>{
-        'full_name': fullNameController.text,
-        'email': emailController.text,
-        'password': passwordController.text,
-        'confirm_password': confirmPasswordController.text,
+        'full_name': _fullNameController.text,
+        'email': _emailController.text,
+        'password': _passwordController.text,
       }),
     );
 
     if (response.statusCode == 201) {
-      // Successfully registered
+      // Handle successful signup
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('User registered successfully!')),
+        const SnackBar(content: Text("Signup successful!")),
+      );
+
+      // Navigate to the fingerprint setup screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) =>
+              FingerprintSetupScreen(), // Make sure this is your correct screen name
+        ),
       );
     } else {
-      // Error
-      final responseBody = jsonDecode(response.body);
+      // Handle error response
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(responseBody['message'])),
+        SnackBar(content: Text("Signup failed: ${response.body}")),
       );
     }
   }
@@ -92,10 +108,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 20),
-
                   // Full Name Field
                   TextField(
-                    controller: fullNameController,
+                    controller: _fullNameController,
                     decoration: InputDecoration(
                       labelText: 'Full Name',
                       border: OutlineInputBorder(
@@ -105,10 +120,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   const SizedBox(height: 15),
-
                   // Email Field
                   TextField(
-                    controller: emailController,
+                    controller: _emailController,
                     decoration: InputDecoration(
                       labelText: 'Email',
                       border: OutlineInputBorder(
@@ -118,10 +132,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   const SizedBox(height: 15),
-
                   // Password Field
                   TextField(
-                    controller: passwordController,
+                    controller: _passwordController,
                     obscureText: true,
                     decoration: InputDecoration(
                       labelText: 'Password',
@@ -132,10 +145,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   const SizedBox(height: 15),
-
                   // Confirm Password Field
                   TextField(
-                    controller: confirmPasswordController,
+                    controller: _confirmPasswordController,
                     obscureText: true,
                     decoration: InputDecoration(
                       labelText: 'Confirm Password',
@@ -146,12 +158,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
                   // Sign Up Button
                   ElevatedButton(
-                    onPressed: signUp, // Call signUp method
+                    onPressed: _signup, // Call the signup function
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 40),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 15, horizontal: 40),
                       backgroundColor: Colors.deepPurple,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
@@ -163,16 +175,77 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  // Other buttons and text
-                  // ...
+                  // Or sign up with
+                  const Text(
+                    'Or sign up with',
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                  const SizedBox(height: 10),
+                  // Google Sign Up Button
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      // Implement Google signup logic
+                    },
+                    icon: SvgPicture.asset(
+                      'assets/icons/google.svg',
+                      height: 24.0,
+                      width: 24.0,
+                    ),
+                    label: const Text('Google'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12, horizontal: 20),
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                        side: const BorderSide(color: Colors.black12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Facebook Sign Up Button
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      // Implement Facebook signup logic
+                    },
+                    icon: SvgPicture.asset(
+                      'assets/icons/facebook.svg',
+                      height: 24.0,
+                      width: 24.0,
+                    ),
+                    label: const Text('Facebook'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 12, horizontal: 20),
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(15),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  // Already have an account
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text("Already have an account?"),
+                      TextButton(
+                        onPressed: () {
+                          // Navigate to Login screen
+                          Navigator.pop(context);
+                        },
+                        child: const Text('Login'),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
           ),
         ),
       ),
-      backgroundColor: Colors.deepPurple[50],
     );
   }
 }

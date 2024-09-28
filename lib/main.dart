@@ -7,7 +7,7 @@ void main() {
 }
 
 class CarServiceApp extends StatelessWidget {
-  const CarServiceApp({Key? key}) : super(key: key);
+  const CarServiceApp({super.key});
 
   @override
   Widget build(BuildContext context) {
