@@ -1,5 +1,5 @@
-name: flutter_application_1
-description: "A new Flutter project."
+name: Garifix
+description: "A new Flutter project connecting car owners with mechanics."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -10,21 +10,28 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  http: ^0.13.0  # Add this line
-  font_awesome_flutter: ^10.4.0 # Or the latest version
-  flutter_svg: ^1.0.3 # Check for the latest version
-
-  cupertino_icons: ^1.0.8
+  http: ^0.13.0  # HTTP package for making API calls
+  font_awesome_flutter: ^10.4.0  # For using Font Awesome icons
+  flutter_svg: ^1.0.3  # SVG support for Flutter
+  cupertino_icons: ^1.0.8  # Default iOS icons package
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^4.0.0
+  flutter_lints: ^4.0.0  # Linting for Flutter
+  flutter_launcher_icons: ^0.9.2  # Add this line for icon generation
+
 
 flutter:
   uses-material-design: true
 
-  # Add your assets section here
+  # Assets for the application, including the app logo
   assets:
     - assets/icons/google.svg
     - assets/icons/facebook.svg
+    - assets/logo/app_logo.png  # Added the app logo here
+
+flutter_icons:
+  android: true  # To generate an icon for Android
+  ios: true  # To generate an icon for iOS
+  image_path: "assets/logo/app_logo.png"  # Path to the app logo image

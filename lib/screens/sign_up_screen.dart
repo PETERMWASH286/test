@@ -1,8 +1,50 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart'; // Add flutter_svg dependency for SVG icons
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
-class SignUpScreen extends StatelessWidget {
+class SignUpScreen extends StatefulWidget {
   const SignUpScreen({Key? key}) : super(key: key);
+
+  @override
+  _SignUpScreenState createState() => _SignUpScreenState();
+}
+
+class _SignUpScreenState extends State<SignUpScreen> {
+  final TextEditingController fullNameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController confirmPasswordController = TextEditingController();
+
+  Future<void> signUp() async {
+    final String apiUrl = 'http://your-flask-server-ip:5000/signup'; // Update with your Flask server URL
+
+    final response = await http.post(
+      Uri.parse(apiUrl),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, String>{
+        'full_name': fullNameController.text,
+        'email': emailController.text,
+        'password': passwordController.text,
+        'confirm_password': confirmPasswordController.text,
+      }),
+    );
+
+    if (response.statusCode == 201) {
+      // Successfully registered
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('User registered successfully!')),
+      );
+    } else {
+      // Error
+      final responseBody = jsonDecode(response.body);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(responseBody['message'])),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +67,7 @@ class SignUpScreen extends StatelessWidget {
                     color: Colors.deepPurple.withOpacity(0.4),
                     blurRadius: 30,
                     spreadRadius: 5,
-                    offset: const Offset(10, 10), // Crazy shadow effect
+                    offset: const Offset(10, 10),
                   ),
                 ],
               ),
@@ -53,6 +95,7 @@ class SignUpScreen extends StatelessWidget {
 
                   // Full Name Field
                   TextField(
+                    controller: fullNameController,
                     decoration: InputDecoration(
                       labelText: 'Full Name',
                       border: OutlineInputBorder(
@@ -65,6 +108,7 @@ class SignUpScreen extends StatelessWidget {
 
                   // Email Field
                   TextField(
+                    controller: emailController,
                     decoration: InputDecoration(
                       labelText: 'Email',
                       border: OutlineInputBorder(
@@ -77,6 +121,7 @@ class SignUpScreen extends StatelessWidget {
 
                   // Password Field
                   TextField(
+                    controller: passwordController,
                     obscureText: true,
                     decoration: InputDecoration(
                       labelText: 'Password',
@@ -90,6 +135,7 @@ class SignUpScreen extends StatelessWidget {
 
                   // Confirm Password Field
                   TextField(
+                    controller: confirmPasswordController,
                     obscureText: true,
                     decoration: InputDecoration(
                       labelText: 'Confirm Password',
@@ -103,9 +149,7 @@ class SignUpScreen extends StatelessWidget {
 
                   // Sign Up Button
                   ElevatedButton(
-                    onPressed: () {
-                      // Implement signup logic
-                    },
+                    onPressed: signUp, // Call signUp method
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 40),
                       backgroundColor: Colors.deepPurple,
@@ -120,74 +164,8 @@ class SignUpScreen extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
 
-                  // Or sign up with
-                  const Text(
-                    'Or sign up with',
-                    style: TextStyle(color: Colors.black54),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Google Sign Up Button
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // Implement Google signup logic
-                    },
-                    icon: SvgPicture.asset(
-                      'assets/icons/google.svg', // Path to Google SVG icon
-                      height: 24.0,
-                      width: 24.0,
-                    ),
-                    label: const Text('Google'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                        side: const BorderSide(color: Colors.black12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Facebook Sign Up Button
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // Implement Facebook signup logic
-                    },
-                    icon: SvgPicture.asset(
-                      'assets/icons/facebook.svg', // Path to Facebook SVG icon
-                      height: 24.0,
-                      width: 24.0,
-                    ),
-                    label: const Text('Facebook'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Already have an account
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text("Already have an account?"),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                        child: const Text(
-                          'Login',
-                          style: TextStyle(color: Colors.deepPurple),
-                        ),
-                      ),
-                    ],
-                  ),
+                  // Other buttons and text
+                  // ...
                 ],
               ),
             ),
