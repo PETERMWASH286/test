@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert'; // For jsonEncode
+import 'dart:convert';
 import 'fingerprint_setup_screen.dart';
 
 class SignUpScreen extends StatefulWidget {
@@ -15,8 +15,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-      TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
 
   Future<void> _signup() async {
     if (_passwordController.text != _confirmPasswordController.text) {
@@ -28,8 +27,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     final response = await http.post(
-      Uri.parse(
-          'http://10.88.0.4:5000/signup'), // Use the IP address of your Flask server
+      Uri.parse('http://10.88.0.4:5000/signup'), // Use the IP address of your Flask server
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
       },
@@ -46,12 +44,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
         const SnackBar(content: Text("Signup successful!")),
       );
 
-      // Navigate to the fingerprint setup screen
+      // Navigate to the fingerprint setup screen with the email
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) =>
-              FingerprintSetupScreen(), // Make sure this is your correct screen name
+          builder: (context) => FingerprintSetupScreen(email: _emailController.text), // Pass the email here
         ),
       );
     } else {
@@ -162,8 +159,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   ElevatedButton(
                     onPressed: _signup, // Call the signup function
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 15, horizontal: 40),
+                      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 40),
                       backgroundColor: Colors.deepPurple,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(15),
@@ -193,8 +189,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     label: const Text('Google'),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 12, horizontal: 20),
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
                       backgroundColor: Colors.white,
                       foregroundColor: Colors.black,
                       shape: RoundedRectangleBorder(
@@ -216,8 +211,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     label: const Text('Facebook'),
                     style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 12, horizontal: 20),
+                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(

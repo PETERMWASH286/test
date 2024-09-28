@@ -38,10 +38,10 @@ Future<void> fetchMechanics() async {
 
 
 static final List<Widget> _bottomNavPages = <Widget>[
-  MechanicListScreenBody(mechanics: const []), // Mechanics list page
-  JobsPage(),                // Jobs assigned to mechanic
-  MessagesPage(),            // Mechanic's messages
-  ProfilePage(),             // Mechanic's profile
+  const MechanicListScreenBody(mechanics: []), // Mechanics list page
+  const JobsPage(),                // Jobs assigned to mechanic
+  const MessagesPage(),            // Mechanic's messages
+  const ProfilePage(),             // Mechanic's profile
 ];
 
   // Handling navbar tap
