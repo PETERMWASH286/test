@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'fingerprint_setup_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // Import shared preferences
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -17,9 +18,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
+  @override
+  void initState() {
+    super.initState();
+    _checkIfUserExists();
+  }
+
+  Future<void> _checkIfUserExists() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool isSignedUp = prefs.getBool('isSignedUp') ?? false;
+
+    if (isSignedUp) {
+      // Navigate to the login screen if the user is already signed up
+      Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
+
   Future<void> _signup() async {
     if (_passwordController.text != _confirmPasswordController.text) {
-      // Handle password mismatch
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Passwords do not match")),
       );
@@ -27,7 +43,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     final response = await http.post(
-      Uri.parse('http://10.88.0.4:5000/signup'), // Use the IP address of your Flask server
+      Uri.parse('http://10.88.0.4:5000/signup'), // Your Flask server URL
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
       },
@@ -44,11 +60,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
         const SnackBar(content: Text("Signup successful!")),
       );
 
-      // Navigate to the fingerprint setup screen with the email
+      // Save user signup status and email in shared preferences
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('isSignedUp', true);
+      await prefs.setString('userEmail', _emailController.text); // Store email
+
+      // Navigate to the fingerprint setup screen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => FingerprintSetupScreen(email: _emailController.text), // Pass the email here
+          builder: (context) => FingerprintSetupScreen(email: _emailController.text),
         ),
       );
     } else {

@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.flutter_application_1"
-    compileSdk = 33 // Set your compile SDK version here
+    compileSdk = 34 // Set your compile SDK version here
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -20,7 +20,7 @@ android {
     defaultConfig {
         applicationId = "com.example.flutter_application_1"
         minSdkVersion 21 // Set the minimum SDK version here
-        targetSdkVersion 33 // Set the target SDK version here
+        targetSdkVersion 34 // Set the target SDK version here
         versionCode 1
         versionName "1.0"
     }

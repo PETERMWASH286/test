@@ -1,9 +1,8 @@
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 from flask_migrate import Migrate
-
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -14,6 +13,9 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'  # Use a SQLite dat
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+
+with app.app_context():
+    db.create_all()
 
 # User model for the database
 class User(db.Model):
@@ -58,15 +60,73 @@ def setup_fingerprint():
     data = request.get_json()
     email = data.get('email')
     fingerprint_data = data.get('fingerprint_data')
-    pin = data.get('pin')
     
     user = User.query.filter_by(email=email).first()
     if user:
         user.fingerprint_data = fingerprint_data
+        db.session.commit()
+        return jsonify({"message": "Fingerprint set up successfully!"}), 200
+    return jsonify({"message": "User not found."}), 404
+
+# New endpoint to save the PIN after confirmation
+@app.route('/save_pin', methods=['POST'])
+def save_pin():
+    data = request.get_json()
+    email = data.get('email')
+    pin = data.get('pin')
+    
+    user = User.query.filter_by(email=email).first()
+    if user:
         user.pin = generate_password_hash(pin, method='pbkdf2:sha256')
         db.session.commit()
-        return jsonify({"message": "Fingerprint and PIN set up successfully!"}), 200
+        return jsonify({"message": "PIN saved successfully!"}), 200
     return jsonify({"message": "User not found."}), 404
+
+# Endpoint for validating PIN login
+@app.route('/validate_pin', methods=['POST'])
+def validate_pin():
+    data = request.get_json()
+    email = data.get('email')
+    pin = data.get('pin')
+
+    # Print email and PIN for debugging purposes
+    print(f"Received email: {email}")
+    print(f"Received PIN: {pin}")
+
+    user = User.query.filter_by(email=email).first()
+
+    # Check if user exists and if the provided PIN matches the hashed PIN
+    if user and check_password_hash(user.pin, pin):  # Use check_password_hash to verify
+        return jsonify({"message": "PIN validation successful!"}), 200
+    else:
+        return jsonify({"message": "Invalid PIN!"}), 401
+
+
+# Endpoint for validating fingerprint login
+@app.route('/validate_fingerprint', methods=['POST'])
+def validate_fingerprint():
+    data = request.get_json()
+    email = data.get('email')
+
+    user = User.query.filter_by(email=email).first()
+
+    if user:
+        # Here you can add logic to validate the fingerprint
+        # For demonstration, assume fingerprint validation always succeeds
+        return jsonify({"message": "Fingerprint validation successful!"}), 200
+    else:
+        return jsonify({"message": "User not found!"}), 404
+
+@app.route('/get_full_name', methods=['GET'])
+def get_full_name():
+    email = request.args.get('email')
+    # Replace this with your actual logic to fetch the user's full name from the database
+    # For example:
+    user = get_user_by_email(email)  # Your function to get user data
+    if user:
+        return jsonify({'full_name': user['full_name']})
+    return jsonify({'full_name': 'User'}), 404
+
 
 if __name__ == '__main__':
     with app.app_context():  # Create an application context
