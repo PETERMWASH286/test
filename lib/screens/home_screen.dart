@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'mechanic_list_screen.dart';
+import 'mechanic_packages_payment.dart';
 import 'car_owner_packages_payment.dart';
+import 'enterprise_packages_payment.dart';
+import 'enterprise_mechanic_packages_payment.dart';
+
 import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // FontAwesome
 import 'package:http/http.dart' as http; // For making HTTP requests
 import 'dart:convert'; // For JSON encoding/decoding
@@ -120,7 +123,7 @@ Future<void> _fetchUserFullName() async {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const MechanicListScreen()),
+                    MaterialPageRoute(builder: (context) => const MechanicScreen()),
                   );
                 },
               ),
@@ -197,38 +200,5 @@ class CrazyButton extends StatelessWidget {
   }
 }
 
-// Placeholder for Enterprise Car Owner Screen
-class EnterpriseCarOwnerScreen extends StatelessWidget {
-  const EnterpriseCarOwnerScreen({super.key});
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Enterprise Car Owner Options'),
-        backgroundColor: Colors.deepPurple,
-      ),
-      body: const Center(
-        child: Text('Enterprise Car Owner Functionality Coming Soon!'),
-      ),
-    );
-  }
-}
 
-// Placeholder for Enterprise Mechanic Screen
-class EnterpriseMechanicScreen extends StatelessWidget {
-  const EnterpriseMechanicScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Enterprise Mechanic Options'),
-        backgroundColor: Colors.deepPurple,
-      ),
-      body: const Center(
-        child: Text('Enterprise Mechanic Functionality Coming Soon!'),
-      ),
-    );
-  }
-}

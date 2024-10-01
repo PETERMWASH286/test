@@ -1,0 +1,10 @@
+{
+    "configurations": [
+        {
+            "name": "Flutter (lib/screens/mechanic_packages_payment.dart)",
+            "type": "dart",
+            "request": "launch",
+            "program": "lib/screens/mechanic_packages_payment.dart"
+        }
+    ]
+}
