@@ -3,6 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 from flask_migrate import Migrate
+import json
 
 # Initialize the Flask application
 app = Flask(__name__)
@@ -26,6 +27,44 @@ class User(db.Model):
     password = db.Column(db.String(150), nullable=False)
     fingerprint_data = db.Column(db.String(500), nullable=True)  # Store fingerprint data
     pin = db.Column(db.String(6), nullable=True)  # Store the user PIN
+# Payment model for the database
+class Payment(db.Model):
+    __tablename__ = 'payment'  # Explicitly set the table name
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(150), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    subscription_type = db.Column(db.String(50), nullable=False)
+    phone_number = db.Column(db.String(15), nullable=False)
+
+import re
+
+@app.route('/api/payment', methods=['POST'])
+def submit_payment():
+    data = request.get_json()
+    
+    # Extracting the email, amount, subscription_type, and phone_number
+    email = data.get('email')
+    raw_amount = data.get('amount')  # 'Ksh 2000 / Year'
+    subscription_type = data.get('subscription_type')
+    phone_number = data.get('phone_number')
+
+    # Extract numeric value from the raw_amount string
+    amount_match = re.search(r'(\d+)', raw_amount)
+    if amount_match:
+        amount = float(amount_match.group(0))  # Convert to float
+    else:
+        return jsonify({"error": "Invalid amount format"}), 400  # Handle invalid format
+
+    # Now proceed to save in the database
+    new_payment = Payment(email=email, amount=amount, subscription_type=subscription_type, phone_number=phone_number)
+
+    try:
+        db.session.add(new_payment)
+        db.session.commit()
+        return jsonify({"message": "Payment submitted successfully"}), 201
+    except Exception as e:
+        db.session.rollback()  # Roll back in case of an error
+        return jsonify({"error": str(e)}), 500
 
 # Endpoint for user signup
 @app.route('/signup', methods=['POST'])
@@ -120,12 +159,14 @@ def validate_fingerprint():
 @app.route('/get_full_name', methods=['GET'])
 def get_full_name():
     email = request.args.get('email')
-    # Replace this with your actual logic to fetch the user's full name from the database
-    # For example:
-    user = get_user_by_email(email)  # Your function to get user data
+    
+    # Query the database to find the user by email
+    user = User.query.filter_by(email=email).first()
+    
     if user:
-        return jsonify({'full_name': user['full_name']})
-    return jsonify({'full_name': 'User'}), 404
+        return jsonify({'full_name': user.full_name}), 200
+    return jsonify({'message': 'User not found'}), 404
+
 
 
 if __name__ == '__main__':

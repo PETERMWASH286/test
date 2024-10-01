@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'mechanic_list_screen.dart';
-import 'car_owner_screen.dart';
+import 'car_owner_packages_payment.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // FontAwesome
 import 'package:http/http.dart' as http; // For making HTTP requests
 import 'dart:convert'; // For JSON encoding/decoding
@@ -24,8 +24,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
 Future<void> _fetchUserFullName() async {
   // Get email from shared preferences
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  String? email = prefs.getString('email'); // Adjust based on your shared preference key
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        String? email = prefs.getString('userEmail');
 
   // Debugging: Print the email to verify it's retrieved correctly
   print('Retrieved email from SharedPreferences: $email');
@@ -79,7 +79,7 @@ Future<void> _fetchUserFullName() async {
             children: [
               // Welcome message at the top
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 20), // Padding around the message
+                padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 10), // Padding around the message
                 child: Text(
                   'Hello, $_fullName! Please select your role to proceed.',
                   style: const TextStyle(
