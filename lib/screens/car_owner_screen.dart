@@ -9,19 +9,19 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: CarOwnerScreen(),
+      home: CarOwnerPage(),
     );
   }
 }
 
-class CarOwnerScreen extends StatefulWidget {
-  const CarOwnerScreen({super.key});
+class CarOwnerPage extends StatefulWidget {
+  const CarOwnerPage({super.key});
 
   @override
   _CarOwnerScreenState createState() => _CarOwnerScreenState();
 }
 
-class _CarOwnerScreenState extends State<CarOwnerScreen> {
+class _CarOwnerScreenState extends State<CarOwnerPage> {
   int _selectedIndex = 0;
 
   final List<Widget> _pages = [

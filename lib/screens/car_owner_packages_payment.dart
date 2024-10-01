@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'car_owner_screen.dart';
 
 class CarOwnerScreen extends StatelessWidget {
   const CarOwnerScreen({super.key});
@@ -230,71 +231,103 @@ void _showPaymentPopup(BuildContext context, String price, String subscriptionTy
             ],
           ),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: ElevatedButton(
-              onPressed: () async {
-                // Retrieve email from SharedPreferences
-                SharedPreferences prefs = await SharedPreferences.getInstance();
-                String? email = prefs.getString('userEmail');
+actions: [
+  Padding(
+    padding: const EdgeInsets.all(8.0),
+    child: ElevatedButton(
+      onPressed: () async {
+        // Retrieve email from SharedPreferences
+        SharedPreferences prefs = await SharedPreferences.getInstance();
+        String? email = prefs.getString('userEmail');
 
-                if (email != null && phoneController.text.isNotEmpty) {
-                  // Call the function to submit payment data
-                  await _submitPaymentData(email, price, subscriptionType, phoneController.text);
-                  Navigator.of(context).pop(); // Close the dialog
-                } else {
-                  // Show a message if email or phone number is not provided
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter a valid phone number and ensure you are logged in.')),
-                  );
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              child: const Text(
-                'Pay Now',
-                style: TextStyle(color: Colors.white, fontSize: 18),
-              ),
-            ),
-          ),
-        ],
+        if (email != null && phoneController.text.isNotEmpty) {
+          // Call the function to submit payment data
+          await _submitPaymentData(email, price, subscriptionType, phoneController.text, context);
+          Navigator.of(context).pop(); // Close the dialog (optional since you'll navigate)
+        } else {
+          // Show a message if email or phone number is not provided
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Please enter a valid phone number and ensure you are logged in.')),
+          );
+        }
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.deepPurple,
+        padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30),
+        ),
+      ),
+      child: const Text(
+        'Pay Now',
+        style: TextStyle(color: Colors.white, fontSize: 18),
+      ),
+    ),
+  ),
+],
+
       );
     },
   );
 }
 
-// Function to submit payment data to the backend
-Future<void> _submitPaymentData(String email, String amount, String subscriptionType, String phoneNumber) async {
+Future<void> _submitPaymentData(String email, String amount, String subscriptionType, String phoneNumber, BuildContext context) async {
   const String url = 'http://10.88.0.4:5000/api/payment'; // Replace with your backend URL
 
-  final response = await http.post(
-    Uri.parse(url),
-    headers: <String, String>{
-      'Content-Type': 'application/json; charset=UTF-8',
-    },
-    body: jsonEncode(<String, dynamic>{
-      'email': email,
-      'amount': amount,
-      'subscriptionType': subscriptionType,
-      'phoneNumber': phoneNumber,
-      'role': 'car_owner', // Specify the user role
-    }),
-  );
+  try {
+    final response = await http.post(
+      Uri.parse(url),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'email': email,
+        'amount': 'Ksh $amount',  // Ensure it's formatted correctly
+        'subscriptionType': subscriptionType,
+        'phoneNumber': phoneNumber,
+        'role': 'car_owner',
+      }),
+    );
 
-  if (response.statusCode == 200) {
-    // Payment initialization successful
-    final responseData = jsonDecode(response.body);
-    // Handle the response from the backend as needed
-    print('Payment initiated: ${responseData['message']}');
-  } else {
-    // Handle error response
-    throw Exception('Failed to initiate payment: ${response.body}');
+    print('Response Status: ${response.statusCode}');
+    print('Response Body: ${response.body}');
+
+    if (response.statusCode == 201) {
+      final responseData = jsonDecode(response.body);
+      print('Payment initiated: ${responseData['message']}');
+
+      // Use Future.delayed to ensure the dialog is shown after the dialog context is valid
+      Future.delayed(Duration.zero, () {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Payment Successful'),
+              content: Text(responseData['message']),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(builder: (context) => const CarOwnerPage()), // Ensure this points to the correct screen
+                    );
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+      });
+    } else {
+      final errorData = jsonDecode(response.body);
+      throw Exception('Failed to initiate payment: ${errorData['error']}');
+    }
+  } catch (e) {
+    print('Exception caught during payment submission: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e')),
+    );
   }
 }
 

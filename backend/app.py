@@ -28,6 +28,7 @@ class User(db.Model):
     fingerprint_data = db.Column(db.String(500), nullable=True)  # Store fingerprint data
     pin = db.Column(db.String(6), nullable=True)  # Store the user PIN
 # Payment model for the database
+# Payment model for the database
 class Payment(db.Model):
     __tablename__ = 'payment'  # Explicitly set the table name
     id = db.Column(db.Integer, primary_key=True)
@@ -35,36 +36,58 @@ class Payment(db.Model):
     amount = db.Column(db.Float, nullable=False)
     subscription_type = db.Column(db.String(50), nullable=False)
     phone_number = db.Column(db.String(15), nullable=False)
+    role = db.Column(db.String(50), nullable=False)  # New role column
+
 
 import re
+
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 @app.route('/api/payment', methods=['POST'])
 def submit_payment():
     data = request.get_json()
     
-    # Extracting the email, amount, subscription_type, and phone_number
-    email = data.get('email')
-    raw_amount = data.get('amount')  # 'Ksh 2000 / Year'
-    subscription_type = data.get('subscription_type')
-    phone_number = data.get('phone_number')
+    # Validate input data
+    required_fields = ['email', 'amount', 'subscriptionType', 'phoneNumber', 'role']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"success": False, "error": f"Missing field: {field}"}), 400
+    
+    email = data['email']
+    raw_amount = data['amount']  # 'Ksh 2000 / Year'
+    subscription_type = data['subscriptionType']
+    phone_number = data['phoneNumber']
+    role = data['role']
 
     # Extract numeric value from the raw_amount string
     amount_match = re.search(r'(\d+)', raw_amount)
     if amount_match:
         amount = float(amount_match.group(0))  # Convert to float
     else:
-        return jsonify({"error": "Invalid amount format"}), 400  # Handle invalid format
+        return jsonify({"success": False, "error": "Invalid amount format"}), 400
 
     # Now proceed to save in the database
-    new_payment = Payment(email=email, amount=amount, subscription_type=subscription_type, phone_number=phone_number)
+    new_payment = Payment(
+        email=email,
+        amount=amount,
+        subscription_type=subscription_type,
+        phone_number=phone_number,
+        role=role
+    )
 
     try:
         db.session.add(new_payment)
         db.session.commit()
-        return jsonify({"message": "Payment submitted successfully"}), 201
+        return jsonify({"success": True, "message": "Payment submitted successfully"}), 201
     except Exception as e:
         db.session.rollback()  # Roll back in case of an error
-        return jsonify({"error": str(e)}), 500
+        logging.error("Error occurred while submitting payment: %s", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 
 # Endpoint for user signup
 @app.route('/signup', methods=['POST'])
