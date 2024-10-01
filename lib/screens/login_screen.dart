@@ -5,6 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'home_screen.dart';
+import 'enterprise_mechanic_home_screen.dart';
+import 'car_owner_screen.dart';
+import 'mechanic_list_screen.dart';
+import 'enterprise_home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -31,71 +35,99 @@ class _LoginScreenState extends State<LoginScreen> {
     });
   }
 
-  Future<void> _authenticateWithFingerprint() async {
-    try {
-      bool authenticated = await _localAuth.authenticate(
-        localizedReason: 'Please authenticate to login',
-        options: const AuthenticationOptions(biometricOnly: true),
-      );
+Future<void> _authenticateWithFingerprint() async {
+  try {
+    bool authenticated = await _localAuth.authenticate(
+      localizedReason: 'Please authenticate to login',
+      options: const AuthenticationOptions(biometricOnly: true),
+    );
 
-      if (authenticated) {
-        // Retrieve user email from SharedPreferences
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        String? userEmail = prefs.getString('userEmail');
+    if (authenticated) {
+      // Retrieve user email and role from SharedPreferences
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? userEmail = prefs.getString('userEmail');
+      String? userRole = prefs.getString('user_role'); // Retrieve user role
 
-        if (userEmail != null) {
-          // Call the Flask backend to validate fingerprint
-          final response = await http.post(
-            Uri.parse('http://10.88.0.4:5000/validate_fingerprint'),
-            headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'email': userEmail}),
-          );
+      if (userEmail != null) {
+        // Call the Flask backend to validate fingerprint
+        final response = await http.post(
+          Uri.parse('http://10.88.0.4:5000/validate_fingerprint'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'email': userEmail}),
+        );
 
-          if (response.statusCode == 200) {
-            // Navigate to the next screen on successful authentication
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const HomeScreen()),
-            );
-          } else {
-            _showErrorSnackbar('Fingerprint validation failed.');
-          }
+        if (response.statusCode == 200) {
+          // Redirect based on the user role
+          _redirectUser(userRole);
+        } else {
+          _showErrorSnackbar('Fingerprint validation failed.');
         }
       }
-    } on PlatformException catch (e) {
-      print(e);
+    }
+  } on PlatformException catch (e) {
+    print(e);
+  }
+}
+
+
+void _loginWithPin() async {
+  String pin = _pinController.text;
+
+  // Retrieve user email and role from SharedPreferences
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? userEmail = prefs.getString('userEmail');
+  String? userRole = prefs.getString('user_role'); // Retrieve user role
+
+  if (userEmail != null) {
+    final response = await http.post(
+      Uri.parse('http://10.88.0.4:5000/validate_pin'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': userEmail, 'pin': pin}),
+    );
+
+    if (response.statusCode == 200) {
+      // Redirect based on the user role
+      _redirectUser(userRole);
+    } else {
+      _showErrorSnackbar('Invalid PIN. Please try again.');
     }
   }
+}
 
-  void _loginWithPin() async {
-    String pin = _pinController.text;
-
-    // Retrieve user email from SharedPreferences
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? userEmail = prefs.getString('userEmail');
-
-    if (userEmail != null) {
-      final response = await http.post(
-        Uri.parse('http://10.88.0.4:5000/validate_pin'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'email': userEmail, 'pin': pin}),
-      );
-
-      if (response.statusCode == 200) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-        );
-      } else {
-        _showErrorSnackbar('Invalid PIN. Please try again.');
-      }
-    }
-  }
 
   void _showErrorSnackbar(String message) {
     ScaffoldMessenger.of(context)
         .showSnackBar(SnackBar(content: Text(message)));
   }
+void _redirectUser(String? userRole) {
+  if (userRole == 'Mechanic') {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const MechanicListScreen()),
+    );
+  } else if (userRole == 'car_owner') {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const CarOwnerPage()),
+    );
+  } else if (userRole == 'enterprise_mechanic') {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const EnterpriseHomeScreen()),
+    );
+  } else if (userRole == 'enterprise_car_owner') {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const EnterpriseCarScreen()),
+    );
+  } else {
+    // If no user role is found, navigate to HomeScreen
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const HomeScreen()),
+    );
+  }
+}
 
   @override
   Widget build(BuildContext context) {

@@ -264,8 +264,8 @@ class ServiceHistoryPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: const Text(
+    return const Center(
+      child: Text(
         'Service History Page',
         style: TextStyle(fontSize: 24),
       ),
@@ -279,8 +279,8 @@ class PerformanceAnalyticsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: const Text(
+    return const Center(
+      child: Text(
         'Performance Analytics Page',
         style: TextStyle(fontSize: 24),
       ),
@@ -294,8 +294,8 @@ class ExplorePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: const Text(
+    return const Center(
+      child: Text(
         'Explore Page - Discover New Services and Offers',
         style: TextStyle(fontSize: 24),
       ),
@@ -309,8 +309,8 @@ class AccountPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: const Text(
+    return const Center(
+      child: Text(
         'Account Page - Manage Your Profile and Settings',
         style: TextStyle(fontSize: 24),
       ),

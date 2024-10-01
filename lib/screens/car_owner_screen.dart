@@ -148,43 +148,257 @@ class HomePage extends StatelessWidget {
 }
 
 // Repairs Page
-class RepairsPage extends StatelessWidget {
+
+class RepairsPage extends StatefulWidget {
   const RepairsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
+  _RepairsPageState createState() => _RepairsPageState();
+}
+
+class _RepairsPageState extends State<RepairsPage> with SingleTickerProviderStateMixin {
+  late AnimationController _animationController;
+  bool _isFabClicked = false;
+
+final ValueNotifier<double> _urgencyLevel = ValueNotifier<double>(3.0); // Default urgency level
+
+  @override
+  void initState() {
+    super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+  }
+
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
+
+  // Method to show the form in a modal bottom sheet
+  void _showProblemForm() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white.withOpacity(0.9),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Wrap(
+          children: [
+            const Text(
+              'Report a Car Problem',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+            ),
+            const SizedBox(height: 20),
+            _buildProblemForm(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Building the form
+  Widget _buildProblemForm() {
+    return Form(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Your Repairs History',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+          // Dropdown for problem type
+          DropdownButtonFormField<String>(
+            decoration: const InputDecoration(
+              labelText: 'Problem Type',
+              border: OutlineInputBorder(),
+            ),
+            items: const [
+              DropdownMenuItem(value: 'Engine', child: Text('Engine Problem')),
+              DropdownMenuItem(value: 'Brakes', child: Text('Brake Issue')),
+              DropdownMenuItem(value: 'Tire', child: Text('Tire Problem')),
+              DropdownMenuItem(value: 'Electrical', child: Text('Electrical Issue')),
+              DropdownMenuItem(value: 'Other', child: Text('Other')),
+            ],
+            onChanged: (value) {},
           ),
           const SizedBox(height: 20),
-          Expanded(
-            child: ListView(
-              children: [
-                _buildRepairCard(
-                  date: '12th September, 2024',
-                  description: 'Brake Pad Replacement',
-                  cost: '\$150',
-                ),
-                _buildRepairCard(
-                  date: '2nd August, 2024',
-                  description: 'Engine Tune-up',
-                  cost: '\$320',
-                ),
-                _buildRepairCard(
-                  date: '15th July, 2024',
-                  description: 'Tire Replacement',
-                  cost: '\$400',
-                ),
-              ],
-            ),
+
+          // Urgency level slider
+          // Urgency level slider
+          const Text(
+            'Urgency Level',
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
+          ValueListenableBuilder<double>(
+            valueListenable: _urgencyLevel,
+            builder: (context, value, child) {
+              return Column(
+                children: [
+                  Slider(
+                    value: value,
+                    min: 1,
+                    max: 5,
+                    divisions: 4,
+                    label: _getUrgencyLabel(value),
+                    onChanged: (newValue) {
+                      _urgencyLevel.value = newValue; // Update urgency level
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                ],
+              );
+            },
+          ),
+
+
+          // Text field for additional details
+          TextFormField(
+            decoration: const InputDecoration(
+              labelText: 'Additional Details',
+              hintText: 'Describe the problem in detail...',
+              border: OutlineInputBorder(),
+            ),
+            maxLines: 3,
+          ),
+          const SizedBox(height: 20),
+
+// Upload image button
+ElevatedButton.icon(
+  onPressed: () {
+    // Handle image upload logic
+  },
+  icon: const Icon(Icons.camera_alt, color: Colors.white), // Icon color for better contrast
+  label: const Text(
+    'Upload Image of the Problem',
+    style: TextStyle(color: Colors.white), // Text color for better contrast
+  ),
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.deepPurple, // Background color
+    foregroundColor: Colors.white, // Text and icon color
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(10),
+    ),
+    padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0), // Padding for better touch area
+    elevation: 5, // Add some elevation for depth
+  ),
+),
+const SizedBox(height: 20),
+
+
+
+
+// Submit button with gradient background and single button
+Container(
+  width: double.infinity,
+  decoration: BoxDecoration(
+    gradient: const LinearGradient(
+      colors: [Colors.deepPurple, Colors.purpleAccent], // Gradient colors
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
+    borderRadius: BorderRadius.circular(10), // Rounded corners
+  ),
+  child: ElevatedButton.icon(
+    onPressed: () {
+      // Handle form submission logic
+    },
+    icon: const Icon(Icons.send, color: Colors.white), // Add an icon to the button
+    label: const Text(
+      'Submit Problem Report',
+      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white), // Text color
+    ),
+    style: ElevatedButton.styleFrom(
+      backgroundColor: Colors.transparent, // Make button background transparent to show gradient
+      padding: const EdgeInsets.symmetric(vertical: 16.0),
+      shadowColor: Colors.transparent, // Disable shadow to keep it flat
+    ),
+  ),
+),
+const SizedBox(height: 20),
+
+
         ],
+      ),
+    );
+  }
+  String _getUrgencyLabel(double value) {
+    switch (value.toInt()) {
+      case 1:
+        return 'Very Low';
+      case 2:
+        return 'Low';
+      case 3:
+        return 'Medium';
+      case 4:
+        return 'High';
+      case 5:
+        return 'Very High';
+      default:
+        return '';
+    }
+  }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Your Repairs History'),
+        backgroundColor: Colors.deepPurple,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Your Repairs History',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView(
+                children: [
+                  _buildRepairCard(
+                    date: '12th September, 2024',
+                    description: 'Brake Pad Replacement',
+                    cost: '\$150',
+                  ),
+                  _buildRepairCard(
+                    date: '2nd August, 2024',
+                    description: 'Engine Tune-up',
+                    cost: '\$320',
+                  ),
+                  _buildRepairCard(
+                    date: '15th July, 2024',
+                    description: 'Tire Replacement',
+                    cost: '\$400',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+
+      // Floating Action Button with animation
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: Colors.deepPurple,
+        child: AnimatedIcon(
+          icon: AnimatedIcons.add_event,
+          progress: _animationController,
+        ),
+        onPressed: () {
+          setState(() {
+            _isFabClicked = !_isFabClicked;
+            if (_isFabClicked) {
+              _animationController.forward();
+              _showProblemForm();
+            } else {
+              _animationController.reverse();
+            }
+          });
+        },
       ),
     );
   }
@@ -206,6 +420,7 @@ class RepairsPage extends StatelessWidget {
     );
   }
 }
+
 
 // Find Mechanic Page
 class FindMechanicPage extends StatelessWidget {

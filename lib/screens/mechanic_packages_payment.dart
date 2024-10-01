@@ -269,7 +269,7 @@ class MechanicScreen extends StatelessWidget {
     );
   }
 
-Future<void> _submitPaymentData(String email, String amount, String subscriptionType, String phoneNumber, BuildContext context) async {
+Future<void> _submitPaymentData(String email, String amount, String subscriptionType, String phoneNumber, BuildContext context) async { 
   const String url = 'http://10.88.0.4:5000/api/payment'; // Replace with your backend URL
 
   try {
@@ -283,7 +283,7 @@ Future<void> _submitPaymentData(String email, String amount, String subscription
         'amount': 'Ksh $amount',  // Ensure it's formatted correctly
         'subscriptionType': subscriptionType,
         'phoneNumber': phoneNumber,
-        'role': 'car_owner',
+        'role': 'Mechanic',  // Assume this is the role you're assigning
       }),
     );
 
@@ -293,6 +293,10 @@ Future<void> _submitPaymentData(String email, String amount, String subscription
     if (response.statusCode == 201) {
       final responseData = jsonDecode(response.body);
       print('Payment initiated: ${responseData['message']}');
+
+      // Store role in SharedPreferences if payment is successful
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_role', 'Mechanic');  // Save the role
 
       // Use Future.delayed to ensure the dialog is shown after the dialog context is valid
       Future.delayed(Duration.zero, () {

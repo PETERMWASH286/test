@@ -285,7 +285,7 @@ Future<void> _submitPaymentData(String email, String amount, String subscription
         'amount': 'Ksh $amount',  // Ensure it's formatted correctly
         'subscriptionType': subscriptionType,
         'phoneNumber': phoneNumber,
-        'role': 'car_owner',
+        'role': 'car_owner',  // Set role as car owner
       }),
     );
 
@@ -295,6 +295,10 @@ Future<void> _submitPaymentData(String email, String amount, String subscription
     if (response.statusCode == 201) {
       final responseData = jsonDecode(response.body);
       print('Payment initiated: ${responseData['message']}');
+
+      // Store the role in SharedPreferences after successful payment
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_role', 'car_owner');  // Save the role as 'car_owner'
 
       // Use Future.delayed to ensure the dialog is shown after the dialog context is valid
       Future.delayed(Duration.zero, () {
