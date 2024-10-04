@@ -1,24 +1,34 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_cors import CORS
 from flask_migrate import Migrate
 import json
+from sqlalchemy import Column, Integer, String, Float, Text, DateTime, func
+import os
+import secrets
+from werkzeug.utils import secure_filename
 
 # Initialize the Flask application
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+app.config['UPLOAD_FOLDER'] = 'uploads'
 
 # Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'  # Use a SQLite database
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 migrate = Migrate(app, db)
+app.secret_key = secrets.token_hex(16)  # Generates a secure random secret key
 
-with app.app_context():
-    db.create_all()
+from datetime import timedelta
 
-# User model for the database
+
+# Set session lifetime
+app.permanent_session_lifetime = timedelta(minutes=60)  # Change to your desired duration
+
+
+# Define models first
 class User(db.Model):
     __tablename__ = 'user'  # Explicitly set the table name
     id = db.Column(db.Integer, primary_key=True)
@@ -27,8 +37,7 @@ class User(db.Model):
     password = db.Column(db.String(150), nullable=False)
     fingerprint_data = db.Column(db.String(500), nullable=True)  # Store fingerprint data
     pin = db.Column(db.String(6), nullable=True)  # Store the user PIN
-# Payment model for the database
-# Payment model for the database
+
 class Payment(db.Model):
     __tablename__ = 'payment'  # Explicitly set the table name
     id = db.Column(db.Integer, primary_key=True)
@@ -38,6 +47,28 @@ class Payment(db.Model):
     phone_number = db.Column(db.String(15), nullable=False)
     role = db.Column(db.String(50), nullable=False)  # New role column
 
+class Report(db.Model):
+    __tablename__ = 'report'
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(150), db.ForeignKey('user.email'), nullable=False)
+    problem_type = db.Column(db.String(150), nullable=False)
+    urgency_level = db.Column(db.Float, nullable=False)
+    details = db.Column(db.Text, nullable=False)
+    images = db.Column(db.String(500), nullable=True)  # Path to uploaded images
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    cost = db.Column(db.Float, default=0)  # New cost column with default value 0
+
+
+# Create all tables after defining all models
+with app.app_context():  # Create an application context
+    db.create_all()  # Create the database tables
+
+    # Print the created tables
+    created_tables = db.metadata.tables.keys()  # Get table names from metadata
+    print("Created tables:", list(created_tables))
+
+    # Print the database location
+    print("Database file location:", os.path.abspath('users.db'))
 
 import re
 
@@ -159,10 +190,11 @@ def validate_pin():
 
     # Check if user exists and if the provided PIN matches the hashed PIN
     if user and check_password_hash(user.pin, pin):  # Use check_password_hash to verify
+        session['email'] = email  # Store email in session
+        session.permanent = True  # Make session permanent
         return jsonify({"message": "PIN validation successful!"}), 200
     else:
         return jsonify({"message": "Invalid PIN!"}), 401
-
 
 # Endpoint for validating fingerprint login
 @app.route('/validate_fingerprint', methods=['POST'])
@@ -173,8 +205,8 @@ def validate_fingerprint():
     user = User.query.filter_by(email=email).first()
 
     if user:
-        # Here you can add logic to validate the fingerprint
-        # For demonstration, assume fingerprint validation always succeeds
+        session['email'] = email  # Store email in session
+        session.permanent = True  # Make session permanent
         return jsonify({"message": "Fingerprint validation successful!"}), 200
     else:
         return jsonify({"message": "User not found!"}), 404
@@ -190,7 +222,78 @@ def get_full_name():
         return jsonify({'full_name': user.full_name}), 200
     return jsonify({'message': 'User not found'}), 404
 
+# Ensure the upload folder exists
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
 
+# Define allowed file types
+ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+@app.route('/submit_report', methods=['POST'])
+def submit_report():
+    # Retrieve the email directly from the form data
+    email = request.form.get('email')  # Get email from the form data
+    problem_type = request.form.get('problemType')
+    urgency_level = request.form.get('urgencyLevel')  # Get as string first
+    details = request.form.get('details')
+    saved_images = request.files.getlist('images')  # Adjust this based on your upload logic
+
+    # Print out the received values for debugging
+    print(f"Received Email: {email}")
+    print(f"Received Problem Type: {problem_type}")
+    print(f"Received Urgency Level: {urgency_level}")
+    print(f"Received Details: {details}")
+    print(f"Number of Images: {len(saved_images)}")
+
+    # Convert urgency level to float safely
+    try:
+        urgency_level = float(urgency_level)
+    except (ValueError, TypeError):
+        print("Invalid urgency level. Setting to 0.")
+        urgency_level = 0.0
+
+    # Handle image uploads
+    saved_image_paths = []
+    for file in saved_images:
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            saved_image_paths.append(file_path)
+
+    images_string = ','.join(saved_image_paths)  # Convert list to a comma-separated string
+
+    # Create a new report entry
+    new_report = Report(
+        email=email,
+        problem_type=problem_type,
+        urgency_level=urgency_level,
+        details=details,
+        images=images_string,  # Store the comma-separated string
+        created_at=db.func.current_timestamp()
+    )
+
+    db.session.add(new_report)
+    db.session.commit()
+
+    print("New report saved successfully.")  # Confirmation message
+
+    return jsonify({"success": True}), 201
+    
+@app.route('/api/repairs/<email>', methods=['GET'])
+def get_repairs(email):
+    reports = Report.query.filter_by(email=email).all()
+    repairs_history = [
+        {
+            'date': report.created_at.strftime('%d %B, %Y'),
+            'description': report.problem_type,
+            'cost': report.cost
+        }
+        for report in reports
+    ]
+    return jsonify(repairs_history)
 
 if __name__ == '__main__':
     with app.app_context():  # Create an application context

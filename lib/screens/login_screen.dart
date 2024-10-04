@@ -48,22 +48,20 @@ Future<void> _authenticateWithFingerprint() async {
       String? userEmail = prefs.getString('userEmail');
       String? userRole = prefs.getString('user_role'); // Retrieve user role
 
-      if (userEmail != null) {
-        // Call the Flask backend to validate fingerprint
-        final response = await http.post(
-          Uri.parse('http://10.88.0.4:5000/validate_fingerprint'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'email': userEmail}),
-        );
+      // Call the Flask backend to validate fingerprint
+      final response = await http.post(
+        Uri.parse('http://10.88.0.4:5000/validate_fingerprint'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': userEmail}),
+      );
 
-        if (response.statusCode == 200) {
-          // Redirect based on the user role
-          _redirectUser(userRole);
-        } else {
-          _showErrorSnackbar('Fingerprint validation failed.');
-        }
+      if (response.statusCode == 200) {
+        // Redirect based on the user role
+        _redirectUser(userRole);
+      } else {
+        _showErrorSnackbar('Fingerprint validation failed.');
       }
-    }
+        }
   } on PlatformException catch (e) {
     print(e);
   }
@@ -78,19 +76,17 @@ void _loginWithPin() async {
   String? userEmail = prefs.getString('userEmail');
   String? userRole = prefs.getString('user_role'); // Retrieve user role
 
-  if (userEmail != null) {
-    final response = await http.post(
-      Uri.parse('http://10.88.0.4:5000/validate_pin'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': userEmail, 'pin': pin}),
-    );
+  final response = await http.post(
+    Uri.parse('http://10.88.0.4:5000/validate_pin'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({'email': userEmail, 'pin': pin}),
+  );
 
-    if (response.statusCode == 200) {
-      // Redirect based on the user role
-      _redirectUser(userRole);
-    } else {
-      _showErrorSnackbar('Invalid PIN. Please try again.');
-    }
+  if (response.statusCode == 200) {
+    // Redirect based on the user role
+    _redirectUser(userRole);
+  } else {
+    _showErrorSnackbar('Invalid PIN. Please try again.');
   }
 }
 

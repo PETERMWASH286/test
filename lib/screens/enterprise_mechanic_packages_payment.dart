@@ -240,8 +240,8 @@ class EnterpriseMechanicScreen extends StatelessWidget {
                   SharedPreferences prefs = await SharedPreferences.getInstance();
                   String? email = prefs.getString('userEmail');
 
-                  if (email != null && phoneController.text.isNotEmpty) {
-                    await _submitPaymentData(email, price, subscriptionType, phoneController.text, context);
+                  if (phoneController.text.isNotEmpty) {
+                    await _submitPaymentData(email ?? '', price, subscriptionType, phoneController.text, context);
                     Navigator.of(context).pop();
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(

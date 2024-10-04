@@ -1,6 +1,14 @@
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 void main() => runApp(const MyApp());
+List<XFile>? _imageFiles = [];
+final ImagePicker _picker = ImagePicker();
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -156,26 +164,128 @@ class RepairsPage extends StatefulWidget {
   _RepairsPageState createState() => _RepairsPageState();
 }
 
-class _RepairsPageState extends State<RepairsPage> with SingleTickerProviderStateMixin {
+class _RepairsPageState extends State<RepairsPage>
+    with SingleTickerProviderStateMixin {
   late AnimationController _animationController;
+    List<dynamic> _repairsHistory = []; // List to hold fetched data
+
   bool _isFabClicked = false;
 
-final ValueNotifier<double> _urgencyLevel = ValueNotifier<double>(3.0); // Default urgency level
+  final ValueNotifier<double> _urgencyLevel = ValueNotifier<double>(3.0);
+  final _formKey = GlobalKey<FormState>();
+  String? _problemType;
+  final TextEditingController _detailsController = TextEditingController();
+  final ImagePicker _picker = ImagePicker();
+  List<XFile>? _imageFiles; // Define a list to hold the selected images
 
   @override
   void initState() {
     super.initState();
+        _fetchRepairsHistory();
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
+      
     );
   }
 
   @override
   void dispose() {
+    _detailsController.dispose();
     _animationController.dispose();
     super.dispose();
   }
+
+Future<void> _submitForm() async {
+  if (!_formKey.currentState!.validate()) {
+    return;
+  }
+
+  _formKey.currentState!.save();
+
+  var uri = Uri.parse('http://10.88.0.4:5000/submit_report');
+  var request = http.MultipartRequest('POST', uri);
+
+  // Add fields
+  request.fields['problemType'] = _problemType!;
+  request.fields['urgencyLevel'] = _urgencyLevel.value.toString();
+  request.fields['details'] = _detailsController.text;
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? email = prefs.getString('userEmail');
+
+  if (email != null) {
+    request.fields['email'] = email;
+  } else {
+    print('No email found in SharedPreferences');
+  }
+
+  // Add image files if any
+  if (_imageFiles != null) {
+    for (var image in _imageFiles!) {
+      request.files.add(await http.MultipartFile.fromPath('images', image.path));
+    }
+  }
+
+  // Send the request
+  var response = await request.send();
+
+  if (response.statusCode == 201) {
+    // Handle success
+    var responseData = await response.stream.bytesToString();
+    print('Response: $responseData');
+
+    // Close the modal first
+    Navigator.of(context).pop(); // Close the modal before showing the dialog
+    // Show success message dialog
+    _showSuccessDialog();
+     _fetchRepairsHistory();
+
+    // Clear the form inputs
+    _formKey.currentState!.reset();
+    setState(() {
+      _problemType = null; // Reset problem type
+      _imageFiles = null; // Reset image files
+      _detailsController.clear(); // Clear details controller
+    });
+  } else {
+    // Handle error
+    print('Error: ${response.statusCode}');
+    var responseData = await response.stream.bytesToString();
+    print('Error details: $responseData');
+  }
+}
+// Method to show success message dialog
+void _showSuccessDialog() {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text(
+          'Success!',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.green),
+        ),
+        content: const Text(
+          'Your problem report has been submitted successfully!',
+          style: TextStyle(fontSize: 16),
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('OK', style: TextStyle(color: Colors.deepPurple)),
+            onPressed: () {
+              Navigator.of(context).pop(); // Close the dialog
+              // Refresh the data after success
+              _fetchRepairsHistory(); 
+              setState(() {
+                // Trigger a UI refresh
+              });
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
 
   // Method to show the form in a modal bottom sheet
   void _showProblemForm() {
@@ -205,6 +315,7 @@ final ValueNotifier<double> _urgencyLevel = ValueNotifier<double>(3.0); // Defau
   // Building the form
   Widget _buildProblemForm() {
     return Form(
+      key: _formKey, // Add the key to the Form widget
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -221,11 +332,15 @@ final ValueNotifier<double> _urgencyLevel = ValueNotifier<double>(3.0); // Defau
               DropdownMenuItem(value: 'Electrical', child: Text('Electrical Issue')),
               DropdownMenuItem(value: 'Other', child: Text('Other')),
             ],
-            onChanged: (value) {},
+            onChanged: (value) {
+              setState(() {
+                _problemType = value; // Store the selected value
+              });
+            },
+            validator: (value) => value == null ? 'Please select a problem type' : null, // Validator
           ),
           const SizedBox(height: 20),
 
-          // Urgency level slider
           // Urgency level slider
           const Text(
             'Urgency Level',
@@ -252,77 +367,91 @@ final ValueNotifier<double> _urgencyLevel = ValueNotifier<double>(3.0); // Defau
             },
           ),
 
-
           // Text field for additional details
           TextFormField(
+            controller: _detailsController, // Add the controller
             decoration: const InputDecoration(
               labelText: 'Additional Details',
               hintText: 'Describe the problem in detail...',
               border: OutlineInputBorder(),
             ),
             maxLines: 3,
+            validator: (value) => value!.isEmpty ? 'Please provide additional details' : null, // Validator
           ),
           const SizedBox(height: 20),
 
-// Upload image button
-ElevatedButton.icon(
-  onPressed: () {
-    // Handle image upload logic
-  },
-  icon: const Icon(Icons.camera_alt, color: Colors.white), // Icon color for better contrast
-  label: const Text(
-    'Upload Image of the Problem',
-    style: TextStyle(color: Colors.white), // Text color for better contrast
-  ),
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.deepPurple, // Background color
-    foregroundColor: Colors.white, // Text and icon color
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(10),
-    ),
-    padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0), // Padding for better touch area
-    elevation: 5, // Add some elevation for depth
-  ),
-),
-const SizedBox(height: 20),
+          // Upload image button
+          ElevatedButton.icon(
+            onPressed: () async {
+              // Pick multiple images using the camera
+              final List<XFile> selectedImages = await _picker.pickMultiImage();
 
+              // Add the images to the list
+              setState(() {
+                _imageFiles = selectedImages;
+              });
+            },
+            icon: const Icon(Icons.camera_alt, color: Colors.white),
+            label: const Text(
+              'Upload Images of the Problem',
+              style: TextStyle(color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurple,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
+              elevation: 5,
+            ),
+          ),
+          const SizedBox(height: 20),
 
+          // Display the selected images (if any)
+          if (_imageFiles != null)
+            Wrap(
+              spacing: 8.0,
+              children: _imageFiles!.map((file) {
+                return Image.file(
+                  File(file.path),
+                  width: 100,
+                  height: 100,
+                );
+              }).toList(),
+            ),
 
-
-// Submit button with gradient background and single button
-Container(
-  width: double.infinity,
-  decoration: BoxDecoration(
-    gradient: const LinearGradient(
-      colors: [Colors.deepPurple, Colors.purpleAccent], // Gradient colors
-      begin: Alignment.topLeft,
-      end: Alignment.bottomRight,
-    ),
-    borderRadius: BorderRadius.circular(10), // Rounded corners
-  ),
-  child: ElevatedButton.icon(
-    onPressed: () {
-      // Handle form submission logic
-    },
-    icon: const Icon(Icons.send, color: Colors.white), // Add an icon to the button
-    label: const Text(
-      'Submit Problem Report',
-      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white), // Text color
-    ),
-    style: ElevatedButton.styleFrom(
-      backgroundColor: Colors.transparent, // Make button background transparent to show gradient
-      padding: const EdgeInsets.symmetric(vertical: 16.0),
-      shadowColor: Colors.transparent, // Disable shadow to keep it flat
-    ),
-  ),
-),
-const SizedBox(height: 20),
-
-
+          // Submit button with gradient background
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Colors.deepPurple, Colors.purpleAccent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: ElevatedButton.icon(
+              onPressed: _submitForm,
+              icon: const Icon(Icons.send, color: Colors.white),
+              label: const Text(
+                'Submit Problem Report',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.transparent,
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                shadowColor: Colors.transparent,
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
+
   String _getUrgencyLabel(double value) {
     switch (value.toInt()) {
       case 1:
@@ -339,13 +468,28 @@ const SizedBox(height: 20),
         return '';
     }
   }
+
+
+  Future<void> _fetchRepairsHistory() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? email = prefs.getString('userEmail');
+
+    if (email != null) {
+      final response = await http.get(Uri.parse('http://10.88.0.4:5000/api/repairs/$email'));
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _repairsHistory = json.decode(response.body);
+        });
+      } else {
+        print('Failed to load repairs history: ${response.statusCode}');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your Repairs History'),
-        backgroundColor: Colors.deepPurple,
-      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -353,69 +497,50 @@ const SizedBox(height: 20),
           children: [
             const Text(
               'Your Repairs History',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.deepPurple),
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: ListView(
-                children: [
-                  _buildRepairCard(
-                    date: '12th September, 2024',
-                    description: 'Brake Pad Replacement',
-                    cost: '\$150',
-                  ),
-                  _buildRepairCard(
-                    date: '2nd August, 2024',
-                    description: 'Engine Tune-up',
-                    cost: '\$320',
-                  ),
-                  _buildRepairCard(
-                    date: '15th July, 2024',
-                    description: 'Tire Replacement',
-                    cost: '\$400',
-                  ),
-                ],
+              child: ListView.builder(
+                itemCount: _repairsHistory.length,
+                itemBuilder: (context, index) {
+                  var repair = _repairsHistory[index];
+                  return _buildRepairCard(
+                    date: repair['date'],
+                    description: repair['description'],
+                    cost: '\$${repair['cost'].toString()}',
+                  );
+                },
               ),
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
-
-      // Floating Action Button with animation
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.deepPurple,
-        child: AnimatedIcon(
-          icon: AnimatedIcons.add_event,
-          progress: _animationController,
-        ),
         onPressed: () {
           setState(() {
             _isFabClicked = !_isFabClicked;
-            if (_isFabClicked) {
-              _animationController.forward();
-              _showProblemForm();
-            } else {
-              _animationController.reverse();
-            }
+            _isFabClicked ? _animationController.forward() : _animationController.reverse();
           });
+          _showProblemForm();
         },
+        backgroundColor: Colors.deepPurple,
+        child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildRepairCard({
-    required String date,
-    required String description,
-    required String cost,
-  }) {
+
+
+  Widget _buildRepairCard({required String date, required String description, required String cost}) {
     return Card(
-      margin: const EdgeInsets.symmetric(vertical: 10),
+      margin: const EdgeInsets.symmetric(vertical: 8),
       elevation: 4,
       child: ListTile(
-        leading: const Icon(Icons.build, color: Colors.deepPurple),
-        title: Text(description),
-        subtitle: Text('Date: $date'),
-        trailing: Text(cost, style: const TextStyle(fontWeight: FontWeight.bold)),
+        title: Text(description, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(date),
+        trailing: Text(cost, style: const TextStyle(color: Colors.green)),
       ),
     );
   }

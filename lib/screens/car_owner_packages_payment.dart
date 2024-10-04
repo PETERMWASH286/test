@@ -240,9 +240,9 @@ actions: [
         SharedPreferences prefs = await SharedPreferences.getInstance();
         String? email = prefs.getString('userEmail');
 
-        if (email != null && phoneController.text.isNotEmpty) {
+        if (phoneController.text.isNotEmpty) {
           // Call the function to submit payment data
-          await _submitPaymentData(email, price, subscriptionType, phoneController.text, context);
+          await _submitPaymentData(email ?? '', price, subscriptionType, phoneController.text, context);
           Navigator.of(context).pop(); // Close the dialog (optional since you'll navigate)
         } else {
           // Show a message if email or phone number is not provided

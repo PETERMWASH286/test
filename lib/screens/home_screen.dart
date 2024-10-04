@@ -33,30 +33,26 @@ Future<void> _fetchUserFullName() async {
   // Debugging: Print the email to verify it's retrieved correctly
   print('Retrieved email from SharedPreferences: $email');
 
-  if (email != null) {
-    // Make an HTTP GET request to fetch the user's full name from the server
-    final response = await http.get(Uri.parse('http://10.88.0.4:5000/get_full_name?email=$email'));
+  // Make an HTTP GET request to fetch the user's full name from the server
+  final response = await http.get(Uri.parse('http://10.88.0.4:5000/get_full_name?email=$email'));
 
-    // Debugging: Print the response status code
-    print('Response status code: ${response.statusCode}');
+  // Debugging: Print the response status code
+  print('Response status code: ${response.statusCode}');
 
-    if (response.statusCode == 200) {
-      // If the server returns a 200 OK response, parse the JSON
-      var data = json.decode(response.body);
+  if (response.statusCode == 200) {
+    // If the server returns a 200 OK response, parse the JSON
+    var data = json.decode(response.body);
 
-      // Debugging: Print the data received from the API
-      print('Data received from API: $data');
+    // Debugging: Print the data received from the API
+    print('Data received from API: $data');
 
-      setState(() {
-        _fullName = data['full_name'] ?? "User"; // Use null-aware operator to fall back to default
-      });
-    } else {
-      // If the server did not return a 200 OK response, handle the error
-      print('Failed to load user full name: ${response.statusCode}');
-      print('Response body: ${response.body}'); // Log the response body for debugging
-    }
+    setState(() {
+      _fullName = data['full_name'] ?? "User"; // Use null-aware operator to fall back to default
+    });
   } else {
-    print('Email not found in shared preferences.');
+    // If the server did not return a 200 OK response, handle the error
+    print('Failed to load user full name: ${response.statusCode}');
+    print('Response body: ${response.body}'); // Log the response body for debugging
   }
 }
 
