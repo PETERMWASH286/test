@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:http/http.dart' as http;
+// Import http package
+
 import 'dart:convert';
 import 'fingerprint_setup_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Import shared preferences
@@ -43,7 +45,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
 
     final response = await http.post(
-      Uri.parse('http://10.88.0.4:5000/signup'), // Your Flask server URL
+    Uri.parse('https://expertstrials.xyz/Garifix_app/signup'), // Updated URL for cPanel
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
       },

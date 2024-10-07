@@ -263,7 +263,7 @@ class EnterpriseCarOwnerScreen extends StatelessWidget {
   }
 
 Future<void> _submitPaymentData(String email, String amount, String subscriptionType, String phoneNumber, BuildContext context) async {
-  const String url = 'http://10.88.0.4:5000/api/payment'; // Replace with your backend URL
+  const String url = 'https://expertstrials.xyz/Garifix_app/api/payment'; // Replace with your backend URL
 
   try {
     final response = await http.post(

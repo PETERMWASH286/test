@@ -203,7 +203,7 @@ Future<void> _submitForm() async {
 
   _formKey.currentState!.save();
 
-  var uri = Uri.parse('http://10.88.0.4:5000/submit_report');
+  var uri = Uri.parse('https://expertstrials.xyz/Garifix_app/submit_report');
   var request = http.MultipartRequest('POST', uri);
 
   // Add fields
@@ -475,7 +475,7 @@ void _showSuccessDialog() {
     String? email = prefs.getString('userEmail');
 
     if (email != null) {
-      final response = await http.get(Uri.parse('http://10.88.0.4:5000/api/repairs/$email'));
+      final response = await http.get(Uri.parse('https://expertstrials.xyz/Garifix_app/api/repairs/$email'));
 
       if (response.statusCode == 200) {
         setState(() {

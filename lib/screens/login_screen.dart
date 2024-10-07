@@ -50,7 +50,7 @@ Future<void> _authenticateWithFingerprint() async {
 
       // Call the Flask backend to validate fingerprint
       final response = await http.post(
-        Uri.parse('http://10.88.0.4:5000/validate_fingerprint'),
+        Uri.parse('https://expertstrials.xyz/Garifix_app/validate_fingerprint'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': userEmail}),
       );
@@ -59,13 +59,16 @@ Future<void> _authenticateWithFingerprint() async {
         // Redirect based on the user role
         _redirectUser(userRole);
       } else {
-        _showErrorSnackbar('Fingerprint validation failed.');
+        // Optionally allow users to fallback to PIN if fingerprint validation fails
+        _showErrorSnackbar('Fingerprint validation failed. Please try PIN.');
       }
-        }
+    }
   } on PlatformException catch (e) {
     print(e);
+    _showErrorSnackbar('An error occurred during authentication.');
   }
 }
+
 
 
 void _loginWithPin() async {
@@ -77,7 +80,7 @@ void _loginWithPin() async {
   String? userRole = prefs.getString('user_role'); // Retrieve user role
 
   final response = await http.post(
-    Uri.parse('http://10.88.0.4:5000/validate_pin'),
+    Uri.parse('https://expertstrials.xyz/Garifix_app/validate_pin'),
     headers: {'Content-Type': 'application/json'},
     body: jsonEncode({'email': userEmail, 'pin': pin}),
   );

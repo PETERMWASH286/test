@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:permission_handler/permission_handler.dart';
 import '../widgets/mechanic_card.dart';
 
 class MechanicListScreen extends StatefulWidget {
@@ -18,31 +19,89 @@ class _MechanicListScreenState extends State<MechanicListScreen> {
   void initState() {
     super.initState();
     fetchMechanics();
+    _checkLocationPermission(); // Check permission when the screen is loaded
   }
 
-Future<void> fetchMechanics() async {
+  Future<void> fetchMechanics() async {
     try {
-        final response = await http.get(Uri.parse('http://10.88.0.4:5000/mechanics'));
-        
-        if (response.statusCode == 200) {
-            setState(() {
-                mechanics = json.decode(response.body);
-            });
-        } else {
-            throw Exception('Failed to load mechanics: ${response.statusCode}');
-        }
+      final response = await http.get(Uri.parse('http://10.88.0.4:5000/mechanics'));
+      if (response.statusCode == 200) {
+        setState(() {
+          mechanics = json.decode(response.body);
+        });
+      } else {
+        throw Exception('Failed to load mechanics: ${response.statusCode}');
+      }
     } catch (e) {
-        print('Error fetching mechanics: $e');
+      print('Error fetching mechanics: $e');
     }
+  }
+
+  // Method to check location permission and show dialog
+  Future<void> _checkLocationPermission() async {
+    var status = await Permission.location.status;
+    if (!status.isGranted) {
+      _showLocationPermissionDialog();
+    }
+  }
+
+void _showLocationPermissionDialog() {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.location_on, color: Colors.deepPurple),
+            const SizedBox(width: 10),
+            const Text('Location Permission Needed'),
+          ],
+        ),
+        content: const Text(
+          'To show mechanics near you, please allow location access.',
+          style: TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Dismiss the dialog
+            },
+            child: const Text('Deny'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop(); // Dismiss the dialog
+              // Request permission
+              await Permission.location.request();
+              // Check the status again
+              if (mounted) { // Check if the widget is still mounted
+                if (await Permission.location.isGranted) {
+                  // Permission granted
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Location permission granted!')),
+                  );
+                } else {
+                  // Permission denied
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Location permission denied!')),
+                  );
+                }
+              }
+            },
+            child: const Text('Allow'),
+          ),
+        ],
+      );
+    },
+  );
 }
 
-
-static final List<Widget> _bottomNavPages = <Widget>[
-  const MechanicListScreenBody(mechanics: []), // Mechanics list page
-  const JobsPage(),                // Jobs assigned to mechanic
-  const MessagesPage(),            // Mechanic's messages
-  const ProfilePage(),             // Mechanic's profile
-];
+  static final List<Widget> _bottomNavPages = <Widget>[
+    const MechanicListScreenBody(mechanics: []), // Mechanics list page
+    const JobsPage(), // Jobs assigned to mechanic
+    const MessagesPage(), // Mechanic's messages
+    const ProfilePage(), // Mechanic's profile
+  ];
 
   // Handling navbar tap
   void _onItemTapped(int index) {
@@ -127,7 +186,6 @@ class MechanicListScreenBody extends StatelessWidget {
           );
   }
 }
-
 
 // Page for Mechanic's Jobs
 class JobsPage extends StatelessWidget {

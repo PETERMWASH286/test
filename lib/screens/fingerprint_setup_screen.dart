@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:local_auth/local_auth.dart'; // Import the local_auth package
 import 'dart:convert';
 import 'home_screen.dart';
+import 'package:flutter/services.dart';
 
 class FingerprintSetupScreen extends StatefulWidget {
   final String email;
@@ -15,12 +16,28 @@ class FingerprintSetupScreen extends StatefulWidget {
 
 class _FingerprintSetupScreenState extends State<FingerprintSetupScreen> {
   final List<String> _pinDigits = ['', '', '', ''];
-  final String _fingerprintData = ""; // Placeholder for actual fingerprint data
   final LocalAuthentication auth = LocalAuthentication(); // Instance of LocalAuthentication
 
-  // Method to authenticate with fingerprint
-  Future<void> _authenticateWithFingerprint() async {
-    bool authenticated = false;
+// Method to check if the device has biometrics available
+Future<bool> _checkBiometrics() async {
+  try {
+    // Check if the device can check biometrics and if the hardware is available
+    final bool canCheckBiometrics = await auth.canCheckBiometrics;
+    final bool isHardwareAvailable = await auth.isDeviceSupported();
+    return canCheckBiometrics && isHardwareAvailable;
+  } catch (e) {
+    // Handle any errors during the check
+    print("Error checking biometrics: $e");
+    return false;
+  }
+}
+
+// Method to authenticate with fingerprint
+Future<void> _authenticateWithFingerprint() async {
+  bool authenticated = false;
+
+  // Check if the device has biometrics and if the hardware is available
+  if (await _checkBiometrics()) {
     try {
       authenticated = await auth.authenticate(
         localizedReason: 'Authenticate to setup your fingerprint',
@@ -29,44 +46,80 @@ class _FingerprintSetupScreenState extends State<FingerprintSetupScreen> {
           stickyAuth: true,
         ),
       );
-    } catch (e) {
-      print("Error during fingerprint authentication: $e");
+    } on PlatformException catch (e) {
+      // Handle PlatformException during fingerprint authentication
+      print("PlatformException during fingerprint authentication: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Authentication error: ${e.message}")),
+      );
+      return;
     }
 
     if (authenticated) {
-      // Save the fingerprint to the server or locally
-      await _saveFingerprint();
+      // Save the fingerprint confirmation
+      await _saveFingerprintConfirmation();
     } else {
+      // Authentication failed, notify the user
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Fingerprint authentication failed")),
       );
     }
-  }
-
-  // Save fingerprint to database
-  Future<void> _saveFingerprint() async {
-    final response = await http.post(
-      Uri.parse('http://10.88.0.4:5000/save_fingerprint'), // Change to your server endpoint
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(<String, String>{
-        'email': widget.email,
-        'fingerprint_data': _fingerprintData, // Placeholder for fingerprint data
-      }),
+  } else {
+    // No biometric hardware or setup, notify the user
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("No biometric authentication available. Please set up your fingerprint in device settings.")),
     );
-
-    if (response.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Fingerprint saved successfully!")),
-      );
-      // Proceed to the next step
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to save fingerprint: ${response.body}")),
-      );
-    }
   }
+}
+
+// Method to check both biometric and device credential authentication capabilities
+Future<void> _checkAndAuthenticate() async {
+  bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
+  bool canAuthenticateWithDeviceCredentials = await auth.isDeviceSupported();
+
+  if (!canAuthenticateWithBiometrics && !canAuthenticateWithDeviceCredentials) {
+    // If neither biometric nor device credentials are available, show error
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Please set up a fingerprint in device settings.")),
+    );
+    return;
+  }
+
+  // If available, proceed with fingerprint authentication
+  await _authenticateWithFingerprint();
+}
+
+// Save fingerprint confirmation to the database
+Future<void> _saveFingerprintConfirmation() async {
+  final response = await http.post(
+    Uri.parse('https://expertstrials.xyz/Garifix_app/setup_fingerprint'), // Update your server endpoint
+    headers: <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+    },
+    body: jsonEncode(<String, dynamic>{  // Use dynamic to accommodate different types
+      'email': widget.email,
+      'fingerprint_data': 1,  // Setting fingerprint_data to 1
+    }),
+  );
+
+  if (response.statusCode == 200) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Fingerprint enrolled successfully!")),
+    );
+    // Proceed to the next step
+    // Navigate to HomeScreen
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const HomeScreen()),
+    );
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("Failed to save fingerprint: ${response.body}")),
+    );
+  }
+}
+
+
 
   void _onNumberTap(String number) {
     // Fill the first empty PIN digit
@@ -299,7 +352,7 @@ void _confirmPin() async {
   if (_confirmPinDigits.join('') == widget.pin) {
     // Save to database
     final response = await http.post(
-      Uri.parse('http://10.88.0.4:5000/save_pin'), // Use the IP address of your Flask server
+      Uri.parse('https://expertstrials.xyz/Garifix_app/save_pin'), // Use the IP address of your Flask server
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
       },

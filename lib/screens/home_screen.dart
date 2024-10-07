@@ -34,7 +34,7 @@ Future<void> _fetchUserFullName() async {
   print('Retrieved email from SharedPreferences: $email');
 
   // Make an HTTP GET request to fetch the user's full name from the server
-  final response = await http.get(Uri.parse('http://10.88.0.4:5000/get_full_name?email=$email'));
+  final response = await http.get(Uri.parse('https://expertstrials.xyz/Garifix_app/get_full_name?email=$email'));
 
   // Debugging: Print the response status code
   print('Response status code: ${response.statusCode}');
