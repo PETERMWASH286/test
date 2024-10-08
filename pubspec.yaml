@@ -18,6 +18,10 @@ dependencies:
   shared_preferences: ^2.0.0 # Check for the latest version
   image_picker: ^0.8.5+3
   permission_handler: ^10.2.0
+  geolocator: ^9.0.0
+  geocoding: ^2.1.0  # Add this line
+
+
 
 
 
@@ -37,6 +41,8 @@ flutter:
     - assets/icons/google.svg
     - assets/icons/facebook.svg
     - assets/logo/app_logo.png  # Added the app logo here
+    - assets/logo/account.jpg
+
 
 flutter_icons:
   android: true  # To generate an icon for Android
