@@ -30,6 +30,8 @@ class _MechanicListScreenState extends State<MechanicListScreen> {
     fetchMechanics();
     _checkLocationPermission();
     _loadUserEmail(); // Load user email from SharedPreferences
+    _testAccessToken(); // Test access token on initialization
+
   }
 
   Future<void> fetchMechanics() async {
@@ -99,6 +101,47 @@ class _MechanicListScreenState extends State<MechanicListScreen> {
       }
     }
   }
+Future<void> _testAccessToken() async {
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? accessToken = prefs.getString('jwt_token'); // Retrieve the token
+
+  if (accessToken == null) {
+    print('No access token found.');
+    return;
+  }
+
+  final url = Uri.parse('https://expertstrials.xyz/Garifix_app/protected'); // Your protected endpoint
+  try {
+    final response = await http.get(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $accessToken', // Include the token in the Authorization header
+      },
+    );
+
+    if (response.statusCode == 200) {
+      // Access token is valid
+      print('Token is valid! Response: ${response.body}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Token is valid!')),
+      );
+    } else if (response.statusCode == 401) {
+      // Token is invalid or expired
+      print('Invalid or expired token: ${response.body}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid or expired token!')),
+      );
+    } else {
+      print('Failed with status code: ${response.statusCode} - ${response.body}');
+    }
+  } catch (e) {
+    print('Error testing token: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Error testing token!')),
+    );
+  }
+}
 
 Future<void> _postUserLocation(Position position) async {
   if (userEmail == null) return; // Ensure email is available
@@ -304,38 +347,50 @@ class ProfilePage extends StatefulWidget {
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  String? _imageUrl;  // Keep it nullable until loaded
+  String? _imageUrl;
   final ImagePicker _picker = ImagePicker();
-  String? userEmail; // Declare userEmail variable
-  Map<String, dynamic>? userInfo; // To store user information
+  String? userEmail;
+  Map<String, dynamic>? userInfo;
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _expertiseController = TextEditingController();
   final TextEditingController _experienceController = TextEditingController();
   final TextEditingController _educationController = TextEditingController();
-    final TextEditingController _paymentPlanController = TextEditingController(text: 'Ksh 2000 / Year');
+  final TextEditingController _paymentPlanController = TextEditingController(text: 'Ksh 2000 / Year');
+  Map<String, bool> _editMode = {};
 
   @override
   void initState() {
     super.initState();
-    _loadUserEmail(); // Load user email when the widget is initialized
-
+    _loadUserEmail();
+    _editMode = {
+      'personal_information': false,
+      'professional_information': false,
+      'skills_achievements': false,
+      'payment_plan': false,
+      'ratings_reviews': false,
+      'social_media_links': false,
+    };
   }
+
   @override
   void dispose() {
-    // Dispose the controller when the widget is disposed
+    // Dispose the controllers when the widget is disposed
+    _fullNameController.dispose();
+    _emailController.dispose();
+    _expertiseController.dispose();
+    _experienceController.dispose();
+    _educationController.dispose();
     _paymentPlanController.dispose();
     super.dispose();
   }
+
   Future<void> _loadUserEmail() async {
-    // Retrieve user email from SharedPreferences
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      userEmail = prefs.getString('userEmail'); // Update userEmail variable
+      userEmail = prefs.getString('userEmail');
     });
-    _fetchUserProfile(); // Once email is loaded, fetch the profile
-    _fetchUserInfo();
-
+    await Future.wait([_fetchUserProfile(), _fetchUserInfo()]); // Fetch data in parallel
   }
 Future<void> _fetchUserProfile() async {
   final String? email = userEmail;
@@ -436,7 +491,7 @@ Future<void> _changeProfilePicture() async {
     }
   }
 }
-  Future<void> _fetchUserInfo() async {
+Future<void> _fetchUserInfo() async {
     final String? email = userEmail; // Assuming userEmail is defined
     print('Fetching user info for email: $email'); // Debug email
 
@@ -446,130 +501,312 @@ Future<void> _changeProfilePicture() async {
 
     if (response.statusCode == 200) {
       print('User Info Response: ${response.body}'); // Log the entire response
-      setState(() {
-        userInfo = jsonDecode(response.body)['user_info'];
+      try {
+        // Decode response JSON
+        final Map<String, dynamic> decodedResponse = jsonDecode(response.body);
+        userInfo = decodedResponse['user_info'];
 
-        // Update the controllers with fetched data
-        _fullNameController.text = userInfo?['full_name'] ?? '';
-        _emailController.text = userInfo?['email'] ?? '';
-        _expertiseController.text = userInfo?['field_of_expertise'] ?? 'No Expertise Provided';
-        _experienceController.text = userInfo?['years_of_experience'] ?? 'No Experience Provided';
-        _educationController.text = userInfo?['education'] ?? 'No Education Provided';
-      });
+        // Check for null before updating controllers
+        setState(() {
+          _fullNameController.text = userInfo?['full_name'] ?? '';
+          _emailController.text = userInfo?['email'] ?? '';
+          _expertiseController.text = userInfo?['field_of_expertise'] ?? 'No Expertise Provided';
+          _experienceController.text = (userInfo?['years_of_experience'] ?? '0').toString(); // Ensure it's a string
+          _educationController.text = userInfo?['education'] ?? 'No Education Provided';
+        });
 
-      // Print the data response
-      print('User Info: $userInfo'); // Log the fetched user info
+        // Print the data response
+        print('User Info: $userInfo'); // Log the fetched user info
+      } catch (e) {
+        print('Error parsing user info: $e');
+      }
     } else {
       print('Failed to fetch user info: ${response.reasonPhrase}');
     }
-  }
+}
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[100], // Clean background
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildProfilePictureSection(),
-            const SizedBox(height: 20),
 
-            _buildSection(
-              context,
-              title: 'Personal Information',
-              children: [
-                _buildTextField(
-                  controller: _fullNameController,
-                  label: 'Full Name',
-                  icon: Icons.person,
+@override
+Widget build(BuildContext context) {
+      if (userEmail == null) {
+      return const Center(child: CircularProgressIndicator()); // Show loading indicator while fetching data
+    }
+  return Scaffold(
+    backgroundColor: Colors.grey[100], // Clean background
+    body: SingleChildScrollView(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildProfilePictureSection(),
+          const SizedBox(height: 20),
+
+          // Build Personal Information Section
+          _buildSection(
+            context,
+            title: 'Personal Information',
+            sectionId: 'personal_information',
+            onEditPressed: _handleEditSection,
+            onViewPressed: _handleViewSection,
+            canEdit: true, // Allow editing
+            children: [
+              _buildTextField(
+                controller: _fullNameController,
+                label: 'Full Name',
+                icon: Icons.person,
+              ),
+              const SizedBox(height: 10),
+              _buildTextField(
+                controller: _emailController,
+                label: 'Email',
+                icon: Icons.email,
+                readOnly: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Professional Information Section
+          _buildSection(
+            context,
+            title: 'Professional Information',
+            sectionId: 'professional_information',
+            onEditPressed: _handleEditSection,
+            onViewPressed: _handleViewSection,
+            canEdit: true, // Allow editing
+            children: [
+              _buildTextField(
+                controller: _expertiseController,
+                label: 'Field of Expertise',
+                icon: Icons.settings,
+              ),
+              const SizedBox(height: 10),
+              _buildTextField(
+                controller: _experienceController,
+                label: 'Years of Experience',
+                icon: Icons.timelapse,
+              ),
+              const SizedBox(height: 10),
+              _buildTextField(
+                controller: _educationController,
+                label: 'Education',
+                icon: Icons.school,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Skills & Achievements Section
+          _buildSection(
+            context,
+            title: 'Skills & Achievements',
+            sectionId: 'skills_achievements',
+            onEditPressed: _handleEditSection,
+            onViewPressed: _handleViewSection,
+            canEdit: true, // Allow editing
+            children: [
+              _buildSkillsSection(),
+              const SizedBox(height: 20),
+              _buildAchievementsSection(),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Payment Plan Section (View only)
+          _buildSection(
+            context,
+            title: 'Payment Plan',
+            sectionId: 'payment_plan',
+            onEditPressed: _handleEditSection,
+            onViewPressed: _handleViewSection,
+            canEdit: false, // Disable editing
+            children: [
+              _buildTextField(
+                controller: _paymentPlanController,
+                label: 'Payment Plan',
+                icon: Icons.payment,
+                readOnly: true,
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Ratings & Reviews Section (View only)
+          _buildSection(
+            context,
+            title: 'Ratings & Reviews',
+            sectionId: 'ratings_reviews',
+            onEditPressed: _handleEditSection,
+            onViewPressed: _handleViewSection,
+            canEdit: false, // Disable editing
+            children: [
+              _buildRatingsSection(),
+            ],
+          ),
+          const SizedBox(height: 40),
+
+          // Social Media Links Section
+          _buildSection(
+            context,
+            title: 'Social Media Links',
+            sectionId: 'social_media_links',
+            onEditPressed: _handleEditSection,
+            onViewPressed: _handleViewSection,
+            canEdit: true, // Allow editing
+            children: [
+              _buildSocialMediaLinks(),
+            ],
+          ),
+          const SizedBox(height: 40),
+
+        ],
+      ),
+    ),
+  );
+}
+
+// Toggle edit mode for the given section
+void _handleEditSection(String sectionId) {
+  setState(() {
+    _editMode[sectionId] = !_editMode[sectionId]!;
+  });
+}
+
+// No changes needed for viewing section in this context
+void _handleViewSection(String sectionId) {
+  print('Viewing section: $sectionId');
+}
+
+// Build section with optional save button based on edit state and whether editing is allowed
+Widget _buildSection(
+  BuildContext context, {
+  required String title,
+  required List<Widget> children,
+  required String sectionId, // Unique identifier for each section
+  required Function(String) onEditPressed, // Callback for edit button
+  required Function(String) onViewPressed, // Callback for view button
+  required bool canEdit, // Flag to allow or disallow editing
+}) {
+  return Card(
+    elevation: 4,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                title,
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const Spacer(),
+              if (canEdit) // Only show edit button if editing is allowed
+                IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.teal),
+                  onPressed: () {
+                    onEditPressed(sectionId);
+                  },
                 ),
-                const SizedBox(height: 10),
-                _buildTextField(
-                  controller: _emailController,
-                  label: 'Email',
-                  icon: Icons.email,
-                  readOnly: true,
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
+              IconButton(
+                icon: const Icon(Icons.visibility, color: Colors.teal),
+                onPressed: () {
+                  onViewPressed(sectionId);
+                },
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          ...children,
 
-            _buildSection(
-              context,
-              title: 'Professional Information',
-              children: [
-                _buildTextField(
-                  controller: _expertiseController,
-                  label: 'Field of Expertise',
-                  icon: Icons.settings,
-                ),
-                const SizedBox(height: 10),
-                _buildTextField(
-                  controller: _experienceController,
-                  label: 'Years of Experience',
-                  icon: Icons.timelapse,
-                ),
-                const SizedBox(height: 10),
-                _buildTextField(
-                  controller: _educationController,
-                  label: 'Education',
-                  icon: Icons.school,
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            _buildSection(
-              context,
-              title: 'Skills & Achievements',
-              children: [
-                _buildSkillsSection(),
-                const SizedBox(height: 20),
-                _buildAchievementsSection(),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            _buildSection(
-              context,
-              title: 'Payment Plan',
-              children: [
-                _buildTextField(
-                  controller: _paymentPlanController, // Pass the controller here
-                  label: 'Payment Plan',
-                  icon: Icons.payment,
-                  readOnly: true,
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            _buildSection(
-              context,
-              title: 'Ratings & Reviews',
-              children: [
-                _buildRatingsSection(),
-              ],
-            ),
-            const SizedBox(height: 40),
-
-            _buildSection(
-              context,
-              title: 'Social Media Links',
-              children: [
-                _buildSocialMediaLinks(),
-              ],
-            ),
-            const SizedBox(height: 40),
-
-            _buildSaveChangesButton(),
-          ],
+if (_editMode[sectionId]! && canEdit)
+  Align(
+    alignment: Alignment.center,
+    child: Container(
+      margin: const EdgeInsets.only(top: 20),
+      child: ElevatedButton.icon(
+        onPressed: () {
+          _saveChanges(sectionId); // Call the save function
+        },
+        icon: const Icon(Icons.save, color: Colors.white),
+        label: const Text(
+          'Save Changes',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+          backgroundColor: Colors.teal,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          elevation: 10,
+          shadowColor: Colors.grey.withOpacity(0.5),
         ),
       ),
-    );
+    ),
+  ),
+
+
+        ],
+      ),
+    ),
+  );
+}
+
+
+Future<void> _saveChanges(String sectionId) async {
+  String url = 'https://expertstrials.xyz/Garifix_app/update_bio_data'; // Your Flask API endpoint
+
+  // Gather data based on the section
+  Map<String, dynamic> data = {}; // Initialize data
+
+  if (sectionId == 'personal_information') {
+    // If updating personal information, include full name and new email
+    data['full_name'] = _fullNameController.text; // Ensure this is not null or empty
+    data['email'] = _emailController.text; // Ensure this is not null or empty
+  } else if (sectionId == 'professional_information') {
+    // If updating professional information, include expertise, experience, and education
+    data['expertise'] = _expertiseController.text; // Ensure this is not null or empty
+    data['experience'] = _experienceController.text; // Ensure this is not null or empty
+    data['education'] = _educationController.text; // Ensure this is not null or empty
+  } else if (sectionId == 'social_media_links') {
+    // If updating social media links, add relevant fields (customize as needed)
+    data['social_media_links'] = {
+
+    };
   }
+
+  try {
+    // Retrieve the JWT token from SharedPreferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? accessToken = prefs.getString('jwt_token'); // Retrieve the token
+
+    final response = await http.post(
+      Uri.parse(url),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $accessToken', // Add the token to the Authorization header
+      },
+      body: jsonEncode(data),
+    );
+
+    if (response.statusCode == 200) {
+      // Handle successful response
+      print('Data saved successfully!');
+    } else {
+      // Handle error response
+      print('Failed to save data: ${response.statusCode} - ${response.body}');
+    }
+  } catch (e) {
+    print('Error occurred: $e');
+  }
+}
 
 
 
@@ -621,48 +858,6 @@ Future<void> _changeProfilePicture() async {
 
 
 
-
-
-  // Custom Section Widget
-  Widget _buildSection(BuildContext context, {required String title, required List<Widget> children}) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.teal),
-                  onPressed: () {
-                    // Handle edit action
-                  },
-                ),
-                IconButton(
-                  icon: const Icon(Icons.visibility, color: Colors.teal),
-                  onPressed: () {
-                    // Handle view action
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildTextField({
     required TextEditingController controller,

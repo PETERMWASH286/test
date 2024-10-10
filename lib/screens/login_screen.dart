@@ -56,10 +56,13 @@ Future<void> _authenticateWithFingerprint() async {
       );
 
       if (response.statusCode == 200) {
+        // Extract access token
+        
+        // Store access token in SharedPreferences
+
         // Redirect based on the user role
         _redirectUser(userRole);
       } else {
-        // Optionally allow users to fallback to PIN if fingerprint validation fails
         _showErrorSnackbar('Fingerprint validation failed. Please try PIN.');
       }
     }
@@ -74,24 +77,53 @@ Future<void> _authenticateWithFingerprint() async {
 void _loginWithPin() async {
   String pin = _pinController.text;
 
-  // Retrieve user email and role from SharedPreferences
+  // Retrieve user email from SharedPreferences
   SharedPreferences prefs = await SharedPreferences.getInstance();
   String? userEmail = prefs.getString('userEmail');
   String? userRole = prefs.getString('user_role'); // Retrieve user role
 
-  final response = await http.post(
-    Uri.parse('https://expertstrials.xyz/Garifix_app/validate_pin'),
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode({'email': userEmail, 'pin': pin}),
-  );
+  // Debugging logs
+  print('User Email: $userEmail');
+  print('User Role: $userRole');
+  print('PIN: $pin');
 
-  if (response.statusCode == 200) {
-    // Redirect based on the user role
-    _redirectUser(userRole);
-  } else {
-    _showErrorSnackbar('Invalid PIN. Please try again.');
+  try {
+    final response = await http.post(
+      Uri.parse('https://expertstrials.xyz/Garifix_app/validate_pin'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'email': userEmail, 'pin': pin}),
+    );
+
+    // Check for response status
+    if (response.statusCode == 200) {
+      // Extract the token from the response
+      final responseData = jsonDecode(response.body);
+      String? token = responseData['token']; // Assuming 'token' is the key in the JSON response
+
+      if (token != null) {
+        // Save the JWT token in SharedPreferences
+        await prefs.setString('jwt_token', token);
+        print('Token stored: $token');
+
+        // Redirect based on the user role
+        _redirectUser(userRole);
+      } else {
+        print('Error: No token in the response.');
+        _showErrorSnackbar('Failed to retrieve token. Please try again.');
+      }
+    } else {
+      // Print response body for debugging
+      print('Error response: ${response.statusCode} - ${response.body}');
+      _showErrorSnackbar('Invalid PIN. Please try again.');
+    }
+  } catch (e) {
+    // Handle exceptions
+    print('Error occurred: $e');
+    _showErrorSnackbar('An error occurred while validating the PIN. Please try again.');
   }
 }
+
+
 
 
   void _showErrorSnackbar(String message) {
