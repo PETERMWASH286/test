@@ -20,11 +20,10 @@ dependencies:
   permission_handler: ^10.2.0
   geolocator: ^9.0.0
   geocoding: ^2.1.0  # Add this line
-
-
-
-
-
+  url_launcher: ^6.0.20  # Check for the latest version on pub.dev
+  qr_flutter: ^4.0.0  # Or the latest version available
+  mobile_scanner: ^4.0.0 # Add the version based on the latest one available
+    
 dev_dependencies:
   flutter_test:
     sdk: flutter

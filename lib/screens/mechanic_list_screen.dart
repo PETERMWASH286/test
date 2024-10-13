@@ -9,6 +9,7 @@ import '../widgets/mechanic_card.dart';
 import 'package:image_picker/image_picker.dart'; // For image selection
 import 'dart:io';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // Import FontAwesome
+import 'package:mobile_scanner/mobile_scanner.dart'; // Make sure to import the MobileScanner package
 
 class MechanicListScreen extends StatefulWidget {
   const MechanicListScreen({super.key});
@@ -27,27 +28,12 @@ class _MechanicListScreenState extends State<MechanicListScreen> {
   @override
   void initState() {
     super.initState();
-    fetchMechanics();
     _checkLocationPermission();
     _loadUserEmail(); // Load user email from SharedPreferences
-    _testAccessToken(); // Test access token on initialization
 
   }
 
-  Future<void> fetchMechanics() async {
-    try {
-      final response = await http.get(Uri.parse('http://10.88.0.4:5000/mechanics'));
-      if (response.statusCode == 200) {
-        setState(() {
-          mechanics = json.decode(response.body);
-        });
-      } else {
-        throw Exception('Failed to load mechanics: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error fetching mechanics: $e');
-    }
-  }
+
 
   Future<void> _loadUserEmail() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -101,47 +87,7 @@ class _MechanicListScreenState extends State<MechanicListScreen> {
       }
     }
   }
-Future<void> _testAccessToken() async {
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  String? accessToken = prefs.getString('jwt_token'); // Retrieve the token
 
-  if (accessToken == null) {
-    print('No access token found.');
-    return;
-  }
-
-  final url = Uri.parse('https://expertstrials.xyz/Garifix_app/protected'); // Your protected endpoint
-  try {
-    final response = await http.get(
-      url,
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $accessToken', // Include the token in the Authorization header
-      },
-    );
-
-    if (response.statusCode == 200) {
-      // Access token is valid
-      print('Token is valid! Response: ${response.body}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Token is valid!')),
-      );
-    } else if (response.statusCode == 401) {
-      // Token is invalid or expired
-      print('Invalid or expired token: ${response.body}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid or expired token!')),
-      );
-    } else {
-      print('Failed with status code: ${response.statusCode} - ${response.body}');
-    }
-  } catch (e) {
-    print('Error testing token: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Error testing token!')),
-    );
-  }
-}
 
 Future<void> _postUserLocation(Position position) async {
   if (userEmail == null) return; // Ensure email is available
@@ -222,12 +168,13 @@ title: const Row(
 }
 
 
-  static final List<Widget> _bottomNavPages = <Widget>[
-    const MechanicListScreenBody(mechanics: []),
-    const JobsPage(),
-    const MessagesPage(),
-    const ProfilePage(),
-  ];
+static final List<Widget> _bottomNavPages = <Widget>[
+  const MechanicHomePage(), // Correct replacement
+  const JobsPage(),
+  const MessagesPage(),
+  const ProfilePage(),
+];
+
 
   void _onItemTapped(int index) {
     setState(() {
@@ -238,18 +185,6 @@ title: const Row(
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Available Mechanics'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.search),
-            onPressed: () {
-              // Search functionality for mechanics
-            },
-            tooltip: 'Search Mechanics',
-          ),
-        ],
-      ),
       body: _bottomNavPages[_selectedIndex],
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -263,7 +198,7 @@ title: const Row(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
             icon: Icon(Icons.build),
-            label: 'Mechanics',
+            label: 'Home',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.work),
@@ -289,40 +224,1075 @@ title: const Row(
   }
 }
 
-class MechanicListScreenBody extends StatelessWidget {
-  final List<dynamic> mechanics;
+class MechanicHomePage extends StatefulWidget {
+  const MechanicHomePage({super.key});
 
-  const MechanicListScreenBody({super.key, required this.mechanics});
+  @override
+  _MechanicHomePageState createState() => _MechanicHomePageState();
+}
+
+class _MechanicHomePageState extends State<MechanicHomePage> {
+  String _userLocationName = 'Fetching location...'; // Default value
+
+  @override
+  void initState() {
+    super.initState();
+    _getUserLocation();
+  }
+
+  Future<void> _getUserLocation() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      List<Placemark> placemarks = await placemarkFromCoordinates(position.latitude, position.longitude);
+      Placemark place = placemarks[0];
+      setState(() {
+        _userLocationName = '${place.locality}, ${place.country}'; // Update location
+      });
+    } catch (e) {
+      setState(() {
+        _userLocationName = 'Location not available'; // Handle error
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return mechanics.isEmpty
-        ? const Center(child: CircularProgressIndicator())
-        : ListView.builder(
-            itemCount: mechanics.length,
-            itemBuilder: (context, index) {
-              return MechanicCard(
-                name: mechanics[index]['name'],
-                location: mechanics[index]['location'],
-                specialty: mechanics[index]['specialty'],
-              );
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Mechanic Dashboard',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.deepPurple,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications, size: 28), // Notification Icon
+            tooltip: 'Notifications',
+            onPressed: () {
+              // Handle notification tap
             },
-          );
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings, size: 28), // Settings Icon
+            tooltip: 'Settings',
+            onPressed: () {
+              // Handle settings tap
+            },
+          ),
+          const SizedBox(width: 10), // Add some space between icons
+        ],
+      ),
+
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildMechanicInfo(context), // Pass the context here
+            const SizedBox(height: 20),
+            _buildStatsRow(), // Statistics section
+            const SizedBox(height: 20),
+            _buildRecentReviews(), // Recent reviews section
+            const SizedBox(height: 20),
+            _buildDailySchedule(), // Mechanic's daily schedule
+            const SizedBox(height: 20),
+            _buildToolsInventory(), // Tools inventory status
+            const SizedBox(height: 20),
+            _buildWorkshopStatus(), // Current workshop workload
+            const SizedBox(height: 20),
+            _buildNotifications(), // Notifications and alerts for urgent jobs
+          ],
+        ),
+      ),
+    );
   }
+
+// Mechanic Info Section (Name, Specialization)
+Widget _buildMechanicInfo(BuildContext context) {
+  return Container(
+    width: MediaQuery.of(context).size.width * 1, // Set width to 95% of the parent
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16), // Increased vertical padding
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        colors: [Colors.deepPurple, Colors.purpleAccent],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      borderRadius: BorderRadius.circular(12), // Rounded corners
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black26, // Shadow color
+          offset: const Offset(0, 4), // Shadow offset
+          blurRadius: 8, // Blur radius
+        ),
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'John Doe - Auto Mechanic',
+          style: TextStyle(
+            fontSize: 22, // Increased font size
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 6), // Increased height for better spacing
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween, // Space between items
+          children: [
+            // Experience Text
+            Text(
+              'Experience: 10+ years',
+              style: const TextStyle(
+                fontSize: 12, // Kept font size for experience
+                color: Colors.white70,
+              ),
+            ),
+            // Location Text
+            Text(
+              _userLocationName,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.white70,
+              ),
+            ),
+          ],
+        ),
+      ],
+    ),
+  );
 }
 
-// Additional pages remain the same
-class JobsPage extends StatelessWidget {
+
+// Build the Stats Row
+Widget _buildStatsRow() {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    children: [
+      _buildStatCard(
+        icon: Icons.work,
+        value: '120', // Replace with dynamic data if available
+        title: 'Jobs', // Title for the Jobs card
+        height: 80, // Increased height for the Jobs card
+      ),
+      _buildStatCard(
+        icon: Icons.star,
+        rating: 4.5, // Pass the rating value as a double
+        width: 120,  // Custom width for the star rating card
+        height: 80, // Increased height for the Ratings card
+        title: 'Ratings', // Title for the Ratings card
+      ),
+      _buildStatCard(
+        icon: Icons.people,
+        value: '300', // Replace with dynamic data if available
+        title: 'Customers', // Title for the Customers card
+        height: 80, // Increased height for the Customers card
+      ),
+    ],
+  );
+}
+
+// Build individual Stat Card
+Widget _buildStatCard({
+  required IconData icon,
+  String? value,
+  double? rating,
+  double width = 80,
+  double height = 60, // Default height value
+  required String title, // New title parameter
+}) {
+  return Card(
+    elevation: 4,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    child: Container(
+      padding: const EdgeInsets.all(8), // Adjusted padding for a better fit
+      width: width, // Use the passed width parameter
+      height: height, // Use the passed height parameter
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center, // Center the content vertically
+        children: [
+          Icon(icon, size: 24, color: Colors.deepPurple), // Increased icon size
+          const SizedBox(height: 0), // Space between icon and title
+          Text(
+            title, // Display the title
+            style: const TextStyle(fontSize: 11, color: Colors.deepPurple, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 0), // Space between title and content
+          if (rating != null) ...[
+            _buildStarRating(rating), // Display stars if rating is provided
+          ] else if (value != null) ...[
+            Text(
+              value,
+              style: const TextStyle(fontSize: 16, color: Colors.deepPurple, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+// Method to build star rating with value
+Widget _buildStarRating(double rating) {
+  List<Widget> stars = [];
+  int fullStars = rating.floor(); // Number of full stars
+  double fractionalPart = rating - fullStars; // Fractional part of the rating
+  double starSize = 12.0; // Size of each star
+
+  // Create full stars
+  for (int i = 0; i < fullStars; i++) {
+    stars.add(Icon(Icons.star, size: starSize, color: Colors.yellow));
+  }
+
+  // Create half star if applicable
+  if (fractionalPart >= 0.25 && fractionalPart < 0.75) {
+    stars.add(Icon(Icons.star_half, size: starSize, color: Colors.yellow));
+  } else if (fractionalPart >= 0.75) {
+    stars.add(Icon(Icons.star, size: starSize, color: Colors.yellow));
+  }
+
+  // Fill the remaining stars with empty stars
+  for (int i = fullStars + (fractionalPart >= 0.75 ? 1 : 0); i < 5; i++) {
+    stars.add(Icon(Icons.star_border, size: starSize, color: Colors.yellow));
+  }
+
+  // Add the rating value next to the stars
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Row(
+        children: stars,
+      ),
+      const SizedBox(width: 4), // Space between stars and rating text
+      Text(
+        rating.toStringAsFixed(1), // Format rating to one decimal place
+        style: const TextStyle(fontSize: 16, color: Colors.deepPurple, fontWeight: FontWeight.bold),
+      ),
+    ],
+  );
+}
+
+  // Recent Reviews Section
+  Widget _buildRecentReviews() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Recent Reviews',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          _buildReview('Alice Johnson', 'Great service! Highly recommend!', 5),
+          _buildReview('Bob Smith', 'Very knowledgeable and quick.', 4),
+          _buildReview('Charlie Brown', 'Satisfactory work, could improve communication.', 3),
+        ],
+      ),
+    );
+  }
+
+  // Review Widget
+  Widget _buildReview(String customerName, String feedback, int rating) {
+    return Card(
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.deepPurple,
+          child: Text(customerName[0]), // Display first letter of the customer's name
+          foregroundColor: Colors.white,
+        ),
+        title: Text(customerName),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(feedback),
+            Row(
+              children: List.generate(rating, (index) => const Icon(Icons.star, color: Colors.yellow)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+  // Daily Schedule Section
+  Widget _buildDailySchedule() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Today\'s Schedule',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          _buildScheduleItem('9:00 AM - Engine Repair - Toyota Corolla'),
+          _buildScheduleItem('11:00 AM - Brake Inspection - Honda Civic'),
+          _buildScheduleItem('2:00 PM - Diagnostics - Ford F-150'),
+        ],
+      ),
+    );
+  }
+
+  // Schedule Item for daily tasks
+  Widget _buildScheduleItem(String task) {
+    return Card(
+      child: ListTile(
+        leading: const Icon(Icons.timer, color: Colors.deepPurple),
+        title: Text(task),
+      ),
+    );
+  }
+
+  // Tools Inventory Section to track tools usage
+  Widget _buildToolsInventory() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Tools Inventory',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          _buildToolStatus('Wrench Set', 'Available'),
+          _buildToolStatus('Hydraulic Jack', 'In Use'),
+          _buildToolStatus('Tire Pressure Gauge', 'Available'),
+          _buildToolStatus('Diagnostic Scanner', 'In Use'),
+        ],
+      ),
+    );
+  }
+
+  // Tool Status Widget
+  Widget _buildToolStatus(String tool, String status) {
+    return ListTile(
+      leading: Icon(
+        status == 'Available' ? Icons.check_circle_outline : Icons.warning,
+        color: status == 'Available' ? Colors.green : Colors.orange,
+      ),
+      title: Text(tool),
+      trailing: Text(
+        status,
+        style: TextStyle(
+          color: status == 'Available' ? Colors.green : Colors.orange,
+        ),
+      ),
+    );
+  }
+
+  // Workshop Status Section (e.g., workload)
+  Widget _buildWorkshopStatus() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Current Workshop Status',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          _buildWorkshopLoad('Engine Bay', 'Occupied - 2 vehicles'),
+          _buildWorkshopLoad('Lift Station', 'Available'),
+          _buildWorkshopLoad('Tire Bay', 'Occupied - 1 vehicle'),
+        ],
+      ),
+    );
+  }
+
+  // Workshop Load Widget
+  Widget _buildWorkshopLoad(String section, String status) {
+    return ListTile(
+      leading: Icon(
+        status.contains('Available') ? Icons.check_circle : Icons.error_outline,
+        color: status.contains('Available') ? Colors.green : Colors.red,
+      ),
+      title: Text(section),
+      subtitle: Text(status),
+    );
+  }
+
+  // Notifications Section
+  Widget _buildNotifications() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Notifications & Alerts',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.warning_amber, color: Colors.red),
+              title: const Text('Urgent: Brake fluid refill needed for Honda Civic'),
+              subtitle: const Text('Scheduled for 11:00 AM today'),
+            ),
+          ),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.error_outline, color: Colors.orange),
+              title: const Text('Reminder: Diagnostics due for Ford F-150'),
+              subtitle: const Text('Scheduled for 2:00 PM'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+}
+
+
+
+
+
+
+class JobsPage extends StatefulWidget {
   const JobsPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text('Jobs Page'),
+  _JobsPageState createState() => _JobsPageState();
+}
+
+class _JobsPageState extends State<JobsPage> {
+  bool isScanning = false; // QR code scanning state
+  String qrData = '';
+  TextEditingController nextRepairDateController = TextEditingController();
+
+  // Dummy job data for static job history
+  final List<Map<String, dynamic>> jobs = [
+    {
+      'title': 'Fix Car Engine',
+      'description': 'Repair the engine of a Toyota Corolla.',
+      'rating': 4.5,
+      'date': '2024-09-21'
+    },
+    {
+      'title': 'Replace Brakes',
+      'description': 'Replace brake pads for a Ford Mustang.',
+      'rating': 3.8,
+      'date': '2024-08-14'
+    },
+    {
+      'title': 'Oil Change',
+      'description': 'Change oil for Honda Civic.',
+      'rating': 4.2,
+      'date': '2024-07-10'
+    },
+  ];
+
+  // QR Code scan function
+  void _onQRCodeScanned(String qrData) async {
+    setState(() {
+      this.qrData = qrData;
+      isScanning = false;
+    });
+
+    // Extract the repair ID from the scanned QR code
+    final Uri uri = Uri.parse(qrData);
+    final String? repairId = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
+
+    if (repairId != null) {
+      // Make the request to the backend to get repair details
+      final repairDetails = await _fetchRepairDetails(repairId);
+
+      // Display the details dialog with fetched repair details
+      if (repairDetails != null) {
+        _showDetailsDialog(repairDetails);
+      } else {
+        _showErrorDialog('Error fetching repair details');
+      }
+    } else {
+      _showErrorDialog('Invalid QR code');
+    }
+  }
+
+  // Fetch repair details from the backend
+  Future<Map<String, dynamic>?> _fetchRepairDetails(String repairId) async {
+    try {
+      final url = 'https://expertstrials.xyz/Garifix_app/repair_details/$repairId';
+      final response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching repair details: $e');
+      return null;
+    }
+  }
+
+  // Function to show error dialog
+  void _showErrorDialog(String message) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text(message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  // Display dialog with repair details
+  void _showDetailsDialog(Map<String, dynamic> repairDetails) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Title row with QR button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Repair Details for ${repairDetails['problem_type']}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.deepPurple,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.qr_code, color: Colors.deepPurple),
+                        onPressed: () {
+                          _showQRCodeDialog(repairDetails['id']);
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Display repair details
+                  _buildDetailRow(Icons.calendar_today, 'Date', repairDetails['created_at']),
+                  _buildDetailRow(Icons.description, 'Description', repairDetails['details']),
+                  _buildDetailRow(Icons.priority_high, 'Urgency Level', repairDetails['urgency_text']),
+                  _buildDetailRow(Icons.monetization_on, 'Cost', '\$${repairDetails['cost'].toString()}'),
+                  const SizedBox(height: 20),
+                  _buildInputField(
+                    Icons.monetization_on,
+                    'Enter New Cost',
+                    TextInputType.number,
+                    (value) {
+                      // Handle cost input
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _buildInputField(
+                    Icons.comment,
+                    'Comments/Recommendations',
+                    TextInputType.multiline,
+                    (value) {
+                      // Handle comments input
+                    },
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    onTap: () {
+                      _selectDate(context, nextRepairDateController);
+                    },
+                    child: AbsorbPointer(
+                      child: _buildInputField(
+                        Icons.calendar_today,
+                        'Next Repair Date (Optional)',
+                        TextInputType.none,
+                        (value) {
+                          // No callback needed here
+                        },
+                        controller: nextRepairDateController,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const Text(
+                    'Repair Steps:',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ..._buildRepairDetailsWithStatus(repairDetails['details']),
+                  const SizedBox(height: 20),
+                  _buildImageUploadField(),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStateProperty.all(Colors.deepPurple),
+                          padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 20, vertical: 10)),
+                        ),
+                        child: const Text('Submit'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        style: ButtonStyle(
+                          backgroundColor: WidgetStateProperty.all(Colors.grey[300]),
+                          foregroundColor: WidgetStateProperty.all(Colors.black),
+                          padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 20, vertical: 10)),
+                        ),
+                        child: const Text('Close'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+void _startQRCodeScanner() {
+  setState(() {
+    isScanning = true;
+  });
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        content: SizedBox(
+          height: 450, // Adjusted height for better layout
+          width: 320,  // Adjusted width for better layout
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Scan QR Code',
+                style: TextStyle(
+                  fontSize: 22, // Increased font size for title
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurple, // Changed title color
+                ),
+              ),
+              const SizedBox(height: 10),
+              const Divider(color: Colors.deepPurple, thickness: 2), // Divider for separation
+              const SizedBox(height: 10),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10), // Rounded corners for the scanner
+                  child: MobileScanner(
+                    onDetect: (BarcodeCapture barcodeCapture) {
+                      final barcode = barcodeCapture.barcodes.first;
+                      if (barcode.rawValue != null) {
+                        _onQRCodeScanned(barcode.rawValue!);
+                      }
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _stopQRCodeScanner();
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)), // Rounded button
+                ),
+                child: const Text(
+                  'Close Scanner',
+                  style: TextStyle(fontSize: 16), // Button text size
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+void _stopQRCodeScanner() {
+  setState(() {
+    isScanning = false;
+  });
+}
+
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text(
+        'Jobs Page',
+        style: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      backgroundColor: Colors.deepPurple,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.search),
+          tooltip: 'Search Jobs',
+          onPressed: () {
+            // Implement search functionality
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.notifications),
+          tooltip: 'Notifications',
+          onPressed: () {
+            // Implement notifications functionality
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.more_vert),
+          tooltip: 'More Options',
+          onPressed: () {
+            // Implement more options functionality
+          },
+        ),
+      ],
+      flexibleSpace: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.deepPurple.shade700,
+              Colors.deepPurple,
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+      ),
+    ),
+    body: Stack(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 0),
+              // New Section for Job Stats
+              _buildStatsRow(),
+              const SizedBox(height: 10),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: jobs.length,
+                  itemBuilder: (context, index) {
+                    final job = jobs[index];
+                    return _buildJobCard(job);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+        // QR Code Scanner Icon
+Positioned(
+  right: 16,
+  top: MediaQuery.of(context).size.height * 0.55, // Positioning the icon
+  child: Container(
+    decoration: BoxDecoration(
+      color: Colors.white, // Background color
+      borderRadius: BorderRadius.circular(30), // Rounded corners
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.2), // Shadow color
+          blurRadius: 6, // Shadow blur radius
+          spreadRadius: 2, // Shadow spread radius
+          offset: const Offset(0, 2), // Shadow position
+        ),
+      ],
+    ),
+    child: IconButton(
+      icon: const Icon(
+        Icons.qr_code_scanner,
+        size: 40, // Adjust size as needed
+        color: Colors.deepPurple,
+      ),
+      onPressed: _startQRCodeScanner, // Same functionality
+      tooltip: 'Scan QR Code',
+    ),
+  ),
+),
+
+      ],
+    ),
+  );
+}
+
+Widget _buildStatsRow() {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+    children: [
+      _buildStatCard(
+        icon: Icons.work,
+        value: '120', // Replace with dynamic data if available
+      ),
+      _buildStatCard(
+        icon: Icons.star,
+        rating: 4.5, // Pass the rating value as a double
+        width: 120,  // Custom width for the star rating card
+        height: 55, // Custom height for the star rating card
+      ),
+      _buildStatCard(
+        icon: Icons.people,
+        value: '300', // Replace with dynamic data if available
+      ),
+    ],
+  );
+}
+
+Widget _buildStatCard({
+  required IconData icon,
+  String? value,
+  double? rating,
+  double width = 80,
+  double height = 60, // Default height value
+}) {
+  return Card(
+    elevation: 4,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    child: Container(
+      padding: const EdgeInsets.all(4), // Adjusted padding for a better fit
+      width: width, // Use the passed width parameter
+      height: height, // Use the passed height parameter
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center, // Center the content vertically
+        children: [
+          Icon(icon, size: 20, color: Colors.deepPurple),
+          const SizedBox(height: 0), // Set to 0 to eliminate space
+          if (rating != null) ...[
+            _buildStarRating(rating), // Display stars if rating is provided
+          ] else if (value != null) ...[
+            Text(
+              value,
+              style: const TextStyle(fontSize: 14, color: Colors.deepPurple, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+// Method to build star rating with value
+Widget _buildStarRating(double rating) {
+  List<Widget> stars = [];
+  int fullStars = rating.floor(); // Number of full stars
+  double fractionalPart = rating - fullStars; // Fractional part of the rating
+  double starSize = 10.0; // Size of each star
+
+  // Create full stars
+  for (int i = 0; i < fullStars; i++) {
+    stars.add(Icon(Icons.star, size: starSize, color: Colors.yellow));
+  }
+
+  // Create half star if applicable
+  if (fractionalPart >= 0.25 && fractionalPart < 0.75) {
+    stars.add(Icon(Icons.star_half, size: starSize, color: Colors.yellow));
+  } else if (fractionalPart >= 0.75) {
+    stars.add(Icon(Icons.star, size: starSize, color: Colors.yellow));
+  }
+
+  // Fill the remaining stars with empty stars
+  for (int i = fullStars + (fractionalPart >= 0.75 ? 1 : 0); i < 5; i++) {
+    stars.add(Icon(Icons.star_border, size: starSize, color: Colors.yellow));
+  }
+
+  // Add the rating value next to the stars
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Row(
+        children: stars,
+      ),
+      const SizedBox(width: 4), // Space between stars and rating text
+      Text(
+        rating.toStringAsFixed(1), // Format rating to one decimal place
+        style: const TextStyle(fontSize: 14, color: Colors.deepPurple, fontWeight: FontWeight.bold),
+      ),
+    ],
+  );
+}
+
+
+
+
+  // Job card widget with rating and details
+  Widget _buildJobCard(Map<String, dynamic> job) {
+    return Card(
+      margin: const EdgeInsets.all(8.0),
+      elevation: 4,
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              job['title'],
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              job['description'],
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                const Icon(Icons.star, color: Colors.amber),
+                Text('${job['rating']}'),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Date: ${job['date']}',
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Build input field widget
+  Widget _buildInputField(IconData icon, String hint, TextInputType keyboardType, Function(String) onChanged, {TextEditingController? controller, int maxLines = 1}) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      onChanged: onChanged,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        icon: Icon(icon, color: Colors.deepPurple),
+        hintText: hint,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Colors.deepPurple),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: Colors.deepPurple),
+        ),
+      ),
+    );
+  }
+
+  // Build detail row for repair information
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.start,
+      children: [
+        Icon(icon, color: Colors.deepPurple),
+        const SizedBox(width: 10),
+        Text(
+          '$label: $value',
+          style: const TextStyle(fontSize: 14),
+        ),
+      ],
+    );
+  }
+
+  // Build a list of repair steps with status
+  List<Widget> _buildRepairDetailsWithStatus(List<dynamic> details) {
+    return details.map((detail) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 5.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(detail['name']),
+            Text(detail['status']),
+          ],
+        ),
+      );
+    }).toList();
+  }
+
+  // Function to build the image upload field
+  Widget _buildImageUploadField() {
+    return ElevatedButton(
+      onPressed: () {
+        // Handle image upload
+      },
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.all(Colors.deepPurple),
+        padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 20, vertical: 10)),
+      ),
+      child: const Text('Upload Image'),
+    );
+  }
+
+  // Function to show QR code dialog
+  void _showQRCodeDialog(String repairId) {
+    // Implement showing QR code dialog
+  }
+
+  // Function to select date
+  Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
+    final DateTime? pickedDate = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+
+    if (pickedDate != null) {
+      setState(() {
+        controller.text = "${pickedDate.toLocal()}".split(' ')[0]; // Format the date
+      });
+    }
   }
 }
 
+
+
+
+// Page for Mechanic's Messages
 class MessagesPage extends StatelessWidget {
   const MessagesPage({super.key});
 
@@ -333,10 +1303,6 @@ class MessagesPage extends StatelessWidget {
     );
   }
 }
-
-
-
-
 
 
 class ProfilePage extends StatefulWidget {
@@ -532,6 +1498,30 @@ Widget build(BuildContext context) {
       return const Center(child: CircularProgressIndicator()); // Show loading indicator while fetching data
     }
   return Scaffold(
+          appBar: AppBar(
+        title: const Text(
+          'PROFILE PAGE',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: Colors.deepPurple,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notifications, size: 28), // Notification Icon
+            tooltip: 'Notifications',
+            onPressed: () {
+              // Handle notification tap
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings, size: 28), // Settings Icon
+            tooltip: 'Settings',
+            onPressed: () {
+              // Handle settings tap
+            },
+          ),
+          const SizedBox(width: 10), // Add some space between icons
+        ],
+      ),
     backgroundColor: Colors.grey[100], // Clean background
     body: SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),

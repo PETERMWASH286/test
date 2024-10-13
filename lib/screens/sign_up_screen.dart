@@ -141,9 +141,9 @@ ElevatedButton(
       borderRadius: BorderRadius.circular(15),
     ),
   ),
-  child: Row(
+  child: const Row(
     mainAxisAlignment: MainAxisAlignment.center,
-    children: const [
+    children: [
       Icon(Icons.person_add, color: Colors.white), // Add your desired icon here
       SizedBox(width: 10), // Space between the icon and text
       Text(
