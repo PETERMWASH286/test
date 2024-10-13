@@ -5,7 +5,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // Import shared_preferences
-import '../widgets/mechanic_card.dart';
 import 'package:image_picker/image_picker.dart'; // For image selection
 import 'dart:io';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // Import FontAwesome
@@ -321,10 +320,10 @@ Widget _buildMechanicInfo(BuildContext context) {
         end: Alignment.bottomRight,
       ),
       borderRadius: BorderRadius.circular(12), // Rounded corners
-      boxShadow: [
+      boxShadow: const [
         BoxShadow(
           color: Colors.black26, // Shadow color
-          offset: const Offset(0, 4), // Shadow offset
+          offset: Offset(0, 4), // Shadow offset
           blurRadius: 8, // Blur radius
         ),
       ],
@@ -345,9 +344,9 @@ Widget _buildMechanicInfo(BuildContext context) {
           mainAxisAlignment: MainAxisAlignment.spaceBetween, // Space between items
           children: [
             // Experience Text
-            Text(
+            const Text(
               'Experience: 10+ years',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12, // Kept font size for experience
                 color: Colors.white70,
               ),
@@ -504,9 +503,9 @@ Widget _buildStarRating(double rating) {
     return Card(
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: Colors.deepPurple,
-          child: Text(customerName[0]), // Display first letter of the customer's name
+          backgroundColor: Colors.deepPurple, // Display first letter of the customer's name
           foregroundColor: Colors.white,
+          child: Text(customerName[0]),
         ),
         title: Text(customerName),
         subtitle: Column(
@@ -623,28 +622,28 @@ Widget _buildStarRating(double rating) {
 
   // Notifications Section
   Widget _buildNotifications() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
+    return const Padding(
+      padding: EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Notifications & Alerts',
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 10),
+          SizedBox(height: 10),
           Card(
             child: ListTile(
-              leading: const Icon(Icons.warning_amber, color: Colors.red),
-              title: const Text('Urgent: Brake fluid refill needed for Honda Civic'),
-              subtitle: const Text('Scheduled for 11:00 AM today'),
+              leading: Icon(Icons.warning_amber, color: Colors.red),
+              title: Text('Urgent: Brake fluid refill needed for Honda Civic'),
+              subtitle: Text('Scheduled for 11:00 AM today'),
             ),
           ),
           Card(
             child: ListTile(
-              leading: const Icon(Icons.error_outline, color: Colors.orange),
-              title: const Text('Reminder: Diagnostics due for Ford F-150'),
-              subtitle: const Text('Scheduled for 2:00 PM'),
+              leading: Icon(Icons.error_outline, color: Colors.orange),
+              title: Text('Reminder: Diagnostics due for Ford F-150'),
+              subtitle: Text('Scheduled for 2:00 PM'),
             ),
           ),
         ],
