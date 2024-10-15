@@ -9,6 +9,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 // Import shared_preferences
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 void main() => runApp(const MyApp());
 List<XFile>? _imageFiles = [];
@@ -203,10 +204,7 @@ class _CarOwnerScreenState extends State<CarOwnerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Car Owner App'),
-        backgroundColor: Colors.deepPurple,
-      ),
+
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
@@ -247,73 +245,139 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Welcome Back, Car Owner!',
-            style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.deepPurple),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Here’s a quick overview of your car’s recent activities and updates:',
-            style: TextStyle(fontSize: 16),
-          ),
-          const SizedBox(height: 20),
-          Card(
-            color: Colors.deepPurple[50],
-            child: ListTile(
-              leading:
-                  const Icon(Icons.directions_car, color: Colors.deepPurple),
-              title: const Text('Upcoming Service: Oil Change'),
-              subtitle: const Text('Date: 28th September, 2024'),
-              trailing:
-                  const Icon(Icons.arrow_forward, color: Colors.deepPurple),
-              onTap: () {
-                // Implement navigation or more details
-              },
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false, // Removes the back arrow
+        backgroundColor: Colors.deepPurple,
+        elevation: 10, // Adds shadow for a more dynamic look
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.start, // Aligns content to the far left
+          children: [
+            // Logo with a subtle glow effect
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.7),
+                    blurRadius: 10,
+                    spreadRadius: 3,
+                  ),
+                ],
+              ),
+              child: Image.asset(
+                'assets/logo/app_logo.png', // Path to the Mecar logo
+                height: 50,
+                width: 50,
+              ),
             ),
-          ),
-          const SizedBox(height: 10),
-          Card(
-            color: Colors.deepPurple[50],
-            child: ListTile(
-              leading: const Icon(Icons.build, color: Colors.deepPurple),
-              title: const Text('New Repairs Request'),
-              subtitle: const Text('Requested on: 23rd September, 2024'),
-              trailing:
-                  const Icon(Icons.arrow_forward, color: Colors.deepPurple),
-              onTap: () {
-                // Implement navigation or more details
+            const SizedBox(width: 15), // Space between logo and name
+            ShaderMask(
+              shaderCallback: (Rect bounds) {
+                return const LinearGradient(
+                  colors: [Color.fromARGB(255, 255, 171, 64), Colors.yellow],
+                  tileMode: TileMode.mirror,
+                ).createShader(bounds);
               },
+              child: const Text(
+                'Mecar',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1.5,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(2.0, 2.0),
+                      blurRadius: 3.0,
+                      color: Colors.black26,
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'Need assistance with your vehicle?',
-            style: TextStyle(fontSize: 16),
-          ),
-          ElevatedButton.icon(
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notification_add_rounded),
+            iconSize: 28,
+            color: Colors.white,
+            splashRadius: 25,
             onPressed: () {
-              // Implement help logic
+              // Implement notification functionality here
             },
-            icon: const Icon(Icons.help_outline),
-            label: const Text('Request Help'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
-              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-            ),
+            tooltip: 'Notifications',
           ),
         ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Welcome Back, Car Owner!',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepPurple,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Here’s a quick overview of your car’s recent activities and updates:',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 20),
+            Card(
+              color: Colors.deepPurple[50],
+              child: ListTile(
+                leading: const Icon(Icons.directions_car, color: Colors.deepPurple),
+                title: const Text('Upcoming Service: Oil Change'),
+                subtitle: const Text('Date: 28th September, 2024'),
+                trailing: const Icon(Icons.arrow_forward, color: Colors.deepPurple),
+                onTap: () {
+                  // Implement navigation or more details
+                },
+              ),
+            ),
+            const SizedBox(height: 10),
+            Card(
+              color: Colors.deepPurple[50],
+              child: ListTile(
+                leading: const Icon(Icons.build, color: Colors.deepPurple),
+                title: const Text('New Repairs Request'),
+                subtitle: const Text('Requested on: 23rd September, 2024'),
+                trailing: const Icon(Icons.arrow_forward, color: Colors.deepPurple),
+                onTap: () {
+                  // Implement navigation or more details
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Need assistance with your vehicle?',
+              style: TextStyle(fontSize: 16),
+            ),
+            ElevatedButton.icon(
+              onPressed: () {
+                // Implement help logic
+              },
+              icon: const Icon(Icons.help_outline),
+              label: const Text('Request Help'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
+
 
 // Repairs Page
 
@@ -664,6 +728,71 @@ class _RepairsPageState extends State<RepairsPage>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+            appBar: AppBar(
+        automaticallyImplyLeading: false, // Removes the back arrow
+        backgroundColor: Colors.deepPurple,
+        elevation: 10, // Adds shadow for a more dynamic look
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.start, // Aligns content to the far left
+          children: [
+            // Logo with a subtle glow effect
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.7),
+                    blurRadius: 10,
+                    spreadRadius: 3,
+                  ),
+                ],
+              ),
+              child: Image.asset(
+                'assets/logo/app_logo.png', // Path to the Mecar logo
+                height: 50,
+                width: 50,
+              ),
+            ),
+            const SizedBox(width: 15), // Space between logo and name
+            ShaderMask(
+              shaderCallback: (Rect bounds) {
+                return const LinearGradient(
+                  colors: [Color.fromARGB(255, 255, 171, 64), Colors.yellow],
+                  tileMode: TileMode.mirror,
+                ).createShader(bounds);
+              },
+              child: const Text(
+                'Mecar',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1.5,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(2.0, 2.0),
+                      blurRadius: 3.0,
+                      color: Colors.black26,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            iconSize: 28,
+            color: Colors.white,
+            splashRadius: 25,
+            onPressed: () {
+              // Implement search functionality here
+            },
+            tooltip: 'Search',
+          ),
+        ],
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -910,7 +1039,7 @@ void _showDetailsDialog(Map<String, dynamic> repairDetails) {
   );
 }
 void _showQRCodeDialog(int repairId) {
-  String qrData = 'https://expertstrials.xyz/Garifix_app/repair/$repairId'; // Data for QR code
+  String qrData = 'https://expertstrials.xyz/Garifix_app/api/repair_details/$repairId'; // Data for QR code
   String qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=$qrData'; // QR code API URL
 
   showDialog(
@@ -1214,6 +1343,7 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
   // Current Location Section
   Widget _buildCurrentLocationSection() {
     return Container(
+
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.deepPurple.shade100,
@@ -1243,116 +1373,165 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        // Main content
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Current location section
-              _buildCurrentLocationSection(),
-
-              const SizedBox(height: 20),
-
-              // Mechanics List
-              Expanded(
-                child: ListView.builder(
-                  itemCount: mechanics.length,
-                  itemBuilder: (context, index) {
-                    final mechanic = mechanics[index];
-                    return _buildMechanicCard(
-                      name: mechanic['name'],
-                      rating: mechanic['rating']
-                          .toString(), // Ensure rating is a string
-                      distance: mechanic['distance']
-                          .toString(), // Ensure distance is a string
-                      phone: mechanic['phone'], // Assuming phone is available
-                      expertise: mechanic['expertise'],
-                      profileImageUrl:
-                          'https://expertstrials.xyz/Garifix_app/' +
-                              mechanic[
-                                  'profile_image'], // Concatenate the base URL
-                    );
-                  },
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false, // Removes the back arrow
+        backgroundColor: Colors.deepPurple,
+        elevation: 10, // Adds shadow for a more dynamic look
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.start, // Aligns content to the far left
+          children: [
+            // Logo with a subtle glow effect
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.7),
+                    blurRadius: 10,
+                    spreadRadius: 3,
+                  ),
+                ],
+              ),
+              child: Image.asset(
+                'assets/logo/app_logo.png', // Path to the Mecar logo
+                height: 50,
+                width: 50,
+              ),
+            ),
+            const SizedBox(width: 15), // Space between logo and name
+            ShaderMask(
+              shaderCallback: (Rect bounds) {
+                return const LinearGradient(
+                  colors: [Color.fromARGB(255, 255, 171, 64), Colors.yellow],
+                  tileMode: TileMode.mirror,
+                ).createShader(bounds);
+              },
+              child: const Text(
+                'Mecar',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1.5,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(2.0, 2.0),
+                      blurRadius: 3.0,
+                      color: Colors.black26,
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-
-        // Floating filter icons on the right
-        Positioned(
-          right: 8, // Reduced distance from the right
-          top: MediaQuery.of(context).size.height *
-              0.05, // Moved icons even further up
-          child: Column(
-            children: [
-              // Distance filter icon
-              _buildFloatingActionButton(
-                icon: Icons.map_outlined,
-                onPressed: () {
-                  setState(() {
-                    showDistanceDropdown = !showDistanceDropdown;
-                    showExpertiseDropdown = false;
-                    showNameDropdown = false;
-                  });
-                },
-              ),
-              const SizedBox(height: 10),
-
-              // Expertise filter icon
-              _buildFloatingActionButton(
-                icon: Icons.build_outlined,
-                onPressed: () {
-                  setState(() {
-                    showExpertiseDropdown = !showExpertiseDropdown;
-                    showDistanceDropdown = false;
-                    showNameDropdown = false;
-                  });
-                },
-              ),
-              const SizedBox(height: 10),
-
-              // Name search icon
-              _buildFloatingActionButton(
-                icon: Icons.person_search,
-                onPressed: () {
-                  setState(() {
-                    showNameDropdown = !showNameDropdown;
-                    showDistanceDropdown = false;
-                    showExpertiseDropdown = false;
-                  });
-                },
-              ),
-            ],
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.notification_add_rounded),
+            iconSize: 28,
+            color: Colors.white,
+            splashRadius: 25,
+            onPressed: () {
+              // Implement search functionality here
+            },
+            tooltip: 'Search',
           ),
-        ),
-
-        // Dropdowns for filters
-        if (showDistanceDropdown)
+        ],
+      ),
+      body: Stack(
+        children: [
+          // Main content
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Current location section
+                _buildCurrentLocationSection(),
+                const SizedBox(height: 20),
+                // Mechanics List
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: mechanics.length,
+                    itemBuilder: (context, index) {
+                      final mechanic = mechanics[index];
+                      return _buildMechanicCard(
+                        name: mechanic['name'],
+                        rating: mechanic['rating'].toString(), // Ensure rating is a string
+                        distance: mechanic['distance'].toString(), // Ensure distance is a string
+                        phone: mechanic['phone'],
+                        expertise: mechanic['expertise'],
+                        profileImageUrl: 'https://expertstrials.xyz/Garifix_app/' + mechanic['profile_image'], // Concatenate the base URL
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Floating filter icons on the right
           Positioned(
-            right: 70, // Reduced distance from the right for distance dropdown
-            top: MediaQuery.of(context).size.height *
-                0.05, // Same as icons for overlap
-            child: _buildDistanceDropdown(),
+            right: 8,
+            top: MediaQuery.of(context).size.height * 0.05, // Adjusted to screen height
+            child: Column(
+              children: [
+                _buildFloatingActionButton(
+                  icon: Icons.map_outlined,
+                  onPressed: () {
+                    setState(() {
+                      showDistanceDropdown = !showDistanceDropdown;
+                      showExpertiseDropdown = false;
+                      showNameDropdown = false;
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildFloatingActionButton(
+                  icon: Icons.build_outlined,
+                  onPressed: () {
+                    setState(() {
+                      showExpertiseDropdown = !showExpertiseDropdown;
+                      showDistanceDropdown = false;
+                      showNameDropdown = false;
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                _buildFloatingActionButton(
+                  icon: Icons.person_search,
+                  onPressed: () {
+                    setState(() {
+                      showNameDropdown = !showNameDropdown;
+                      showDistanceDropdown = false;
+                      showExpertiseDropdown = false;
+                    });
+                  },
+                ),
+              ],
+            ),
           ),
-        if (showExpertiseDropdown)
-          Positioned(
-            right: 70, // Reduced distance from the right for expertise dropdown
-            top: MediaQuery.of(context).size.height *
-                0.15, // Adjusted position for expertise dropdown
-            child: _buildExpertiseDropdown(),
-          ),
-        if (showNameDropdown)
-          Positioned(
-            right: 70, // Reduced distance from the right for name search input
-            top: MediaQuery.of(context).size.height *
-                0.25, // Adjusted position for name search input
-            child: _buildNameSearch(),
-          ),
-      ],
+          // Dropdowns for filters
+          if (showDistanceDropdown)
+            Positioned(
+              right: 70,
+              top: MediaQuery.of(context).size.height * 0.05,
+              child: _buildDistanceDropdown(),
+            ),
+          if (showExpertiseDropdown)
+            Positioned(
+              right: 70,
+              top: MediaQuery.of(context).size.height * 0.15,
+              child: _buildExpertiseDropdown(),
+            ),
+          if (showNameDropdown)
+            Positioned(
+              right: 70,
+              top: MediaQuery.of(context).size.height * 0.25,
+              child: _buildNameSearch(),
+            ),
+        ],
+      ),
     );
   }
 
@@ -1509,45 +1688,301 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
   }
 }
 
-// Explore Page
-class ExplorePage extends StatelessWidget {
+
+
+
+
+class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
 
   @override
+  _ExplorePageState createState() => _ExplorePageState();
+}
+
+class _ExplorePageState extends State<ExplorePage> {
+  int _selectedNavIndex = 0;
+
+  // List of widgets for different sections
+  final List<Widget> _navPages = [
+    HomeSection(),
+    ProductsSection(),
+    MessagesSection(),
+    ExploreSection(),
+  ];
+
+  void _onNavItemTapped(int index) {
+    setState(() {
+      _selectedNavIndex = index;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false, // Removes the back arrow
+        backgroundColor: Colors.deepPurple,
+        elevation: 10, // Adds shadow for a more dynamic look
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.start, // Aligns content to the far left
+          children: [
+            // Logo with a subtle glow effect
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.7),
+                    blurRadius: 10,
+                    spreadRadius: 3,
+                  ),
+                ],
+              ),
+              child: Image.asset(
+                'assets/logo/app_logo.png', // Path to the Mecar logo
+                height: 50,
+                width: 50,
+              ),
+            ),
+            const SizedBox(width: 15), // Space between logo and name
+            // Gradient text for the company name
+            ShaderMask(
+              shaderCallback: (Rect bounds) {
+                return const LinearGradient(
+                  colors: [Color.fromARGB(255, 255, 171, 64), Colors.yellow],
+                  tileMode: TileMode.mirror,
+                ).createShader(bounds);
+              },
+              child: const Text(
+                'Mecar',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1.5,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(2.0, 2.0),
+                      blurRadius: 3.0,
+                      color: Colors.black26,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          // Animated search icon on the far right
+          IconButton(
+            icon: const Icon(Icons.search),
+            iconSize: 28,
+            color: Colors.white,
+            splashRadius: 25,
+            onPressed: () {
+              // Implement search functionality here
+            },
+            tooltip: 'Search', // Tooltip on hover for better UX
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(60.0), // Set height for the bottom navigation
+          child: BottomNavigationBar(
+            items: const <BottomNavigationBarItem>[
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.store),
+                label: 'Products',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.message),
+                label: 'Messages',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.explore),
+                label: 'Explore',
+              ),
+            ],
+            currentIndex: _selectedNavIndex,
+            selectedItemColor: Color.fromARGB(255, 255, 171, 64), // Single color
+            unselectedItemColor: Colors.grey,
+            onTap: _onNavItemTapped,
+            type: BottomNavigationBarType.fixed,
+          ),
+        ),
+      ),
+      body: IndexedStack(
+        index: _selectedNavIndex, // Show the selected page
+        children: _navPages,
+      ),
+    );
+  }
+}
+
+
+
+
+
+class HomeSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Navigation items for Home section
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          color: Colors.grey[200],
+          // You might want to add some widgets here for navigation items, like buttons or text.
+        ),
+        // Main content starts here
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(16.0),
+            children: [
+              _buildExplorePost(
+                mechanicName: 'Expert Auto Repairs',
+                description:
+                    'Completed a full engine overhaul on a BMW M3. Professional service guaranteed!',
+                datePosted: '2 days ago',
+                imagePath: 'https://www.pngplay.com/wp-content/uploads/15/Bmw-Engine-PNG-Free-File-Download.png',
+                userProfilePic: 'assets/user1.png', // Placeholder for user profile image
+                location: 'New York, USA',
+              ),
+              _buildExplorePost(
+                mechanicName: 'Quick Tune Garage',
+                description:
+                    'Specialized in brake systems and suspension upgrades. Book a service today!',
+                datePosted: '5 days ago',
+                imagePath: 'https://c4.wallpaperflare.com/wallpaper/782/765/99/bmw-engine-wallpaper-preview.jpg',
+                userProfilePic: 'assets/user2.png', // Placeholder for user profile image
+                location: 'Los Angeles, USA',
+              ),
+              _buildExplorePost(
+                mechanicName: 'Luxury Car Repair',
+                description:
+                    'Premium car detailing and interior refurbishment. Transform your ride!',
+                datePosted: '1 week ago',
+                imagePath: 'https://c4.wallpaperflare.com/wallpaper/385/762/349/bmw-engine-hd-wallpaper-preview.jpg',
+                userProfilePic: 'assets/user3.png', // Placeholder for user profile image
+                location: 'Miami, USA',
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Widget for posts in the Explore page
+  Widget _buildExplorePost({
+    required String mechanicName,
+    required String description,
+    required String datePosted,
+    required String imagePath,
+    required String userProfilePic,
+    required String location,
+  }) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Explore Top Mechanics',
-            style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.deepPurple),
+          // Image section
+          ClipRRect(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(15),
+              topRight: Radius.circular(15),
+            ),
+            child: Image.network(
+              imagePath, // Load image from URL
+              height: 180,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              loadingBuilder: (context, child, loadingProgress) {
+                if (loadingProgress == null) return child;
+                return Center(
+                  child: CircularProgressIndicator(
+                    value: loadingProgress.expectedTotalBytes != null
+                        ? loadingProgress.cumulativeBytesLoaded /
+                            (loadingProgress.expectedTotalBytes ?? 1)
+                        : null,
+                  ),
+                );
+              },
+              errorBuilder: (context, error, stackTrace) {
+                return const Center(child: Icon(Icons.error)); // Error icon if the image fails to load
+              },
+            ),
           ),
-          const SizedBox(height: 20),
-          Expanded(
-            child: ListView(
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildExplorePost(
-                  mechanicName: 'Expert Auto Repairs',
-                  description:
-                      'Completed a full engine overhaul on a BMW M3. Professional service guaranteed!',
-                  datePosted: '2 days ago',
+                // User profile section
+                Row(
+                  children: [
+                    // User profile picture
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundImage: AssetImage(userProfilePic),
+                    ),
+                    const SizedBox(width: 10),
+                    // Mechanic's name and location
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          mechanicName,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: Colors.deepPurple,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          location,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                _buildExplorePost(
-                  mechanicName: 'Quick Tune Garage',
-                  description:
-                      'Specialized in brake systems and suspension upgrades. Book a service today!',
-                  datePosted: '5 days ago',
-                ),
-                _buildExplorePost(
-                  mechanicName: 'Luxury Car Repair',
-                  description:
-                      'Premium car detailing and interior refurbishment. Transform your ride!',
-                  datePosted: '1 week ago',
+                const SizedBox(height: 10),
+                // Post description
+                Text(description, style: const TextStyle(fontSize: 14)),
+                const SizedBox(height: 10),
+                // Date posted and interaction icons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(datePosted, style: const TextStyle(color: Colors.grey)),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.favorite_border, color: Colors.deepPurple),
+                          onPressed: () {
+                            // Implement like functionality
+                          },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.share, color: Colors.deepPurple),
+                          onPressed: () {
+                            // Implement share functionality
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1556,67 +1991,436 @@ class ExplorePage extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildExplorePost({
-    required String mechanicName,
-    required String description,
-    required String datePosted,
-  }) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      elevation: 4,
-      child: ListTile(
-        title: Text(mechanicName,
-            style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(description),
-        trailing: Text(datePosted),
-      ),
-    );
+
+class ProductsSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(child: Text('Products Section'));
   }
 }
 
-// Account Page
+class MessagesSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(child: Text('Messages Section'));
+  }
+}
+
+class ExploreSection extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Center(child: Text('Explore Section'));
+  }
+}
+
+
+
+
 class AccountPage extends StatelessWidget {
   const AccountPage({super.key});
 
-  @override
-  Widget build(BuildContext context) {
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      backgroundColor: Colors.deepPurple,
+      title: const Text('Profile'),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.settings, color: Colors.white),
+          onPressed: () {
+            // Navigate to account settings
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.exit_to_app, color: Colors.redAccent),
+          onPressed: () {
+            // Implement logout functionality
+          },
+        ),
+      ],
+      elevation: 0,
+    ),
+    body: SingleChildScrollView(
+      child: Column(
+        children: [
+          const SizedBox(height: 20),
+          _buildProfileHeader(context),
+          const SizedBox(height: 30),
+          _buildCarSection(),
+          const SizedBox(height: 30),
+          _buildContactSection(),
+          const SizedBox(height: 30), // Adjust spacing if needed
+          _buildPaymentSection(), // New payment section
+          const SizedBox(height: 20),
+          _buildDocumentsSection(),
+        ],
+      ),
+    ),
+  );
+}
+
+// Payment Section Widget
+Widget _buildPaymentSection() {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(
+              Icons.payment, // Icon for Payment section
+              color: Colors.deepPurple,
+              size: 30,
+            ),
+            SizedBox(width: 8), // Spacing between icon and text
+            Text(
+              'Payment Information',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 4,
+          child: Column(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.phone, color: Colors.deepPurple),
+                title: const Text('+1 234 567 890'), // Phone number
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.deepPurple),
+                  onPressed: () {
+                    // Implement phone number edit functionality
+                  },
+                ),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.monetization_on, color: Colors.deepPurple),
+                title: const Text('Amount Paid'),
+                subtitle: const Text('\$250.00'), // Placeholder for amount paid
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.deepPurple),
+                  onPressed: () {
+                    // Implement amount edit functionality
+                  },
+                ),
+              ),
+              const Divider(),
+              ListTile(
+                leading: const Icon(Icons.calendar_today, color: Colors.deepPurple),
+                title: const Text('Package Type'),
+                subtitle: const Text('Monthly'), // Can be "Monthly" or "Annually"
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.deepPurple),
+                  onPressed: () {
+                    // Implement package type edit functionality
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+
+
+Widget _buildProfileHeader(BuildContext context) {
+  return Center(
+    child: Column(
+      children: [
+        Stack(
+          children: [
+            CircleAvatar(
+              radius: 55,
+              backgroundColor: Colors.grey[200],
+              child: const Icon(
+                Icons.account_circle, // Big account icon
+                size: 105, // Adjust the size as needed
+                color: Colors.deepPurple, // Icon color
+              ),
+            ),
+            Positioned(
+              bottom: 0,
+              right: 0,
+              child: InkWell(
+                onTap: () {
+                  // Implement profile picture upload
+                },
+                child: const CircleAvatar(
+                  radius: 20,
+                  backgroundColor: Colors.deepPurple,
+                  child: Icon(Icons.camera_alt, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const Text(
+          'John Doe',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+        ),
+        const SizedBox(height: 1),
+        const Text(
+          'Joined: January 2018',
+          style: TextStyle(fontSize: 14, color: Colors.grey),
+        ),
+
+      ],
+    ),
+  );
+}
+
+// Horizontal scrollable My Car section
+Widget _buildCarSection() {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(
+              Icons.directions_car, // Icon for My Cars section
+              color: Colors.deepPurple,
+              size: 30, // Adjust the size as needed
+            ),
+            SizedBox(width: 8), // Spacing between icon and text
+            Text(
+              'My Cars',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 180, // Adjusted height for car cards
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              _buildCarCard('Toyota Camry', 'ABC-1234', 'Black', '2019'),
+              _buildCarCard('Tesla Model S', 'XYZ-5678', 'White', '2022'),
+              _buildCarCard('Ford Mustang', 'MNO-4321', 'Red', '2021'),
+              _buildAddCarCard(),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+// Widget for each car card
+Widget _buildCarCard(String name, String plate, String color, String year) {
+  return Container(
+    width: 240, // Width for each car card
+    margin: const EdgeInsets.only(right: 16),
+    child: Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      elevation: 4,
+      child: Stack( // Use Stack to position the edit icon
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SvgPicture.asset('assets/icons/car.svg', height: 40),
+                const SizedBox(height: 10),
+                Text(
+                  name,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                // Use maxLines to prevent overflow
+                Text(
+                  'License Plate: $plate\nColor: $color\nYear: $year',
+                  style: const TextStyle(color: Colors.grey),
+                  maxLines: 3, // Limit to 3 lines
+                  overflow: TextOverflow.ellipsis, // Add ellipsis if text overflows
+                ),
+              ],
+            ),
+          ),
+          Positioned( // Position the edit button at the top right
+            top: 8,
+            right: 8,
+            child: IconButton(
+              icon: const Icon(Icons.edit, color: Colors.deepPurple),
+              onPressed: () {
+                // Implement car details edit functionality
+              },
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+
+// Add new car card
+Widget _buildAddCarCard() {
+  return Container(
+    width: 160, // Smaller width for add car button
+    margin: const EdgeInsets.only(right: 16),
+    child: GestureDetector(
+      onTap: () {
+        // Implement add new car functionality
+      },
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 8, // Increased elevation for better shadow effect
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient( // Gradient background
+              colors: [
+                Colors.deepPurple.withOpacity(0.5), 
+                Colors.deepPurple.withOpacity(0.2)
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: const Center(
+            child: Padding(
+              padding: EdgeInsets.all(16.0), // Padding around icon
+              child: Column(
+                mainAxisSize: MainAxisSize.min, // Adjust height based on content
+                children: [
+                  Icon(Icons.add, size: 40, color: Colors.white), // White icon for better contrast
+                  SizedBox(height: 8), // Space between icon and text
+                  Text(
+                    'Add New Car',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+
+// Contact Information with detailed icons
+Widget _buildContactSection() {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(
+              Icons.contact_phone, // Icon for contact information
+              color: Colors.deepPurple,
+              size: 30, // Adjust the size as needed
+            ),
+            SizedBox(width: 8), // Spacing between icon and text
+            Text(
+              'Contact Information',
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Card(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 4,
+          child: Column(
+            children: [
+              // Username Field
+              ListTile(
+                leading: const Icon(Icons.person, color: Colors.deepPurple), // Icon for username
+                title: const Text('John Doe'), // Placeholder for username
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.deepPurple),
+                  onPressed: () {
+                    // Implement username edit functionality
+                  },
+                ),
+              ),
+              const Divider(),
+              // Email Field
+              ListTile(
+                leading: const Icon(Icons.email, color: Colors.deepPurple),
+                title: const Text('john.doe@email.com'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.deepPurple),
+                  onPressed: () {
+                    // Implement email edit functionality
+                  },
+                ),
+              ),
+              const Divider(),
+              // Phone Number Field
+              ListTile(
+                leading: const Icon(Icons.phone, color: Colors.deepPurple),
+                title: const Text('+1 234 567 890'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.deepPurple),
+                  onPressed: () {
+                    // Implement phone number edit functionality
+                  },
+                ),
+              ),
+              const Divider(),
+              // Address Field
+              ListTile(
+                leading: const Icon(Icons.location_on, color: Colors.deepPurple),
+                title: const Text('123 Street, City, Country'),
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit, color: Colors.deepPurple),
+                  onPressed: () {
+                    // Implement address edit functionality
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+  // Documents and Insurance section
+  Widget _buildDocumentsSection() {
     return Padding(
-      padding: const EdgeInsets.all(16.0),
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'My Account',
-            style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.deepPurple),
-          ),
-          const SizedBox(height: 20),
-          Card(
-            margin: const EdgeInsets.symmetric(vertical: 10),
-            elevation: 4,
-            child: ListTile(
-              leading: const Icon(Icons.person, color: Colors.deepPurple),
-              title: const Text('John Doe'),
-              subtitle: const Text('john.doe@email.com'),
-              trailing: const Icon(Icons.edit, color: Colors.deepPurple),
-              onTap: () {
-                // Implement edit account details
-              },
-            ),
+            'Insurance & Documents',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
           ),
           const SizedBox(height: 10),
-          ElevatedButton.icon(
-            onPressed: () {
-              // Implement logout
-            },
-            icon: const Icon(Icons.exit_to_app),
-            label: const Text('Logout'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
-              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            elevation: 4,
+            child: ListTile(
+              leading: const Icon(Icons.file_copy, color: Colors.deepPurple),
+              title: const Text('View Insurance & Documents'),
+              trailing: const Icon(Icons.arrow_forward, color: Colors.deepPurple),
+              onTap: () {
+                // Navigate to document viewer
+              },
             ),
           ),
         ],

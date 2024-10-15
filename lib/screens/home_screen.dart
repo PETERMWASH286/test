@@ -25,44 +25,68 @@ class _HomeScreenState extends State<HomeScreen> {
     _fetchUserFullName(); // Fetch user's full name when the screen loads
   }
 
-Future<void> _fetchUserFullName() async {
-  // Get email from shared preferences
-        SharedPreferences prefs = await SharedPreferences.getInstance();
-        String? email = prefs.getString('userEmail');
+  Future<void> _fetchUserFullName() async {
+    // Get email from shared preferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? email = prefs.getString('userEmail');
 
-  // Debugging: Print the email to verify it's retrieved correctly
-  print('Retrieved email from SharedPreferences: $email');
+    // Debugging: Print the email to verify it's retrieved correctly
+    print('Retrieved email from SharedPreferences: $email');
 
-  // Make an HTTP GET request to fetch the user's full name from the server
-  final response = await http.get(Uri.parse('https://expertstrials.xyz/Garifix_app/get_full_name?email=$email'));
+    // Make an HTTP GET request to fetch the user's full name from the server
+    final response = await http.get(Uri.parse('https://expertstrials.xyz/Garifix_app/get_full_name?email=$email'));
 
-  // Debugging: Print the response status code
-  print('Response status code: ${response.statusCode}');
+    // Debugging: Print the response status code
+    print('Response status code: ${response.statusCode}');
 
-  if (response.statusCode == 200) {
-    // If the server returns a 200 OK response, parse the JSON
-    var data = json.decode(response.body);
+    if (response.statusCode == 200) {
+      // If the server returns a 200 OK response, parse the JSON
+      var data = json.decode(response.body);
 
-    // Debugging: Print the data received from the API
-    print('Data received from API: $data');
+      // Debugging: Print the data received from the API
+      print('Data received from API: $data');
 
-    setState(() {
-      _fullName = data['full_name'] ?? "User"; // Use null-aware operator to fall back to default
-    });
-  } else {
-    // If the server did not return a 200 OK response, handle the error
-    print('Failed to load user full name: ${response.statusCode}');
-    print('Response body: ${response.body}'); // Log the response body for debugging
+      setState(() {
+        _fullName = data['full_name'] ?? "User"; // Use null-aware operator to fall back to default
+      });
+    } else {
+      // If the server did not return a 200 OK response, handle the error
+      print('Failed to load user full name: ${response.statusCode}');
+      print('Response body: ${response.body}'); // Log the response body for debugging
+    }
   }
-}
+
+  void _showHelpDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Help & Support'),
+          content: const Text('If you need assistance, please contact our support team at support@mecarapp.com.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Welcome to Car Service App'),
+        title: const Text('Welcome to Mecar App'),
         backgroundColor: Colors.deepPurple,
         elevation: 10,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.help_outline),
+            onPressed: _showHelpDialog, // Show help dialog when pressed
+          ),
+        ],
       ),
       body: Container(
         decoration: const BoxDecoration(
@@ -195,6 +219,3 @@ class CrazyButton extends StatelessWidget {
     );
   }
 }
-
-
-

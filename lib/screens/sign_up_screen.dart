@@ -15,7 +15,7 @@ class SignUpScreen extends StatefulWidget {
 class _SignUpScreenState extends State<SignUpScreen> {
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController(); // New phone controller
+  final TextEditingController _phoneController = TextEditingController();
 
   @override
   void initState() {
@@ -41,7 +41,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       body: jsonEncode(<String, String>{
         'full_name': _fullNameController.text,
         'email': _emailController.text,
-        'phone': _phoneController.text, // Include phone number
+        'phone': _phoneController.text,
       }),
     );
 
@@ -70,15 +70,69 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Sign Up'),
-        backgroundColor: Colors.deepPurple,
-        elevation: 0,
+appBar: AppBar(
+  backgroundColor: Colors.transparent, // Transparent to apply gradient
+  elevation: 0,
+  flexibleSpace: Container(
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        colors: [Colors.deepPurple, Colors.purpleAccent],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
+    ),
+  ),
+  title: Row(
+    mainAxisAlignment: MainAxisAlignment.spaceBetween, // Space between left and right
+    children: [
+      // "Sign Up" in graffiti-style font on the left
+      const Text(
+        'Sign Up', 
+        style: TextStyle(
+          fontFamily: 'Graffiti',  // Make sure you have a graffiti-style font installed or added in your project
+          fontSize: 22,
+          color: Colors.white,
+          fontWeight: FontWeight.w900,  // Bold graffiti style
+          letterSpacing: 1.2,
+        ),
+      ),
+      // Logo and Company Name on the far right
+      Row(
+        children: [
+          // Logo
+          Image.asset(
+            'assets/logo/app_logo.png', // Replace with your logo path
+            height: 40,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(width: 10), // Space between logo and text
+          // Company Name
+          const Text(
+            'Mecar',  // Replace with your company name
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 24,
+              color: Colors.white,
+              letterSpacing: 1.5,  // Add some spacing between letters
+              shadows: [
+                Shadow(
+                  blurRadius: 10.0,
+                  color: Colors.black45,
+                  offset: Offset(3, 3),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    ],
+  ),
+),
+
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [Colors.deepPurple.shade300, Colors.deepPurple.shade600],
+            colors: [Colors.blueGrey.shade100, Colors.blueGrey.shade300],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
           ),
@@ -131,29 +185,27 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     _buildTextField(_phoneController, 'Phone Number', Icons.phone),
                     const SizedBox(height: 20),
                     // Sign Up Button
-// Sign Up Button
-ElevatedButton(
-  onPressed: _signup,
-  style: ElevatedButton.styleFrom(
-    padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 40),
-    backgroundColor: Colors.deepPurple,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(15),
-    ),
-  ),
-  child: const Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      Icon(Icons.person_add, color: Colors.white), // Add your desired icon here
-      SizedBox(width: 10), // Space between the icon and text
-      Text(
-        'Sign Up',
-        style: TextStyle(fontSize: 18, color: Colors.white),
-      ),
-    ],
-  ),
-),
-
+                    ElevatedButton(
+                      onPressed: _signup,
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 40),
+                        backgroundColor: Colors.deepPurple,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                      ),
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.person_add, color: Colors.white),
+                          SizedBox(width: 10),
+                          Text(
+                            'Sign Up',
+                            style: TextStyle(fontSize: 18, color: Colors.white),
+                          ),
+                        ],
+                      ),
+                    ),
                     const SizedBox(height: 20),
                     // Or sign up with
                     const Text(

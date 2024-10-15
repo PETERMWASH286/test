@@ -180,74 +180,122 @@ Future<void> _saveFingerprintConfirmation() async {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Fingerprint and PIN Setup'),
-        backgroundColor: Colors.deepPurple,
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      title: const Text(
+        'Fingerprint and PIN Setup',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 20,
+          letterSpacing: 1.2, // Slight spacing for elegance
+        ),
       ),
-      body: SingleChildScrollView(
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.deepPurple.withOpacity(0.4),
-                    blurRadius: 30,
-                    spreadRadius: 5,
-                    offset: const Offset(10, 10),
-                  ),
-                ],
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.fingerprint,
-                    size: 80,
-                    color: Colors.deepPurple,
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Setup Your Fingerprint and PIN',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
+      centerTitle: true,
+      flexibleSpace: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.deepPurple, Colors.purpleAccent],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+      ),
+      elevation: 5,
+      shadowColor: Colors.deepPurple.withOpacity(0.5), // Add a slight shadow
+    ),
+    body: SingleChildScrollView(
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Container(
+            padding: const EdgeInsets.all(25),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(25),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.deepPurple.withOpacity(0.3),
+                  blurRadius: 30,
+                  spreadRadius: 5,
+                  offset: const Offset(8, 8),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.fingerprint,
+                  size: 60,
+                  color: Colors.deepPurple,
+                  shadows: [
+                    Shadow(
+                      color: Colors.deepPurpleAccent,
+                      blurRadius: 20,
+                      offset: Offset(0, 3),
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: List.generate(4, (index) => _buildPinDigitInput(index)),
-                  ),
-                  const SizedBox(height: 20),
-                  _buildNumberPad(),
-                  const SizedBox(height: 20),
-                  const Icon(
-                    Icons.fingerprint,
-                    size: 50,
+                  ],
+                ),
+                const Text(
+                  'Setup Your Fingerprint and PIN',
+                  style: TextStyle(
+                    fontSize: 18, // Slightly larger font size
+                    fontWeight: FontWeight.bold,
                     color: Colors.deepPurple,
                   ),
-                  ElevatedButton(
-                    onPressed: _authenticateWithFingerprint, // Add fingerprint authentication button
-                    child: const Text("Authenticate with Fingerprint"),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: List.generate(4, (index) => _buildPinDigitInput(index)),
+                ),
+                const SizedBox(height: 5),
+                _buildNumberPad(),
+                const SizedBox(height: 30),
+                const Icon(
+                  Icons.fingerprint,
+                  size: 80,
+                  color: Colors.deepPurple,
+                  shadows: [
+                    Shadow(
+                      color: Colors.purpleAccent,
+                      blurRadius: 20,
+                      offset: Offset(0, 3),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _authenticateWithFingerprint, // Add fingerprint authentication button
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                    backgroundColor: Colors.deepPurple, // Custom background color
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30), // Rounded button
+                    ),
+                    elevation: 5,
+                    shadowColor: Colors.purpleAccent.withOpacity(0.5),
                   ),
-                ],
-              ),
+                  child: const Text(
+                    "Authenticate with Fingerprint",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildNumberPad() {
     return GridView.builder(
@@ -277,7 +325,7 @@ Future<void> _saveFingerprintConfirmation() async {
             }
           },
           child: Container(
-            margin: const EdgeInsets.all(8),
+            margin: const EdgeInsets.all(15),
             width: 40,
             height: 40,
             decoration: BoxDecoration(
@@ -288,7 +336,7 @@ Future<void> _saveFingerprintConfirmation() async {
                   color: Colors.deepPurple.withOpacity(0.4),
                   blurRadius: 15,
                   spreadRadius: 1,
-                  offset: const Offset(0, 5),
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -413,10 +461,35 @@ void _confirmPin() async {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Confirm Your PIN'),
-        backgroundColor: Colors.deepPurple,
+appBar: AppBar(
+  title: const Text(
+    'Confirm Your PIN',
+    style: TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 20,
+      letterSpacing: 1.2, // Add slight letter-spacing for elegance
+    ),
+  ),
+  centerTitle: true,
+  leading: IconButton(
+    icon: const Icon(Icons.arrow_back),
+    onPressed: () {
+      Navigator.of(context).pop(); // Navigate back to the previous screen
+    },
+  ),
+  flexibleSpace: Container(
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        colors: [Colors.deepPurple, Colors.purpleAccent],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
       ),
+    ),
+  ),
+  elevation: 5,
+  shadowColor: Colors.deepPurple.withOpacity(0.5), // Add a shadow for depth
+),
+
       body: SingleChildScrollView(
         child: Center(
           child: Padding(
@@ -491,9 +564,9 @@ void _confirmPin() async {
             }
           },
           child: Container(
-            margin: const EdgeInsets.all(8),
-            width: 40,
-            height: 40,
+            margin: const EdgeInsets.all(15),
+            width: 10,
+            height: 10,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.deepPurple[200],

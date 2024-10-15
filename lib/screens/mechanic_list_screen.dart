@@ -692,67 +692,73 @@ class _JobsPageState extends State<JobsPage> {
     },
   ];
 
-  // QR Code scan function
-  void _onQRCodeScanned(String qrData) async {
-    setState(() {
-      this.qrData = qrData;
-      isScanning = false;
-    });
+// QR Code scan function
+void _onQRCodeScanned(String qrData) async {
+  setState(() {
+    this.qrData = qrData;
+    isScanning = false;
+  });
 
-    // Extract the repair ID from the scanned QR code
-    final Uri uri = Uri.parse(qrData);
-    final String? repairId = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
+  // Extract the repair ID from the scanned QR code
+  final Uri uri = Uri.parse(qrData);
+  final String? repairId = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
 
-    if (repairId != null) {
-      // Make the request to the backend to get repair details
-      final repairDetails = await _fetchRepairDetails(repairId);
+  if (repairId != null) {
+    // Make the request to the backend to get repair details
+    final repairDetails = await _fetchRepairDetails(repairId, context);
 
-      // Display the details dialog with fetched repair details
-      if (repairDetails != null) {
-        _showDetailsDialog(repairDetails);
-      } else {
-        _showErrorDialog('Error fetching repair details');
-      }
+    // Display the details dialog with fetched repair details
+    if (repairDetails != null) {
+      _showDetailsDialog(repairDetails);
+    }
+    // No need for else case here, since errors are handled in _fetchRepairDetails
+  } else {
+    _showErrorDialog('Invalid QR code. Please scan a valid QR code.');
+  }
+}
+
+// Fetch repair details from the backend
+Future<Map<String, dynamic>?> _fetchRepairDetails(String repairId, BuildContext context) async {
+  try {
+    final url = 'https://expertstrials.xyz/Garifix_app/api/repair_details/$repairId';
+    final response = await http.get(Uri.parse(url));
+
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
     } else {
-      _showErrorDialog('Invalid QR code');
+      // Return the error message from the response and show it in the error dialog
+      String errorMessage = 'Error fetching repair details: ${response.statusCode} - ${response.body}';
+      _showErrorDialog(errorMessage);  // Show error dialog
+      return null;  // Return null to indicate failure
     }
+  } catch (e) {
+    // Handle exceptions and provide a detailed error message
+    String errorMessage = 'Error fetching repair details: $e';
+    _showErrorDialog(errorMessage);  // Show error dialog
+    return null;  // Return null to indicate failure
   }
+}
 
-  // Fetch repair details from the backend
-  Future<Map<String, dynamic>?> _fetchRepairDetails(String repairId) async {
-    try {
-      final url = 'https://expertstrials.xyz/Garifix_app/repair_details/$repairId';
-      final response = await http.get(Uri.parse(url));
+// Show error dialog
+void _showErrorDialog(String message) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Error'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      );
+    },
+  );
+}
 
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        return null;
-      }
-    } catch (e) {
-      print('Error fetching repair details: $e');
-      return null;
-    }
-  }
 
-  // Function to show error dialog
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Error'),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 
   // Display dialog with repair details
   void _showDetailsDialog(Map<String, dynamic> repairDetails) {
@@ -883,6 +889,7 @@ class _JobsPageState extends State<JobsPage> {
     );
   }
 
+// Start QR Code Scanner
 void _startQRCodeScanner() {
   setState(() {
     isScanning = true;
@@ -947,7 +954,6 @@ void _startQRCodeScanner() {
     },
   );
 }
-
 void _stopQRCodeScanner() {
   setState(() {
     isScanning = false;
