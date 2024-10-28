@@ -10,7 +10,7 @@ import 'package:geocoding/geocoding.dart';
 // Import shared_preferences
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-
+import 'package:flutter/widgets.dart';
 void main() => runApp(const MyApp());
 List<XFile>? _imageFiles = [];
 final ImagePicker _picker = ImagePicker();
@@ -1807,7 +1807,7 @@ class _ExplorePageState extends State<ExplorePage> {
               ),
             ],
             currentIndex: _selectedNavIndex,
-            selectedItemColor: Color.fromARGB(255, 255, 171, 64), // Single color
+            selectedItemColor: const Color.fromARGB(255, 255, 171, 64), // Single color
             unselectedItemColor: Colors.grey,
             onTap: _onNavItemTapped,
             type: BottomNavigationBarType.fixed,
@@ -1826,57 +1826,72 @@ class _ExplorePageState extends State<ExplorePage> {
 
 
 
+
 class HomeSection extends StatelessWidget {
+  const HomeSection({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Stack(
       children: [
-        // Navigation items for Home section
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          color: Colors.grey[200],
-          // You might want to add some widgets here for navigation items, like buttons or text.
+        Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              color: Colors.grey[200],
+            ),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.all(16.0),
+                children: [
+                  _buildExplorePost(
+                    mechanicName: 'Expert Auto Repairs',
+                    description:
+                        'Completed a full engine overhaul on a BMW M3. Professional service guaranteed!',
+                    datePosted: '2 days ago',
+                    imagePath: 'https://www.pngplay.com/wp-content/uploads/15/Bmw-Engine-PNG-Free-File-Download.png',
+                    userProfilePic: 'assets/user1.png',
+                    location: 'New York, USA',
+                  ),
+                  _buildExplorePost(
+                    mechanicName: 'Quick Tune Garage',
+                    description:
+                        'Specialized in brake systems and suspension upgrades. Book a service today!',
+                    datePosted: '5 days ago',
+                    imagePath: 'https://c4.wallpaperflare.com/wallpaper/782/765/99/bmw-engine-wallpaper-preview.jpg',
+                    userProfilePic: 'assets/user2.png',
+                    location: 'Los Angeles, USA',
+                  ),
+                  _buildExplorePost(
+                    mechanicName: 'Luxury Car Repair',
+                    description:
+                        'Premium car detailing and interior refurbishment. Transform your ride!',
+                    datePosted: '1 week ago',
+                    imagePath: 'https://c4.wallpaperflare.com/wallpaper/385/762/349/bmw-engine-hd-wallpaper-preview.jpg',
+                    userProfilePic: 'assets/user3.png',
+                    location: 'Miami, USA',
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        // Main content starts here
-        Expanded(
-          child: ListView(
-            padding: const EdgeInsets.all(16.0),
-            children: [
-              _buildExplorePost(
-                mechanicName: 'Expert Auto Repairs',
-                description:
-                    'Completed a full engine overhaul on a BMW M3. Professional service guaranteed!',
-                datePosted: '2 days ago',
-                imagePath: 'https://www.pngplay.com/wp-content/uploads/15/Bmw-Engine-PNG-Free-File-Download.png',
-                userProfilePic: 'assets/user1.png', // Placeholder for user profile image
-                location: 'New York, USA',
-              ),
-              _buildExplorePost(
-                mechanicName: 'Quick Tune Garage',
-                description:
-                    'Specialized in brake systems and suspension upgrades. Book a service today!',
-                datePosted: '5 days ago',
-                imagePath: 'https://c4.wallpaperflare.com/wallpaper/782/765/99/bmw-engine-wallpaper-preview.jpg',
-                userProfilePic: 'assets/user2.png', // Placeholder for user profile image
-                location: 'Los Angeles, USA',
-              ),
-              _buildExplorePost(
-                mechanicName: 'Luxury Car Repair',
-                description:
-                    'Premium car detailing and interior refurbishment. Transform your ride!',
-                datePosted: '1 week ago',
-                imagePath: 'https://c4.wallpaperflare.com/wallpaper/385/762/349/bmw-engine-hd-wallpaper-preview.jpg',
-                userProfilePic: 'assets/user3.png', // Placeholder for user profile image
-                location: 'Miami, USA',
-              ),
-            ],
+        // Floating action button for adding a post
+        Positioned(
+          right: 16,
+          bottom: MediaQuery.of(context).size.height / 8,
+          child: FloatingActionButton(
+            onPressed: () {
+              // Handle post creation
+            },
+            backgroundColor: Colors.deepPurple,
+            child: const Icon(Icons.add),
           ),
         ),
       ],
     );
   }
 
-  // Widget for posts in the Explore page
   Widget _buildExplorePost({
     required String mechanicName,
     required String description,
@@ -1885,106 +1900,754 @@ class HomeSection extends StatelessWidget {
     required String userProfilePic,
     required String location,
   }) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image section
-          ClipRRect(
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(15),
-              topRight: Radius.circular(15),
-            ),
-            child: Image.network(
-              imagePath, // Load image from URL
-              height: 180,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Center(
-                  child: CircularProgressIndicator(
-                    value: loadingProgress.expectedTotalBytes != null
-                        ? loadingProgress.cumulativeBytesLoaded /
-                            (loadingProgress.expectedTotalBytes ?? 1)
-                        : null,
-                  ),
-                );
-              },
-              errorBuilder: (context, error, stackTrace) {
-                return const Center(child: Icon(Icons.error)); // Error icon if the image fails to load
-              },
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // User profile section
-                Row(
+    int likeCount = 0;
+    bool isLiked = false;
+    bool isSaved = false;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(15),
+                  topRight: Radius.circular(15),
+                ),
+                child: Image.network(
+                  imagePath,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                (loadingProgress.expectedTotalBytes ?? 1)
+                            : null,
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(child: Icon(Icons.error));
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // User profile picture
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundImage: AssetImage(userProfilePic),
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundImage: AssetImage(userProfilePic),
+                        ),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              mechanicName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.deepPurple,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              location,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 10),
-                    // Mechanic's name and location
-                    Column(
+                    const SizedBox(height: 10),
+                    Text(description, style: const TextStyle(fontSize: 14)),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(datePosted, style: const TextStyle(color: Colors.grey)),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                isLiked ? Icons.favorite : Icons.favorite_border,
+                                color: isLiked ? Colors.red : Colors.deepPurple,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  isLiked = !isLiked;
+                                  likeCount += isLiked ? 1 : -1;
+                                });
+                              },
+                            ),
+                            Text(likeCount.toString()),
+                            IconButton(
+                              icon: Icon(
+                                isSaved ? Icons.bookmark : Icons.bookmark_border,
+                                color: Colors.deepPurple,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  isSaved = !isSaved;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+
+
+
+
+class ProductsSection extends StatefulWidget {
+  const ProductsSection({super.key});
+
+  @override
+  _ProductsSectionState createState() => _ProductsSectionState();
+}
+
+class _ProductsSectionState extends State<ProductsSection> {
+  String searchQuery = '';
+  List<Map<String, dynamic>> filteredProducts = productList;
+  bool isSearchVisible = false; // To manage the visibility of the search bar
+
+  void filterProducts(String query) {
+    setState(() {
+      searchQuery = query.toLowerCase();
+      filteredProducts = productList.where((product) {
+        final companyName = product['companyName'].toLowerCase();
+        final title = product['title'].toLowerCase();
+        return companyName.contains(searchQuery) || title.contains(searchQuery);
+      }).toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Toggle search bar visibility
+          setState(() {
+            isSearchVisible = !isSearchVisible;
+          });
+        },
+        child: const Icon(Icons.filter_list),
+        backgroundColor: Colors.deepPurple,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            // Search Bar
+            if (isSearchVisible) // Conditionally render the search bar
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: TextField(
+                  onChanged: filterProducts,
+                  decoration: InputDecoration(
+                    hintText: 'Search by company or product name',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                    prefixIcon: const Icon(Icons.search, color: Colors.deepPurple),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8), // Spacer to add some space when search is hidden
+
+            Expanded(
+              child: ListView.builder(
+                itemCount: filteredProducts.length,
+                itemBuilder: (context, index) {
+                  final product = filteredProducts[index];
+
+                  return ProductCard(
+                    imageUrl: product['imageUrl'] ?? '',
+                    title: product['title'] ?? 'No Title',
+                    price: product['price'] ?? '\$0.00',
+                    description: product['description'] ?? 'No Description',
+                    companyName: product['companyName'] ?? 'Unknown Company',
+                    location: product['location'] ?? 'Unknown Location',
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProductCard extends StatelessWidget {
+  final String imageUrl;
+  final String title;
+  final String price;
+  final String description;
+  final String companyName;
+  final String location;
+
+  const ProductCard({
+    required this.imageUrl,
+    required this.title,
+    required this.price,
+    required this.description,
+    required this.companyName,
+    required this.location,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      elevation: 5,
+      margin: const EdgeInsets.only(bottom: 12.0),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Company Info Section
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundImage: NetworkImage(imageUrl),
+                  onBackgroundImageError: (error, stackTrace) => const Icon(Icons.error),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        companyName,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        location,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+// Enhanced Product Image Section with Zoomed-Out Effect
+Container(
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(12), // Increased radius for softer corners
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black26,
+        blurRadius: 10, // Shadow blur effect
+        offset: Offset(0, 3), // Shadow position
+      ),
+    ],
+  ),
+  clipBehavior: Clip.antiAlias, // Ensures the child is clipped
+  child: Stack(
+    children: [
+      // Product Image
+      Image.network(
+        imageUrl,
+        height: 200, // Decreased height to zoom out the image
+        width: double.infinity,
+        fit: BoxFit.contain, // Changed to contain to fit the image within the given dimensions
+        errorBuilder: (context, error, stackTrace) => const Center(
+          child: Icon(
+            Icons.error,
+            size: 80,
+            color: Colors.red, // Change color of error icon
+          ),
+        ),
+      ),
+      // Overlay with gradient for better visibility
+      Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.black54, Colors.transparent], // Gradient effect
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+          ),
+        ),
+      ),
+    ],
+  ),
+),
+const SizedBox(height: 8),
+
+
+            // Product Details
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepPurple,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              description,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              price,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepOrange,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Action Buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    // Implement buy functionality
+                  },
+                  icon: const Icon(Icons.shopping_cart, color: Colors.white),
+                  label: const Text(
+                    'Buy Now',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.message, color: Colors.deepPurple),
+                  onPressed: () {
+                    // Implement message functionality
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.bookmark_border, color: Colors.deepPurple),
+                  onPressed: () {
+                    // Implement wishlist functionality
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Sample Product Data
+final List<Map<String, dynamic>> productList = [
+  {
+    'imageUrl': 'https://maximausa.com/cdn/shop/products/M198648180.png?v=1674756022',
+    'title': 'Premium Oil Filter',
+    'price': '\$29.99',
+    'description': 'High-quality oil filter for long-lasting performance and engine protection.',
+    'companyName': 'Maxima USA',
+    'location': 'California, USA',
+  },
+  {
+    'imageUrl': 'https://ppepower.com/cdn/shop/files/2020-2024-GM-6.6L-Duramax-Premium-High-Efficiency-Engine-Oil-Filter-Pacific-Performance-Engineering-739257_1200x.jpg?v=1715216700',
+    'title': 'Duramax Engine Oil Filter',
+    'price': '\$24.99',
+    'description': 'Efficient engine oil filter designed for maximum engine health and durability.',
+    'companyName': 'Duramax Performance',
+    'location': 'Texas, USA',
+  },
+  {
+    'imageUrl': 'https://www.boschautopartes.mx/documents/652389/5114023/FiltrosdeAceitePremium_PDP_Carousel_MX.jpg',
+    'title': 'Bosch Oil Filter',
+    'price': '\$34.99',
+    'description': 'Bosch quality oil filter to keep your car engine running smoothly.',
+    'companyName': 'Bosch Auto Parts',
+    'location': 'Stuttgart, Germany',
+  },
+  {
+    'imageUrl': 'https://images-na.ssl-images-amazon.com/images/I/41Js3Q49G4L._UL500_.jpg',
+    'title': 'Premium Air Filter',
+    'price': '\$19.99',
+    'description': 'Advanced air filter for a cleaner and more efficient engine performance.',
+    'companyName': 'AirPro Filters',
+    'location': 'Illinois, USA',
+  },
+];
+
+
+
+
+
+
+class MessagesSection extends StatefulWidget {
+  const MessagesSection({super.key});
+
+  @override
+  _MessagesSectionState createState() => _MessagesSectionState();
+}
+
+class _MessagesSectionState extends State<MessagesSection> {
+  final List<Map<String, dynamic>> messages = [
+    {
+      'avatar': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTzly6IVaAUXTkRvHgdnUelmf8VNvXTUHW32w&s',
+      'sender': 'John Doe',
+      'text': 'Hey! How are you doing?',
+      'time': '10:30 AM',
+      'read': false,
+    },
+    {
+      'avatar': 'https://www.singulart.com/blog/wp-content/uploads/2023/10/Famous-Portrait-Paintings-848x530-1.jpg',
+      'sender': 'Jane Smith',
+      'text': 'Just wanted to check in!',
+      'time': '10:31 AM',
+      'read': true,
+    },
+    {
+      'avatar': 'https://i.insider.com/5d2ce2b7b44ce742214c1007?width=700',
+      'sender': 'Alex Johnson',
+      'text': 'Did you get my last message?',
+      'time': '10:32 AM',
+      'read': false,
+    },
+    // Add more messages as needed...
+  ];
+
+  String? selectedSender; // Track the selected sender
+  final List<Map<String, dynamic>> conversation = []; // Track conversation messages
+  String newMessage = '';
+
+  void sendMessage() {
+    if (newMessage.isNotEmpty) {
+      setState(() {
+        conversation.add({
+          'avatar': 'https://via.placeholder.com/50', // Placeholder for the current user
+          'sender': 'You',
+          'text': newMessage,
+          'time': TimeOfDay.now().format(context),
+          'read': true, // Marking the sent message as read
+        });
+        newMessage = ''; // Clear the input field after sending
+      });
+    }
+  }
+
+  void toggleConversation(String sender) {
+    if (selectedSender == sender) {
+      setState(() {
+        selectedSender = null; // Hide the conversation if the same sender is clicked
+      });
+    } else {
+      setState(() {
+        selectedSender = sender; // Show the conversation for the selected sender
+        conversation.clear(); // Clear previous messages for a new conversation
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: selectedSender != null
+          ? AppBar(
+              backgroundColor: Colors.deepPurpleAccent,
+              elevation: 4, // Adds shadow effect
+              title: Row(
+                children: [
+                  CircleAvatar(
+                    backgroundImage: NetworkImage(
+                      messages.firstWhere((msg) => msg['sender'] == selectedSender)['avatar'],
+                    ),
+                    radius: 25,
+                  ),
+                  const SizedBox(width: 10), // Increased space for better layout
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          mechanicName,
+                          selectedSender!,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Colors.deepPurple,
+                            fontSize: 18, // Increased font size
+                            color: Colors.white, // Changed text color for contrast
                           ),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          location,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey,
+                        const Text(
+                          'Last seen: 10:32 AM',
+                          style: TextStyle(
+                            fontSize: 14, // Slightly increased font size
+                            color: Colors.white70, // Lighter color for the last seen text
                           ),
                         ),
                       ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                // Post description
-                Text(description, style: const TextStyle(fontSize: 14)),
-                const SizedBox(height: 10),
-                // Date posted and interaction icons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(datePosted, style: const TextStyle(color: Colors.grey)),
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.favorite_border, color: Colors.deepPurple),
-                          onPressed: () {
-                            // Implement like functionality
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.more_vert, color: Colors.white), // More options button
+                    onPressed: () {
+                      // Add your functionality here
+                    },
+                  ),
+                ],
+              ),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white), // Back button
+                onPressed: () {
+                  setState(() {
+                    selectedSender = null; // Go back to messages
+                    conversation.clear(); // Clear the conversation when going back
+                  });
+                },
+              ),
+            )
+          : null, // No AppBar when no DM is active
+      body: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            // Show the list of messages or DM conversation
+            Expanded(
+              child: selectedSender == null // Check if there's a selected sender
+                  ? ListView.builder(
+                      itemCount: messages.length,
+                      itemBuilder: (context, index) {
+                        final message = messages[index];
+                        return GestureDetector(
+                          onTap: () {
+                            toggleConversation(message['sender']);
                           },
+                          child: MessageCard(
+                            avatar: message['avatar'],
+                            sender: message['sender'],
+                            text: message['text'],
+                            time: message['time'],
+                            isRead: message['read'], // Pass read status
+                            unreadCount: _getUnreadCount(), // Pass unread count
+                          ),
+                        );
+                      },
+                    )
+                  : _buildDMConversation(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDMConversation() {
+    return Column(
+      children: [
+        Expanded(
+          child: ListView.builder(
+            itemCount: conversation.length,
+            itemBuilder: (context, index) {
+              final message = conversation[index];
+              return MessageCard(
+                avatar: message['avatar'],
+                sender: message['sender'],
+                text: message['text'],
+                time: message['time'],
+                isRead: message['read'], // Pass read status
+                unreadCount: 0, // No unread count in DM
+              );
+            },
+          ),
+        ),
+        _buildMessageInput(),
+      ],
+    );
+  }
+
+  Widget _buildMessageInput() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            onChanged: (value) {
+              setState(() {
+                newMessage = value;
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Type a message...',
+              filled: true,
+              fillColor: Colors.grey[200],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30),
+                borderSide: BorderSide.none,
+              ),
+              prefixIcon: const Icon(Icons.message, color: Colors.deepPurple),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.send, color: Colors.deepPurple),
+          onPressed: sendMessage,
+        ),
+      ],
+    );
+  }
+
+  int _getUnreadCount() {
+    return messages.where((msg) => !msg['read']).length; // Count unread messages
+  }
+}
+
+class MessageCard extends StatelessWidget {
+  final String avatar;
+  final String sender;
+  final String text;
+  final String time;
+  final bool isRead; // New parameter for read status
+  final int unreadCount; // New parameter for unread count
+
+  const MessageCard({
+    required this.avatar,
+    required this.sender,
+    required this.text,
+    required this.time,
+    required this.isRead, // Add read status parameter
+    required this.unreadCount, // Add unread count parameter
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundImage: NetworkImage(avatar),
+            radius: 25,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isRead ? Colors.white : Colors.lightBlueAccent.withOpacity(0.1), // Different color for unread messages
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.3),
+                    blurRadius: 5,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        sender,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isRead ? Colors.deepPurple : Colors.blue, // Change color for unread
                         ),
-                        IconButton(
-                          icon: const Icon(Icons.share, color: Colors.deepPurple),
-                          onPressed: () {
-                            // Implement share functionality
-                          },
+                      ),
+                      // Display unread message count if greater than 0
+                      if (unreadCount > 0) 
+                        CircleAvatar(
+                          backgroundColor: Colors.red,
+                          radius: 12,
+                          child: Text(
+                            '$unreadCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
                         ),
-                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(text),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: Text(
+                      time,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1994,24 +2657,155 @@ class HomeSection extends StatelessWidget {
 }
 
 
-class ProductsSection extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(child: Text('Products Section'));
-  }
-}
 
-class MessagesSection extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Center(child: Text('Messages Section'));
-  }
-}
+
 
 class ExploreSection extends StatelessWidget {
+  const ExploreSection({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return Center(child: Text('Explore Section'));
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Background gradient
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.deepPurple, Colors.pinkAccent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          // Decorative shapes
+          Positioned(
+            top: -100,
+            left: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.1),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -150,
+            right: -150,
+            child: Container(
+              width: 400,
+              height: 400,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.1),
+              ),
+            ),
+          ),
+          // Main content
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AnimatedText(),
+                const SizedBox(height: 20),
+                const Text(
+                  'We are working on something amazing!',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Stay tuned for updates!',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.white70,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 30),
+                // Optional: Add a button or link
+ElevatedButton(
+  onPressed: () {
+    // Add your functionality here (e.g., subscribe, back to home)
+  },
+  child: const Text('Notify Me'),
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.amber, // Primary button color
+    foregroundColor: Colors.black,  // Text color
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+    textStyle: const TextStyle(fontSize: 18),
+  ),
+),
+
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class AnimatedText extends StatefulWidget {
+  const AnimatedText({Key? key}) : super(key: key);
+
+  @override
+  _AnimatedTextState createState() => _AnimatedTextState();
+}
+
+class _AnimatedTextState extends State<AnimatedText>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _animation = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _animation,
+      child: const Text(
+        'Coming Soon!',
+        style: TextStyle(
+          fontSize: 48,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+          shadows: [
+            Shadow(
+              color: Colors.black54,
+              offset: Offset(2, 2),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
