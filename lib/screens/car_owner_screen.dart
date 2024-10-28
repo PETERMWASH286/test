@@ -10,7 +10,6 @@ import 'package:geocoding/geocoding.dart';
 // Import shared_preferences
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:flutter/widgets.dart';
 void main() => runApp(const MyApp());
 List<XFile>? _imageFiles = [];
 final ImagePicker _picker = ImagePicker();
@@ -240,6 +239,7 @@ class _CarOwnerScreenState extends State<CarOwnerPage> {
 }
 
 // Home Page
+
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -247,13 +247,11 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false, // Removes the back arrow
+        automaticallyImplyLeading: false,
         backgroundColor: Colors.deepPurple,
-        elevation: 10, // Adds shadow for a more dynamic look
+        elevation: 10,
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.start, // Aligns content to the far left
           children: [
-            // Logo with a subtle glow effect
             Container(
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
@@ -266,12 +264,12 @@ class HomePage extends StatelessWidget {
                 ],
               ),
               child: Image.asset(
-                'assets/logo/app_logo.png', // Path to the Mecar logo
+                'assets/logo/app_logo.png',
                 height: 50,
                 width: 50,
               ),
             ),
-            const SizedBox(width: 15), // Space between logo and name
+            const SizedBox(width: 15),
             ShaderMask(
               shaderCallback: (Rect bounds) {
                 return const LinearGradient(
@@ -286,13 +284,6 @@ class HomePage extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                   letterSpacing: 1.5,
-                  shadows: [
-                    Shadow(
-                      offset: Offset(2.0, 2.0),
-                      blurRadius: 3.0,
-                      color: Colors.black26,
-                    ),
-                  ],
                 ),
               ),
             ),
@@ -300,12 +291,12 @@ class HomePage extends StatelessWidget {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.notification_add_rounded),
+            icon: const Icon(Icons.notifications),
             iconSize: 28,
             color: Colors.white,
             splashRadius: 25,
             onPressed: () {
-              // Implement notification functionality here
+              // Notification action
             },
             tooltip: 'Notifications',
           ),
@@ -313,62 +304,176 @@ class HomePage extends StatelessWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+// Welcome Message Section
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    const Text(
+      'Welcome Back!',
+      style: TextStyle(
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+        color: Colors.deepPurple,
+      ),
+    ),
+    ElevatedButton.icon(
+      onPressed: () {
+        // Define action for seeking support
+        // For example, navigate to support page or open a dialog
+      },
+      icon: const Icon(Icons.support_agent, size: 20), // Icon for support
+      label: const Text('Seek Support'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.deepPurple, // Updated button color
+        foregroundColor: Colors.white, // Updated text color
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10), // Rounded corners
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8), // Padding for the button
+      ),
+    ),
+  ],
+),
+const SizedBox(height: 20),
+
+
+
+// Maintenance Costs Summary Section
+const Text(
+  'Maintenance Costs Summary:',
+  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+),
+const SizedBox(height: 10),
+const Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    SummaryCard(
+      label: 'Total Cost',
+      amount: 8000,
+      icon: Icons.attach_money, // Money icon for total cost
+    ),
+    SummaryCard(
+      label: "This Month's Cost",
+      amount: 1500,
+      icon: Icons.calendar_today, // Calendar icon for monthly cost
+    ),
+  ],
+),
+
+              const SizedBox(height: 20),
+
+              const Text(
+                'Your Cars:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 200,
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: const [
+                    CarCard(carModel: 'Toyota Corolla', totalCost: 3000, repairDetails: 'Brake Pad Replacement', imageUrl: 'https://haynes.com/en-gb/sites/default/files/styles/unaltered_webp/public/carphoto-location_0.jpg?itok=ctj5rnvC&timestamp=1476269366'),
+                    CarCard(carModel: 'Honda Civic', totalCost: 1500, repairDetails: 'Oil Change', imageUrl: 'https://media.istockphoto.com/id/501282196/photo/laferrari.jpg?s=612x612&w=0&k=20&c=yJH3oUuhYSmta_BYdwoUOktqWps5zC86guy5hQ29608='),
+                    CarCard(carModel: 'Ford Focus', totalCost: 2500, repairDetails: 'Tire Rotation', imageUrl: 'https://hips.hearstapps.com/hmg-prod/images/2026-bugatti-tourbillon-104-66709d54aa287.jpg?crop=0.819xw:0.692xh;0.0994xw,0.185xh&resize=2048:*'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              const Text(
+                'Recent Services:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              const ServiceCard(
+                serviceName: 'Engine Check',
+                date: 'Oct 23, 2024',
+                cost: 150.00,
+              ),
+              const ServiceCard(
+                serviceName: 'Tire Replacement',
+                date: 'Oct 18, 2024',
+                cost: 400.00,
+              ),
+              const SizedBox(height: 20),
+
+              const Text(
+                'News & Tips:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              const NewsCard(
+                title: 'Top 5 Maintenance Tips for Winter',
+                icon: Icons.ac_unit,
+              ),
+              const NewsCard(
+                title: 'How to Save on Car Repairs',
+                icon: Icons.money_off,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Summary Card Widget
+class SummaryCard extends StatelessWidget {
+  final String label;
+  final double amount;
+  final IconData icon;
+
+  const SummaryCard({
+    super.key,
+    required this.label,
+    required this.amount,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Colors.deepPurple[50],
+      margin: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: Container(
+        width: 150,
+        height: 100, // Increased height for icon and text balance
+        decoration: BoxDecoration(
+          image: const DecorationImage(
+            image: AssetImage('assets/images/maintenance_bg.png'),
+            fit: BoxFit.cover,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'Welcome Back, Car Owner!',
-              style: TextStyle(
-                fontSize: 28,
+            // Icon for the label
+            Icon(
+              icon,
+              color: Colors.deepPurple,
+              size: 23,
+            ),
+            const SizedBox(height: 5), // Space between icon and label
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13,
                 fontWeight: FontWeight.bold,
                 color: Colors.deepPurple,
               ),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Here’s a quick overview of your car’s recent activities and updates:',
-              style: TextStyle(fontSize: 16),
-            ),
-            const SizedBox(height: 20),
-            Card(
-              color: Colors.deepPurple[50],
-              child: ListTile(
-                leading: const Icon(Icons.directions_car, color: Colors.deepPurple),
-                title: const Text('Upcoming Service: Oil Change'),
-                subtitle: const Text('Date: 28th September, 2024'),
-                trailing: const Icon(Icons.arrow_forward, color: Colors.deepPurple),
-                onTap: () {
-                  // Implement navigation or more details
-                },
-              ),
-            ),
-            const SizedBox(height: 10),
-            Card(
-              color: Colors.deepPurple[50],
-              child: ListTile(
-                leading: const Icon(Icons.build, color: Colors.deepPurple),
-                title: const Text('New Repairs Request'),
-                subtitle: const Text('Requested on: 23rd September, 2024'),
-                trailing: const Icon(Icons.arrow_forward, color: Colors.deepPurple),
-                onTap: () {
-                  // Implement navigation or more details
-                },
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Need assistance with your vehicle?',
-              style: TextStyle(fontSize: 16),
-            ),
-            ElevatedButton.icon(
-              onPressed: () {
-                // Implement help logic
-              },
-              icon: const Icon(Icons.help_outline),
-              label: const Text('Request Help'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
+            Text(
+              '\$${amount.toStringAsFixed(2)}',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
               ),
             ),
           ],
@@ -378,6 +483,108 @@ class HomePage extends StatelessWidget {
   }
 }
 
+
+// Service Card Widget
+class ServiceCard extends StatelessWidget {
+  final String serviceName;
+  final String date;
+  final double cost;
+
+  const ServiceCard({
+    super.key,
+    required this.serviceName,
+    required this.date,
+    required this.cost,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: const Icon(Icons.build, color: Colors.deepPurple),
+      title: Text(serviceName),
+      subtitle: Text(date),
+      trailing: Text('\$$cost'),
+    );
+  }
+}
+
+// News Card Widget
+class NewsCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+
+  const NewsCard({
+    super.key,
+    required this.title,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.orangeAccent),
+      title: Text(title),
+    );
+  }
+}
+
+// Car Card Widget
+class CarCard extends StatelessWidget {
+  final String carModel;
+  final double totalCost;
+  final String repairDetails;
+  final String imageUrl;
+
+  const CarCard({
+    super.key,
+    required this.carModel,
+    required this.totalCost,
+    required this.repairDetails,
+    required this.imageUrl,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      color: Colors.transparent, // Make card transparent to see background
+      margin: const EdgeInsets.symmetric(horizontal: 8.0),
+      child: Container(
+        width: 150,
+        decoration: BoxDecoration(
+        image: DecorationImage(
+          image: NetworkImage(imageUrl),
+          fit: BoxFit.cover,
+        ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              carModel,
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Total Cost: \$${totalCost.toStringAsFixed(2)}',
+              style: const TextStyle(fontSize: 14, color: Colors.white70),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              'Last Repair: $repairDetails',
+              style: const TextStyle(fontSize: 14, color: Colors.white70),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 // Repairs Page
 
@@ -1704,10 +1911,10 @@ class _ExplorePageState extends State<ExplorePage> {
 
   // List of widgets for different sections
   final List<Widget> _navPages = [
-    HomeSection(),
-    ProductsSection(),
-    MessagesSection(),
-    ExploreSection(),
+    const HomeSection(),
+    const ProductsSection(),
+    const MessagesSection(),
+    const ExploreSection(),
   ];
 
   void _onNavItemTapped(int index) {
@@ -1827,6 +2034,8 @@ class _ExplorePageState extends State<ExplorePage> {
 
 
 
+
+
 class HomeSection extends StatelessWidget {
   const HomeSection({super.key});
 
@@ -1876,13 +2085,12 @@ class HomeSection extends StatelessWidget {
             ),
           ],
         ),
-        // Floating action button for adding a post
         Positioned(
           right: 16,
           bottom: MediaQuery.of(context).size.height / 8,
           child: FloatingActionButton(
             onPressed: () {
-              // Handle post creation
+              _showPostDialog(context);
             },
             backgroundColor: Colors.deepPurple,
             child: const Icon(Icons.add),
@@ -1891,6 +2099,171 @@ class HomeSection extends StatelessWidget {
       ],
     );
   }
+
+
+void _showPostDialog(BuildContext context) {
+  final TextEditingController descriptionController = TextEditingController();
+  String? imagePath;
+  final ImagePicker _picker = ImagePicker();
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text(
+          'Create a New Post',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.deepPurple,
+            fontSize: 24,
+          ),
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        content: SingleChildScrollView(
+          child: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () async {
+                      final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+                      if (pickedFile != null) {
+                        setState(() {
+                          imagePath = pickedFile.path;
+                        });
+                      }
+                    },
+                    child: Container(
+                      height: 150,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(15),
+                        image: imagePath != null
+                            ? DecorationImage(
+                                image: FileImage(File(imagePath!)),
+                                fit: BoxFit.cover,
+                              )
+                            : null,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 8,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: imagePath == null
+                          ? const Icon(Icons.add_a_photo, size: 40, color: Colors.grey)
+                          : null,
+                      alignment: Alignment.center,
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  TextField(
+                    controller: descriptionController,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      hintText: 'Enter post description...',
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                      filled: true,
+                      fillColor: Colors.grey[100],
+                      contentPadding: const EdgeInsets.all(10),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
+              );
+            },
+          ),
+        ),
+        actions: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close the dialog
+                },
+                icon: const Icon(Icons.cancel, color: Colors.white),
+                label: const Text('Cancel', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  elevation: 8,
+                  shadowColor: Colors.red.withOpacity(0.5),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  // Check if fields are filled
+                  if (descriptionController.text.isNotEmpty && imagePath != null) {
+                    // Call the function to create the post
+                    await _createPost(descriptionController.text, imagePath);
+                    Navigator.of(context).pop();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields!')));
+                  }
+                },
+                icon: const Icon(Icons.post_add, color: Colors.white),
+                label: const Text('Post', style: TextStyle(color: Colors.white)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurpleAccent,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  elevation: 8,
+                  shadowColor: Colors.deepPurple.withOpacity(0.5),
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    },
+  );
+}
+
+// Function to create a post
+Future<void> _createPost(String description, String? imagePath) async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final String? token = prefs.getString('jwt_token'); // Get the JWT token
+
+  // Define the URL for your Flask backend
+  final String url = 'https://expertstrials.xyz/Garifix_app/api/posts'; // Adjust the endpoint accordingly
+
+  // Prepare the request
+  final request = http.MultipartRequest('POST', Uri.parse(url))
+    ..fields['description'] = description
+    ..headers['Authorization'] = 'Bearer $token'; // Add the JWT token in the headers
+
+  if (imagePath != null) {
+    // Attach the image file if it exists
+    final imageFile = await http.MultipartFile.fromPath('image', imagePath);
+    request.files.add(imageFile);
+  }
+
+  // Send the request
+  try {
+    final response = await request.send();
+    if (response.statusCode == 200) {
+      print('Post created successfully');
+      // Handle success if needed
+    } else {
+      print('Failed to create post: ${response.statusCode}');
+      // Handle error if needed
+    }
+  } catch (e) {
+    print('Error occurred: $e');
+    // Handle error if needed
+  }
+}
 
   Widget _buildExplorePost({
     required String mechanicName,
@@ -2060,8 +2433,8 @@ class _ProductsSectionState extends State<ProductsSection> {
             isSearchVisible = !isSearchVisible;
           });
         },
-        child: const Icon(Icons.filter_list),
         backgroundColor: Colors.deepPurple,
+        child: const Icon(Icons.filter_list),
       ),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
@@ -2186,7 +2559,7 @@ Container(
   decoration: BoxDecoration(
     color: Colors.white,
     borderRadius: BorderRadius.circular(12), // Increased radius for softer corners
-    boxShadow: [
+    boxShadow: const [
       BoxShadow(
         color: Colors.black26,
         blurRadius: 10, // Shadow blur effect
@@ -2213,7 +2586,7 @@ Container(
       ),
       // Overlay with gradient for better visibility
       Container(
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             colors: [Colors.black54, Colors.transparent], // Gradient effect
             begin: Alignment.bottomCenter,
@@ -2571,7 +2944,7 @@ class MessageCard extends StatelessWidget {
   final bool isRead; // New parameter for read status
   final int unreadCount; // New parameter for unread count
 
-  const MessageCard({
+  const MessageCard({super.key, 
     required this.avatar,
     required this.sender,
     required this.text,
@@ -2670,7 +3043,7 @@ class ExploreSection extends StatelessWidget {
         children: [
           // Background gradient
           Container(
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               gradient: LinearGradient(
                 colors: [Colors.deepPurple, Colors.pinkAccent],
                 begin: Alignment.topLeft,
@@ -2708,7 +3081,7 @@ class ExploreSection extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                AnimatedText(),
+                const AnimatedText(),
                 const SizedBox(height: 20),
                 const Text(
                   'We are working on something amazing!',
@@ -2734,13 +3107,13 @@ ElevatedButton(
   onPressed: () {
     // Add your functionality here (e.g., subscribe, back to home)
   },
-  child: const Text('Notify Me'),
   style: ElevatedButton.styleFrom(
     backgroundColor: Colors.amber, // Primary button color
     foregroundColor: Colors.black,  // Text color
     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
     textStyle: const TextStyle(fontSize: 18),
   ),
+  child: const Text('Notify Me'),
 ),
 
               ],
@@ -2753,7 +3126,7 @@ ElevatedButton(
 }
 
 class AnimatedText extends StatefulWidget {
-  const AnimatedText({Key? key}) : super(key: key);
+  const AnimatedText({super.key});
 
   @override
   _AnimatedTextState createState() => _AnimatedTextState();
