@@ -3,11 +3,12 @@ import 'mechanic_packages_payment.dart';
 import 'car_owner_packages_payment.dart';
 import 'enterprise_packages_payment.dart';
 import 'enterprise_mechanic_packages_payment.dart';
+import 'auto_supply_store_package_screen.dart'; // Import the new Auto Supply Store screen
 
-import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // FontAwesome
-import 'package:http/http.dart' as http; // For making HTTP requests
-import 'dart:convert'; // For JSON encoding/decoding
-import 'package:shared_preferences/shared_preferences.dart'; // For shared preferences
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,37 +23,21 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchUserFullName(); // Fetch user's full name when the screen loads
+    _fetchUserFullName();
   }
 
   Future<void> _fetchUserFullName() async {
-    // Get email from shared preferences
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? email = prefs.getString('userEmail');
-
-    // Debugging: Print the email to verify it's retrieved correctly
-    print('Retrieved email from SharedPreferences: $email');
-
-    // Make an HTTP GET request to fetch the user's full name from the server
     final response = await http.get(Uri.parse('https://expertstrials.xyz/Garifix_app/get_full_name?email=$email'));
 
-    // Debugging: Print the response status code
-    print('Response status code: ${response.statusCode}');
-
     if (response.statusCode == 200) {
-      // If the server returns a 200 OK response, parse the JSON
       var data = json.decode(response.body);
-
-      // Debugging: Print the data received from the API
-      print('Data received from API: $data');
-
       setState(() {
-        _fullName = data['full_name'] ?? "User"; // Use null-aware operator to fall back to default
+        _fullName = data['full_name'] ?? "User";
       });
     } else {
-      // If the server did not return a 200 OK response, handle the error
       print('Failed to load user full name: ${response.statusCode}');
-      print('Response body: ${response.body}'); // Log the response body for debugging
     }
   }
 
@@ -84,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline),
-            onPressed: _showHelpDialog, // Show help dialog when pressed
+            onPressed: _showHelpDialog,
           ),
         ],
       ),
@@ -98,15 +83,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: Center(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.start, // Aligns the message at the top
+            mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              // Welcome message at the top
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 10), // Padding around the message
+                padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 10),
                 child: Text(
                   'Hello, $_fullName! Please select your role to proceed.',
                   style: const TextStyle(
-                    fontSize: 18, // Smaller font size
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                     shadows: [
@@ -120,8 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
 
-              // Add margin before the buttons
-              const SizedBox(height: 40), // Space between the message and buttons
+              const SizedBox(height: 40),
 
               // Car Owner Button
               CrazyButton(
@@ -151,10 +134,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // Enterprise Car Owner Button
               CrazyButton(
-                icon: FontAwesomeIcons.building, // FontAwesome icon
+                icon: FontAwesomeIcons.building,
                 label: 'Enterprise Car Owner',
                 onPressed: () {
-                  // Navigate to Enterprise Car Owner screen
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const EnterpriseCarOwnerScreen()),
@@ -165,13 +147,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
               // Enterprise Mechanic Button
               CrazyButton(
-                icon: FontAwesomeIcons.building, // FontAwesome icon
+                icon: FontAwesomeIcons.building,
                 label: 'Enterprise Mechanic',
                 onPressed: () {
-                  // Navigate to Enterprise Mechanic screen
                   Navigator.push(
                     context,
                     MaterialPageRoute(builder: (context) => const EnterpriseMechanicScreen()),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
+
+              // Auto Supply Store Button
+              CrazyButton(
+                icon: FontAwesomeIcons.store, // Use a different icon for Auto Supply Store
+                label: 'Auto Supply Store',
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const AutoStorePaymentScreen()),
                   );
                 },
               ),
@@ -183,7 +177,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// Custom CrazyButton Widget for consistency and crazy style
+// Custom CrazyButton Widget for consistency and style
 class CrazyButton extends StatelessWidget {
   final IconData icon;
   final String label;
@@ -201,8 +195,8 @@ class CrazyButton extends StatelessWidget {
     return ElevatedButton.icon(
       style: ElevatedButton.styleFrom(
         padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 30),
-        backgroundColor: Colors.deepPurple, // Background color
-        foregroundColor: Colors.white, // Text color
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(30),
         ),

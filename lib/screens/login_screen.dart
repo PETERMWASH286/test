@@ -4,7 +4,10 @@ import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'auto_store_home_screen.dart';
+
 import 'home_screen.dart';
+
 import 'enterprise_mechanic_home_screen.dart';
 import 'car_owner_screen.dart';
 import 'mechanic_list_screen.dart';
@@ -126,10 +129,6 @@ void _loginWithPin() async {
 
 
 
-  void _showErrorSnackbar(String message) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(message)));
-  }
 void _redirectUser(String? userRole) {
   if (userRole == 'Mechanic') {
     Navigator.pushReplacement(
@@ -151,6 +150,11 @@ void _redirectUser(String? userRole) {
       context,
       MaterialPageRoute(builder: (context) => const EnterpriseCarScreen()),
     );
+  } else if (userRole == 'auto_store_owner') {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const AutoStoreHomeScreen()),
+    );
   } else {
     // If no user role is found, navigate to HomeScreen
     Navigator.pushReplacement(
@@ -159,6 +163,13 @@ void _redirectUser(String? userRole) {
     );
   }
 }
+
+// Error handling to show a message if needed
+void _showErrorSnackbar(String message) {
+  ScaffoldMessenger.of(context)
+      .showSnackBar(SnackBar(content: Text(message)));
+}
+
 
   @override
   Widget build(BuildContext context) {

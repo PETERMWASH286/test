@@ -8,6 +8,7 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 // Import shared_preferences
+import 'post.dart'; // Make sure to import the Post model
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 void main() => runApp(const MyApp());
@@ -1042,7 +1043,7 @@ class _RepairsPageState extends State<RepairsPage>
           });
           _showProblemForm();
         },
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: const Color.fromRGBO(103, 58, 183, 1),
         child: const Icon(Icons.add),
       ),
     );
@@ -2036,8 +2037,60 @@ class _ExplorePageState extends State<ExplorePage> {
 
 
 
-class HomeSection extends StatelessWidget {
+class HomeSection extends StatefulWidget {
   const HomeSection({super.key});
+
+  @override
+  _HomeSectionState createState() => _HomeSectionState();
+}
+
+class _HomeSectionState extends State<HomeSection> {
+  List<Post> posts = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchPosts();
+  }
+
+  List<Post> removeDuplicatesById(List<Post> posts) {
+    final seenIds = <int>{};
+    return posts.where((post) => seenIds.add(post.id)).toList();
+  }
+
+  Future<void> fetchPosts() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token');
+    const String url = 'https://expertstrials.xyz/Garifix_app/api/posts';
+
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = json.decode(response.body);
+        List<Post> fetchedPosts = jsonData.map((json) => Post.fromJson(json)).toList();
+        fetchedPosts = removeDuplicatesById(fetchedPosts);
+
+        setState(() {
+          posts = fetchedPosts;
+          isLoading = false;
+        });
+      } else {
+        print('Failed to load posts: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error occurred: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -2050,38 +2103,42 @@ class HomeSection extends StatelessWidget {
               color: Colors.grey[200],
             ),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(16.0),
-                children: [
-                  _buildExplorePost(
-                    mechanicName: 'Expert Auto Repairs',
-                    description:
-                        'Completed a full engine overhaul on a BMW M3. Professional service guaranteed!',
-                    datePosted: '2 days ago',
-                    imagePath: 'https://www.pngplay.com/wp-content/uploads/15/Bmw-Engine-PNG-Free-File-Download.png',
-                    userProfilePic: 'assets/user1.png',
-                    location: 'New York, USA',
-                  ),
-                  _buildExplorePost(
-                    mechanicName: 'Quick Tune Garage',
-                    description:
-                        'Specialized in brake systems and suspension upgrades. Book a service today!',
-                    datePosted: '5 days ago',
-                    imagePath: 'https://c4.wallpaperflare.com/wallpaper/782/765/99/bmw-engine-wallpaper-preview.jpg',
-                    userProfilePic: 'assets/user2.png',
-                    location: 'Los Angeles, USA',
-                  ),
-                  _buildExplorePost(
-                    mechanicName: 'Luxury Car Repair',
-                    description:
-                        'Premium car detailing and interior refurbishment. Transform your ride!',
-                    datePosted: '1 week ago',
-                    imagePath: 'https://c4.wallpaperflare.com/wallpaper/385/762/349/bmw-engine-hd-wallpaper-preview.jpg',
-                    userProfilePic: 'assets/user3.png',
-                    location: 'Miami, USA',
-                  ),
-                ],
-              ),
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: fetchPosts,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16.0),
+                        itemCount: posts.length,
+                        itemBuilder: (context, index) {
+                          final post = posts[index];
+
+                          return FutureBuilder<String>(
+                            future: _getAddressFromLatLng(
+                                post.latitude!, post.longitude!),
+                            builder: (context, snapshot) {
+                              String locationText = 'Location not available';
+                              if (snapshot.connectionState == ConnectionState.waiting) {
+                                locationText = 'Fetching location...';
+                              } else if (snapshot.hasData) {
+                                locationText = snapshot.data!;
+                              } else if (snapshot.hasError) {
+                                locationText = 'Error fetching location';
+                              }
+
+                              return _buildExplorePost(
+                                mechanicName: post.fullName,
+                                description: post.description,
+                                datePosted: post.createdAt.toString(),
+                                imagePath: 'https://expertstrials.xyz/Garifix_app/${post.imagePath}',
+                                userProfilePic: 'https://expertstrials.xyz/Garifix_app/${post.profileImage}' ?? 'assets/default_user.png',
+                                location: locationText,
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
             ),
           ],
         ),
@@ -2100,11 +2157,20 @@ class HomeSection extends StatelessWidget {
     );
   }
 
-
+  Future<String> _getAddressFromLatLng(double latitude, double longitude) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude);
+      Placemark place = placemarks[0];
+      return '${place.street}, ${place.locality}, ${place.country}';
+    } catch (e) {
+      print(e);
+      return 'Location not available';
+    }
+  }
 void _showPostDialog(BuildContext context) {
   final TextEditingController descriptionController = TextEditingController();
   String? imagePath;
-  final ImagePicker _picker = ImagePicker();
+  final ImagePicker picker = ImagePicker();
 
   showDialog(
     context: context,
@@ -2129,7 +2195,7 @@ void _showPostDialog(BuildContext context) {
                 children: [
                   GestureDetector(
                     onTap: () async {
-                      final XFile? pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+                      final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
                       if (pickedFile != null) {
                         setState(() {
                           imagePath = pickedFile.path;
@@ -2147,18 +2213,18 @@ void _showPostDialog(BuildContext context) {
                                 fit: BoxFit.cover,
                               )
                             : null,
-                        boxShadow: [
+                        boxShadow: const [
                           BoxShadow(
                             color: Colors.black26,
                             blurRadius: 8,
-                            offset: const Offset(0, 4),
+                            offset: Offset(0, 4),
                           ),
                         ],
                       ),
+                      alignment: Alignment.center,
                       child: imagePath == null
                           ? const Icon(Icons.add_a_photo, size: 40, color: Colors.grey)
                           : null,
-                      alignment: Alignment.center,
                     ),
                   ),
                   const SizedBox(height: 15),
@@ -2199,29 +2265,30 @@ void _showPostDialog(BuildContext context) {
                   shadowColor: Colors.red.withOpacity(0.5),
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  // Check if fields are filled
-                  if (descriptionController.text.isNotEmpty && imagePath != null) {
-                    // Call the function to create the post
-                    await _createPost(descriptionController.text, imagePath);
-                    Navigator.of(context).pop();
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields!')));
-                  }
-                },
-                icon: const Icon(Icons.post_add, color: Colors.white),
-                label: const Text('Post', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepPurpleAccent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  elevation: 8,
-                  shadowColor: Colors.deepPurple.withOpacity(0.5),
-                ),
-              ),
+ElevatedButton.icon(
+  onPressed: () async {
+    // Check if fields are filled
+    if (descriptionController.text.isNotEmpty && imagePath != null) {
+      // Call the function to create the post
+      await _createPost(descriptionController.text, imagePath, context);
+      Navigator.of(context).pop(); // Close the dialog
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields!')));
+    }
+  },
+  icon: const Icon(Icons.post_add, color: Colors.white),
+  label: const Text('Post', style: TextStyle(color: Colors.white)),
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.deepPurpleAccent,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(30),
+    ),
+    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+    elevation: 8,
+    shadowColor: Colors.deepPurple.withOpacity(0.5),
+  ),
+),
+
             ],
           ),
         ],
@@ -2230,13 +2297,12 @@ void _showPostDialog(BuildContext context) {
   );
 }
 
-// Function to create a post
-Future<void> _createPost(String description, String? imagePath) async {
+Future<void> _createPost(String description, String? imagePath, BuildContext context) async {
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   final String? token = prefs.getString('jwt_token'); // Get the JWT token
 
   // Define the URL for your Flask backend
-  final String url = 'https://expertstrials.xyz/Garifix_app/api/posts'; // Adjust the endpoint accordingly
+  const String url = 'https://expertstrials.xyz/Garifix_app/api/posts'; // Adjust the endpoint accordingly
 
   // Prepare the request
   final request = http.MultipartRequest('POST', Uri.parse(url))
@@ -2254,145 +2320,158 @@ Future<void> _createPost(String description, String? imagePath) async {
     final response = await request.send();
     if (response.statusCode == 200) {
       print('Post created successfully');
-      // Handle success if needed
+      // Show success dialog or SnackBar
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Post created successfully!')),
+      );
     } else {
       print('Failed to create post: ${response.statusCode}');
-      // Handle error if needed
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to create post!')),
+      );
     }
   } catch (e) {
     print('Error occurred: $e');
-    // Handle error if needed
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('An error occurred while creating the post!')),
+    );
   }
 }
 
-  Widget _buildExplorePost({
-    required String mechanicName,
-    required String description,
-    required String datePosted,
-    required String imagePath,
-    required String userProfilePic,
-    required String location,
-  }) {
-    int likeCount = 0;
-    bool isLiked = false;
-    bool isSaved = false;
 
-    return StatefulBuilder(
-      builder: (context, setState) {
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 10),
-          elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(15),
-                  topRight: Radius.circular(15),
-                ),
-                child: Image.network(
-                  imagePath,
-                  height: 180,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                (loadingProgress.expectedTotalBytes ?? 1)
-                            : null,
+Widget _buildExplorePost({
+  required String mechanicName,
+  required String description,
+  required String datePosted,
+  required String imagePath,
+  required String userProfilePic,
+  required String location,
+}) {
+  int likeCount = 0;
+  bool isLiked = false;
+  bool isSaved = false;
+
+  return StatefulBuilder(
+    builder: (context, setState) {
+      return Card(
+        margin: const EdgeInsets.symmetric(vertical: 10),
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(15),
+                topRight: Radius.circular(15),
+              ),
+              child: Image.network(
+                imagePath,
+                height: 180,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              (loadingProgress.expectedTotalBytes ?? 1)
+                          : null,
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(child: Icon(Icons.error));
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundImage: NetworkImage(
+                          userProfilePic.isNotEmpty 
+                            ? userProfilePic 
+                            : 'https://example.com/default_user.png', // Default image URL if needed
+                        ),
                       ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(child: Icon(Icons.error));
-                  },
-                ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            mechanicName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.deepPurple,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            location,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(description, style: const TextStyle(fontSize: 14)),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(datePosted, style: const TextStyle(color: Colors.grey)),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              isLiked ? Icons.favorite : Icons.favorite_border,
+                              color: isLiked ? Colors.red : Colors.deepPurple,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                isLiked = !isLiked;
+                                likeCount += isLiked ? 1 : -1;
+                              });
+                            },
+                          ),
+                          Text(likeCount.toString()),
+                          IconButton(
+                            icon: Icon(
+                              isSaved ? Icons.bookmark : Icons.bookmark_border,
+                              color: Colors.deepPurple,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                isSaved = !isSaved;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundImage: AssetImage(userProfilePic),
-                        ),
-                        const SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              mechanicName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.deepPurple,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              location,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Text(description, style: const TextStyle(fontSize: 14)),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(datePosted, style: const TextStyle(color: Colors.grey)),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                isLiked ? Icons.favorite : Icons.favorite_border,
-                                color: isLiked ? Colors.red : Colors.deepPurple,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  isLiked = !isLiked;
-                                  likeCount += isLiked ? 1 : -1;
-                                });
-                              },
-                            ),
-                            Text(likeCount.toString()),
-                            IconButton(
-                              icon: Icon(
-                                isSaved ? Icons.bookmark : Icons.bookmark_border,
-                                color: Colors.deepPurple,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  isSaved = !isSaved;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 }
 
 
@@ -3185,50 +3264,156 @@ class _AnimatedTextState extends State<AnimatedText>
 
 
 
-class AccountPage extends StatelessWidget {
+class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
 
-@override
-Widget build(BuildContext context) {
-  return Scaffold(
-    appBar: AppBar(
-      backgroundColor: Colors.deepPurple,
-      title: const Text('Profile'),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.settings, color: Colors.white),
-          onPressed: () {
-            // Navigate to account settings
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.exit_to_app, color: Colors.redAccent),
-          onPressed: () {
-            // Implement logout functionality
-          },
-        ),
-      ],
-      elevation: 0,
-    ),
-    body: SingleChildScrollView(
-      child: Column(
-        children: [
-          const SizedBox(height: 20),
-          _buildProfileHeader(context),
-          const SizedBox(height: 30),
-          _buildCarSection(),
-          const SizedBox(height: 30),
-          _buildContactSection(),
-          const SizedBox(height: 30), // Adjust spacing if needed
-          _buildPaymentSection(), // New payment section
-          const SizedBox(height: 20),
-          _buildDocumentsSection(),
-        ],
-      ),
-    ),
-  );
+  @override
+  _AccountPageState createState() => _AccountPageState();
 }
 
+class _AccountPageState extends State<AccountPage> {
+  String? _imageUrl; // URL for the profile image
+  final ImagePicker _picker = ImagePicker();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.deepPurple,
+        title: const Text('Profile'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.white),
+            onPressed: () {
+              // Navigate to account settings
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.exit_to_app, color: Colors.redAccent),
+            onPressed: () {
+              // Implement logout functionality
+            },
+          ),
+        ],
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            const SizedBox(height: 20),
+            _buildProfileHeader(context),
+            const SizedBox(height: 30),
+            _buildCarSection(),
+            const SizedBox(height: 30),
+            _buildContactSection(),
+            const SizedBox(height: 30),
+            _buildPaymentSection(),
+            const SizedBox(height: 20),
+            _buildDocumentsSection(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader(BuildContext context) {
+    return Center(
+      child: Column(
+        children: [
+          Stack(
+            children: [
+              CircleAvatar(
+                radius: 55,
+                backgroundColor: Colors.grey[200],
+                // Display the user's profile image or a placeholder
+                backgroundImage: _imageUrl != null
+                    ? NetworkImage(_imageUrl!)
+                    : const AssetImage('assets/placeholder.png') as ImageProvider,
+              ),
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: InkWell(
+                  onTap: _changeProfilePicture,
+                  child: const CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.deepPurple,
+                    child: Icon(Icons.camera_alt, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Text(
+            'John Doe',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+          ),
+          const SizedBox(height: 1),
+          const Text(
+            'Joined: January 2018',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _changeProfilePicture() async {
+    final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+    if (image != null) {
+      // Temporarily display the local image
+      setState(() {
+        _imageUrl = image.path; // Set the image path temporarily
+      });
+
+      // Get the JWT token
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('jwt_token');
+
+      // Create a request to send the image and token to the backend
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://expertstrials.xyz/Garifix_app/update_profile'),
+      );
+
+      // Add the token to the request headers
+      request.headers['Authorization'] = 'Bearer $token';
+
+      // Check if the file exists before adding
+      if (await File(image.path).exists()) {
+        request.files.add(
+          await http.MultipartFile.fromPath('image', image.path),
+        );
+
+        try {
+          // Send the request
+          var response = await request.send();
+
+          if (response.statusCode == 200) {
+            var responseData = await http.Response.fromStream(response);
+            var responseJson = jsonDecode(responseData.body);
+
+            // Assuming your server sends back the image URL after upload
+            if (responseJson['success'] == true && responseJson['profile_image_url'] != null) {
+              setState(() {
+                // Update the image URL with the one returned from the server
+                _imageUrl = responseJson['profile_image_url'];
+              });
+              print('Profile updated successfully');
+            } else {
+              print('Failed to update profile: ${responseJson['message']}');
+            }
+          } else {
+            print('Failed to update profile: ${response.reasonPhrase}');
+          }
+        } catch (e) {
+          print('Error occurred: $e');
+        }
+      } else {
+        print('The image file does not exist at path: ${image.path}');
+      }
+    }
+  }
 // Payment Section Widget
 Widget _buildPaymentSection() {
   return Padding(
@@ -3297,55 +3482,6 @@ Widget _buildPaymentSection() {
     ),
   );
 }
-
-
-
-Widget _buildProfileHeader(BuildContext context) {
-  return Center(
-    child: Column(
-      children: [
-        Stack(
-          children: [
-            CircleAvatar(
-              radius: 55,
-              backgroundColor: Colors.grey[200],
-              child: const Icon(
-                Icons.account_circle, // Big account icon
-                size: 105, // Adjust the size as needed
-                color: Colors.deepPurple, // Icon color
-              ),
-            ),
-            Positioned(
-              bottom: 0,
-              right: 0,
-              child: InkWell(
-                onTap: () {
-                  // Implement profile picture upload
-                },
-                child: const CircleAvatar(
-                  radius: 20,
-                  backgroundColor: Colors.deepPurple,
-                  child: Icon(Icons.camera_alt, color: Colors.white),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const Text(
-          'John Doe',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
-        ),
-        const SizedBox(height: 1),
-        const Text(
-          'Joined: January 2018',
-          style: TextStyle(fontSize: 14, color: Colors.grey),
-        ),
-
-      ],
-    ),
-  );
-}
-
 // Horizontal scrollable My Car section
 Widget _buildCarSection() {
   return Padding(

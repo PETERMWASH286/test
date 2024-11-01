@@ -1364,16 +1364,20 @@ class _ProfilePageState extends State<ProfilePage> {
     await Future.wait([_fetchUserProfile(), _fetchUserInfo()]); // Fetch data in parallel
   }
 Future<void> _fetchUserProfile() async {
-  final String? email = userEmail;
-
-  if (email == null) {
-    print('Email is null, cannot fetch user profile.');
+    // Get the JWT token
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token'); // Get the JWT token
+  if (token == null) {
+    print('Token is null, cannot fetch user profile.');
     return;
   }
 
   try {
     final response = await http.get(
-      Uri.parse('https://expertstrials.xyz/Garifix_app/get_user_profile?email=$email'),
+      Uri.parse('https://expertstrials.xyz/Garifix_app/get_user_profile'),
+      headers: {
+        'Authorization': 'Bearer $token',  // Add the token to the Authorization header
+      },
     );
 
     if (response.statusCode == 200) {
@@ -1399,6 +1403,7 @@ Future<void> _fetchUserProfile() async {
 }
 
 
+
   Future<void> requestPermission() async {
     await Permission.storage.request();
   }
@@ -1411,17 +1416,21 @@ Future<void> _changeProfilePicture() async {
       _imageUrl = image.path; // Temporarily display the local image
     });
 
-    // Get the user email
-    final String? email = userEmail;
+    // Get the JWT token
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token'); // Get the JWT token
 
-    // Create a request to send the image and email to the backend
+    // Debug: Print the token
+    print('JWT Token: $token'); // <-- Print the token for debugging
+
+    // Create a request to send the image and token to the backend
     var request = http.MultipartRequest(
       'POST',
       Uri.parse('https://expertstrials.xyz/Garifix_app/update_profile'),
     );
 
-    // Add the email to the request
-    request.fields['email'] = email ?? '';
+    // Add the token to the request headers
+    request.headers['Authorization'] = 'Bearer $token';
 
     // Debug: Print image path
     print('Image path: ${image.path}');
@@ -1462,12 +1471,22 @@ Future<void> _changeProfilePicture() async {
     }
   }
 }
-Future<void> _fetchUserInfo() async {
-    final String? email = userEmail; // Assuming userEmail is defined
-    print('Fetching user info for email: $email'); // Debug email
 
+Future<void> _fetchUserInfo() async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final String? token = prefs.getString('jwt_token'); // Get the JWT token
+
+  if (token == null) {
+    print('Token is null, cannot fetch user info.');
+    return;
+  }
+
+  try {
     final response = await http.get(
-      Uri.parse('https://expertstrials.xyz/Garifix_app/get_user_info?email=$email'),
+      Uri.parse('https://expertstrials.xyz/Garifix_app/get_user_info'),
+      headers: {
+        'Authorization': 'Bearer $token',  // Add the token to the Authorization header
+      },
     );
 
     if (response.statusCode == 200) {
@@ -1494,7 +1513,11 @@ Future<void> _fetchUserInfo() async {
     } else {
       print('Failed to fetch user info: ${response.reasonPhrase}');
     }
+  } catch (e) {
+    print('Error occurred while fetching user info: $e');
+  }
 }
+
 
 
 @override
