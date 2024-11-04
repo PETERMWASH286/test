@@ -24,6 +24,9 @@ dependencies:
   qr_flutter: ^4.0.0  # Or the latest version available
   mobile_scanner: ^4.0.0 # Add the version based on the latest one available
   fl_chart: ^0.40.0 # Check for the latest version
+  awesome_dialog: ^3.0.0  # Update to the latest version compatible with your SDK
+  simple_animations: ^5.0.0  # Check the latest compatible version
+  socket_io_client: ^2.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

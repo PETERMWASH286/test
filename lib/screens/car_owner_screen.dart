@@ -11,6 +11,51 @@ import 'package:geocoding/geocoding.dart';
 import 'post.dart'; // Make sure to import the Post model
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'dart:async';
+
+class SocketService {
+  late IO.Socket socket;
+
+  void initializeSocket() {
+    // Configure the Socket.IO connection
+    socket = IO.io('http://localhost:5000', <String, dynamic>{
+      'transports': ['websocket'],
+      'autoConnect': false,
+    });
+
+    // Connect to the socket server
+    socket.connect();
+
+    // Event listeners
+    socket.onConnect((_) {
+      print('Connected to the socket server');
+    });
+
+    socket.onDisconnect((_) {
+      print('Disconnected from the socket server');
+    });
+
+    socket.on('message', (data) {
+      print('Message from server: $data');
+    });
+
+    socket.on('custom_response', (data) {
+      print('Custom response from server: ${data['data']}');
+    });
+  }
+
+  // Emit message to the server
+  void sendMessage(String msg) {
+    socket.emit('message', msg);
+  }
+
+  // Emit custom event to the server
+  void sendCustomEvent(Map<String, dynamic> data) {
+    socket.emit('custom_event', data);
+  }
+}
+
 void main() => runApp(const MyApp());
 List<XFile>? _imageFiles = [];
 final ImagePicker _picker = ImagePicker();
@@ -204,7 +249,6 @@ class _CarOwnerScreenState extends State<CarOwnerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
@@ -240,6 +284,64 @@ class _CarOwnerScreenState extends State<CarOwnerPage> {
 }
 
 // Home Page
+
+
+class ChatService {
+  final String apiUrl = 'https://expertstrials.xyz/Garifix_app'; // Your server URL
+  Timer? _pollingTimer;
+
+  // Start long polling for messages
+  void startLongPolling(Function(List<Map<String, dynamic>>) onMessageReceived) {
+    _pollingTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+      try {
+        final response = await http.get(Uri.parse('$apiUrl/messages'));
+        print('Polling response status: ${response.statusCode}'); // Print response status
+        if (response.statusCode == 200) {
+          // Parse the response body to a List<Map<String, dynamic>>
+          List<Map<String, dynamic>> messages = List<Map<String, dynamic>>.from(json.decode(response.body));
+          print('Messages received: $messages'); // Print messages received
+          onMessageReceived(messages);
+        } else {
+          print('Error fetching messages: ${response.reasonPhrase}'); // Print error reason
+        }
+      } catch (e) {
+        print('Error during polling: $e'); // Catch and print any errors
+      }
+    });
+  }
+
+  // Stop long polling
+  void stopLongPolling() {
+    _pollingTimer?.cancel();
+  }
+
+  // Send a message to the server
+  Future<void> sendMessage(String message, String mechanicName) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$apiUrl/send'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'message': message,
+          'mechanic_name': mechanicName, // Include the mechanic name in the body
+        }),
+      );
+
+      print('Send message response status: ${response.statusCode}'); // Print send response status
+      if (response.statusCode != 200) {
+        print('Error sending message: ${response.reasonPhrase}'); // Print error reason
+      } else {
+        print('Message sent successfully: $message'); // Print success message
+      }
+    } catch (e) {
+      print('Error sending message: $e'); // Catch and print any errors
+    }
+  }
+}
+
+
+
+
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -310,60 +412,64 @@ class HomePage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
 // Welcome Message Section
-Row(
-  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  children: [
-    const Text(
-      'Welcome Back!',
-      style: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.bold,
-        color: Colors.deepPurple,
-      ),
-    ),
-    ElevatedButton.icon(
-      onPressed: () {
-        // Define action for seeking support
-        // For example, navigate to support page or open a dialog
-      },
-      icon: const Icon(Icons.support_agent, size: 20), // Icon for support
-      label: const Text('Seek Support'),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.deepPurple, // Updated button color
-        foregroundColor: Colors.white, // Updated text color
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10), // Rounded corners
-        ),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8), // Padding for the button
-      ),
-    ),
-  ],
-),
-const SizedBox(height: 20),
-
-
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Welcome Back!',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      // Define action for seeking support
+                      // For example, navigate to support page or open a dialog
+                    },
+                    icon: const Icon(Icons.support_agent,
+                        size: 20), // Icon for support
+                    label: const Text('Seek Support'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          Colors.deepPurple, // Updated button color
+                      foregroundColor: Colors.white, // Updated text color
+                      shape: RoundedRectangleBorder(
+                        borderRadius:
+                            BorderRadius.circular(10), // Rounded corners
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8), // Padding for the button
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
 
 // Maintenance Costs Summary Section
-const Text(
-  'Maintenance Costs Summary:',
-  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-),
-const SizedBox(height: 10),
-const Row(
-  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  children: [
-    SummaryCard(
-      label: 'Total Cost',
-      amount: 8000,
-      icon: Icons.attach_money, // Money icon for total cost
-    ),
-    SummaryCard(
-      label: "This Month's Cost",
-      amount: 1500,
-      icon: Icons.calendar_today, // Calendar icon for monthly cost
-    ),
-  ],
-),
+              const Text(
+                'Maintenance Costs Summary:',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  SummaryCard(
+                    label: 'Total Cost',
+                    amount: 8000,
+                    icon: Icons.attach_money, // Money icon for total cost
+                  ),
+                  SummaryCard(
+                    label: "This Month's Cost",
+                    amount: 1500,
+                    icon:
+                        Icons.calendar_today, // Calendar icon for monthly cost
+                  ),
+                ],
+              ),
 
               const SizedBox(height: 20),
 
@@ -377,9 +483,24 @@ const Row(
                 child: ListView(
                   scrollDirection: Axis.horizontal,
                   children: const [
-                    CarCard(carModel: 'Toyota Corolla', totalCost: 3000, repairDetails: 'Brake Pad Replacement', imageUrl: 'https://haynes.com/en-gb/sites/default/files/styles/unaltered_webp/public/carphoto-location_0.jpg?itok=ctj5rnvC&timestamp=1476269366'),
-                    CarCard(carModel: 'Honda Civic', totalCost: 1500, repairDetails: 'Oil Change', imageUrl: 'https://media.istockphoto.com/id/501282196/photo/laferrari.jpg?s=612x612&w=0&k=20&c=yJH3oUuhYSmta_BYdwoUOktqWps5zC86guy5hQ29608='),
-                    CarCard(carModel: 'Ford Focus', totalCost: 2500, repairDetails: 'Tire Rotation', imageUrl: 'https://hips.hearstapps.com/hmg-prod/images/2026-bugatti-tourbillon-104-66709d54aa287.jpg?crop=0.819xw:0.692xh;0.0994xw,0.185xh&resize=2048:*'),
+                    CarCard(
+                        carModel: 'Toyota Corolla',
+                        totalCost: 3000,
+                        repairDetails: 'Brake Pad Replacement',
+                        imageUrl:
+                            'https://haynes.com/en-gb/sites/default/files/styles/unaltered_webp/public/carphoto-location_0.jpg?itok=ctj5rnvC&timestamp=1476269366'),
+                    CarCard(
+                        carModel: 'Honda Civic',
+                        totalCost: 1500,
+                        repairDetails: 'Oil Change',
+                        imageUrl:
+                            'https://media.istockphoto.com/id/501282196/photo/laferrari.jpg?s=612x612&w=0&k=20&c=yJH3oUuhYSmta_BYdwoUOktqWps5zC86guy5hQ29608='),
+                    CarCard(
+                        carModel: 'Ford Focus',
+                        totalCost: 2500,
+                        repairDetails: 'Tire Rotation',
+                        imageUrl:
+                            'https://hips.hearstapps.com/hmg-prod/images/2026-bugatti-tourbillon-104-66709d54aa287.jpg?crop=0.819xw:0.692xh;0.0994xw,0.185xh&resize=2048:*'),
                   ],
                 ),
               ),
@@ -484,7 +605,6 @@ class SummaryCard extends StatelessWidget {
   }
 }
 
-
 // Service Card Widget
 class ServiceCard extends StatelessWidget {
   final String serviceName;
@@ -552,10 +672,10 @@ class CarCard extends StatelessWidget {
       child: Container(
         width: 150,
         decoration: BoxDecoration(
-        image: DecorationImage(
-          image: NetworkImage(imageUrl),
-          fit: BoxFit.cover,
-        ),
+          image: DecorationImage(
+            image: NetworkImage(imageUrl),
+            fit: BoxFit.cover,
+          ),
           borderRadius: BorderRadius.circular(8),
         ),
         padding: const EdgeInsets.all(8.0),
@@ -627,65 +747,68 @@ class _RepairsPageState extends State<RepairsPage>
     super.dispose();
   }
 
-  Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
+Future<void> _submitForm() async {
+  if (!_formKey.currentState!.validate()) {
+    return;
+  }
 
-    _formKey.currentState!.save();
+  _formKey.currentState!.save();
 
-    var uri = Uri.parse('https://expertstrials.xyz/Garifix_app/submit_report');
-    var request = http.MultipartRequest('POST', uri);
+  var uri = Uri.parse('https://expertstrials.xyz/Garifix_app/submit_report');
+  var request = http.MultipartRequest('POST', uri);
 
-    // Add fields
-    request.fields['problemType'] = _problemType!;
-    request.fields['urgencyLevel'] = _urgencyLevel.value.toString();
-    request.fields['details'] = _detailsController.text;
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    String? email = prefs.getString('userEmail');
+  // Add fields
+  request.fields['problemType'] = _problemType!;
+  request.fields['urgencyLevel'] = _urgencyLevel.value.toString();
+  request.fields['details'] = _detailsController.text;
+  
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? email = prefs.getString('userEmail'); // This can be null
 
-    if (email != null) {
-      request.fields['email'] = email;
-    } else {
-      print('No email found in SharedPreferences');
-    }
+  // Check if email is not null before adding it to request
+  if (email != null) {
+    request.fields['email'] = email; // Safe to use email since we checked for null
+  } else {
+    // Handle the case when email is null, maybe set a default or skip adding it
+    // request.fields['email'] = 'default@example.com'; // Example of setting a default
+    print('No email found in preferences');
+  }
 
-    // Add image files if any
-    if (_imageFiles != null) {
-      for (var image in _imageFiles!) {
-        request.files
-            .add(await http.MultipartFile.fromPath('images', image.path));
-      }
-    }
-
-    // Send the request
-    var response = await request.send();
-
-    if (response.statusCode == 201) {
-      // Handle success
-      var responseData = await response.stream.bytesToString();
-      print('Response: $responseData');
-
-      // Close the modal first
-      Navigator.of(context).pop(); // Close the modal before showing the dialog
-      // Show success message dialog
-      _showSuccessDialog();
-      _fetchRepairsHistory();
-
-      // Clear the form inputs
-      _formKey.currentState!.reset();
-      setState(() {
-        _problemType = null; // Reset problem type
-        _imageFiles = null; // Reset image files
-        _detailsController.clear(); // Clear details controller
-      });
-    } else {
-      // Handle error
-      print('Error: ${response.statusCode}');
-      var responseData = await response.stream.bytesToString();
-      print('Error details: $responseData');
+  // Add image files if any
+  if (_imageFiles != null) {
+    for (var image in _imageFiles!) {
+      request.files.add(await http.MultipartFile.fromPath('images', image.path));
     }
   }
+
+  // Send the request
+  var response = await request.send();
+
+  if (response.statusCode == 201) {
+    // Handle success
+    var responseData = await response.stream.bytesToString();
+    print('Response: $responseData');
+
+    // Close the modal first
+    Navigator.of(context).pop(); // Close the modal before showing the dialog
+    // Show success message dialog
+    _showSuccessDialog();
+    _fetchRepairsHistory();
+
+    // Clear the form inputs
+    _formKey.currentState!.reset();
+    setState(() {
+      _problemType = null; // Reset problem type
+      _imageFiles = null; // Reset image files
+      _detailsController.clear(); // Clear details controller
+    });
+  } else {
+    // Handle error
+    print('Error: ${response.statusCode}');
+    var responseData = await response.stream.bytesToString();
+    print('Error details: $responseData');
+  }
+}
 
 // Method to show success message dialog
   void _showSuccessDialog() {
@@ -919,29 +1042,28 @@ class _RepairsPageState extends State<RepairsPage>
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? email = prefs.getString('userEmail');
 
-    if (email != null) {
-      final response = await http.get(Uri.parse(
-          'https://expertstrials.xyz/Garifix_app/api/repairs/$email'));
+    final response = await http.get(
+        Uri.parse('https://expertstrials.xyz/Garifix_app/api/repairs/$email'));
 
-      if (response.statusCode == 200) {
-        setState(() {
-          _repairsHistory = json.decode(response.body);
-        });
-      } else {
-        print('Failed to load repairs history: ${response.statusCode}');
-      }
+    if (response.statusCode == 200) {
+      setState(() {
+        _repairsHistory = json.decode(response.body);
+      });
+    } else {
+      print('Failed to load repairs history: ${response.statusCode}');
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-            appBar: AppBar(
+      appBar: AppBar(
         automaticallyImplyLeading: false, // Removes the back arrow
         backgroundColor: Colors.deepPurple,
         elevation: 10, // Adds shadow for a more dynamic look
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.start, // Aligns content to the far left
+          mainAxisAlignment:
+              MainAxisAlignment.start, // Aligns content to the far left
           children: [
             // Logo with a subtle glow effect
             Container(
@@ -1049,404 +1171,437 @@ class _RepairsPageState extends State<RepairsPage>
     );
   }
 
-Widget _buildRepairCard({
-  required String date,
-  required String description,
-  required String cost,
-  required int repairId, // Accept the repair ID
-}) {
-  return Card(
-    margin: const EdgeInsets.symmetric(vertical: 8),
-    elevation: 4,
-    child: ListTile(
-      title: Text(description, style: const TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Text(date),
-      trailing: Text(cost, style: const TextStyle(color: Colors.green)),
-      onTap: () => _showRepairDetails(repairId), // Call the function to show details
-    ),
-  );
-}
+  Widget _buildRepairCard({
+    required String date,
+    required String description,
+    required String cost,
+    required int repairId, // Accept the repair ID
+  }) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 8),
+      elevation: 4,
+      child: ListTile(
+        title: Text(description,
+            style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(date),
+        trailing: Text(cost, style: const TextStyle(color: Colors.green)),
+        onTap: () =>
+            _showRepairDetails(repairId), // Call the function to show details
+      ),
+    );
+  }
 
 // Function to convert urgency level to descriptive words
-String urgencyLevelToText(double urgencyLevel) {
-  // Use switch case to determine the urgency level description
-  switch (urgencyLevel.toInt()) {
-    case 1:
-      return 'Very Low';
-    case 2:
-      return 'Low';
-    case 3:
-      return 'Medium';
-    case 4:
-      return 'High';
-    case 5:
-      return 'Very High';
-    default:
-      return 'Unknown'; // Return a default value for invalid inputs
+  String urgencyLevelToText(double urgencyLevel) {
+    // Use switch case to determine the urgency level description
+    switch (urgencyLevel.toInt()) {
+      case 1:
+        return 'Very Low';
+      case 2:
+        return 'Low';
+      case 3:
+        return 'Medium';
+      case 4:
+        return 'High';
+      case 5:
+        return 'Very High';
+      default:
+        return 'Unknown'; // Return a default value for invalid inputs
+    }
   }
-}
 
-Future<void> _showRepairDetails(int repairId) async {
-  final response = await http.get(Uri.parse('https://expertstrials.xyz/Garifix_app/api/repair_details/$repairId'));
+  Future<void> _showRepairDetails(int repairId) async {
+    final response = await http.get(Uri.parse(
+        'https://expertstrials.xyz/Garifix_app/api/repair_details/$repairId'));
 
-  if (response.statusCode == 200) {
-    var repairDetails = json.decode(response.body);
+    if (response.statusCode == 200) {
+      var repairDetails = json.decode(response.body);
 
-    // Convert urgency level to text
-    double urgencyLevel = double.tryParse(repairDetails['urgency_level'].toString()) ?? 0.0;
-    repairDetails['urgency_text'] = urgencyLevelToText(urgencyLevel); // Add urgency text to repair details
+      // Convert urgency level to text
+      double urgencyLevel =
+          double.tryParse(repairDetails['urgency_level'].toString()) ?? 0.0;
+      repairDetails['urgency_text'] = urgencyLevelToText(
+          urgencyLevel); // Add urgency text to repair details
 
-    _showDetailsDialog(repairDetails);
-  } else {
-    print('Failed to load repair details: ${response.statusCode}');
+      _showDetailsDialog(repairDetails);
+    } else {
+      print('Failed to load repair details: ${response.statusCode}');
+    }
   }
-}
 
-void _showDetailsDialog(Map<String, dynamic> repairDetails) {
-  TextEditingController nextRepairDateController = TextEditingController();
+  void _showDetailsDialog(Map<String, dynamic> repairDetails) {
+    TextEditingController nextRepairDateController = TextEditingController();
 
-  showDialog(
-    context: context,
-    barrierDismissible: false,
-    builder: (BuildContext context) {
-      return Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        elevation: 0,
-        backgroundColor: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: SingleChildScrollView(
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          elevation: 0,
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Title row with QR button
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Repair Details for ${repairDetails['problem_type']}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.deepPurple,
+                        ),
+                      ),
+                      // QR code button
+                      IconButton(
+                        icon:
+                            const Icon(Icons.qr_code, color: Colors.deepPurple),
+                        onPressed: () {
+                          // Trigger QR code generation
+                          _showQRCodeDialog(repairDetails[
+                              'id']); // Pass the repair ID or any data you want to encode
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Details (same as before)
+                  _buildDetailRow(Icons.calendar_today, 'Date',
+                      repairDetails['created_at']),
+                  _buildDetailRow(Icons.description, 'Description',
+                      repairDetails['details']),
+                  _buildDetailRow(Icons.priority_high, 'Urgency Level',
+                      repairDetails['urgency_text']),
+                  _buildDetailRow(Icons.monetization_on, 'Cost',
+                      '\$${repairDetails['cost'].toString()}'),
+
+                  const SizedBox(height: 20),
+
+                  // Additional form fields and buttons (same as your original implementation)
+                  _buildInputField(
+                    Icons.monetization_on,
+                    'Enter New Cost',
+                    TextInputType.number,
+                    (value) {
+                      // Handle cost input
+                    },
+                  ),
+                  const SizedBox(height: 10),
+
+                  _buildInputField(
+                    Icons.comment,
+                    'Comments/Recommendations',
+                    TextInputType.multiline,
+                    (value) {
+                      // Handle comments input
+                    },
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 10),
+
+                  GestureDetector(
+                    onTap: () {
+                      _selectDate(context, nextRepairDateController);
+                    },
+                    child: AbsorbPointer(
+                      child: _buildInputField(
+                        Icons.calendar_today,
+                        'Next Repair Date (Optional)',
+                        TextInputType.none,
+                        (value) {
+                          // No callback needed here
+                        },
+                        controller: nextRepairDateController,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Steps and image upload
+                  const Text(
+                    'Repair Steps:',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  ..._buildRepairDetailsWithStatus(repairDetails['details']),
+                  const SizedBox(height: 20),
+
+                  _buildImageUploadField(),
+
+                  const SizedBox(height: 20),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      ElevatedButton(
+                        onPressed: () {
+                          // Handle submission here if needed
+                          Navigator.of(context).pop();
+                        },
+                        style: ButtonStyle(
+                          backgroundColor:
+                              WidgetStateProperty.all(Colors.deepPurple),
+                          padding: WidgetStateProperty.all(
+                              const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 10)),
+                        ),
+                        child: const Text('Submit'),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        style: ButtonStyle(
+                          backgroundColor:
+                              WidgetStateProperty.all(Colors.grey[300]),
+                          foregroundColor:
+                              WidgetStateProperty.all(Colors.black),
+                          padding: WidgetStateProperty.all(
+                              const EdgeInsets.symmetric(
+                                  horizontal: 20, vertical: 10)),
+                        ),
+                        child: const Text('Close'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showQRCodeDialog(int repairId) {
+    String qrData =
+        'https://expertstrials.xyz/Garifix_app/api/repair_details/$repairId'; // Data for QR code
+    String qrApiUrl =
+        'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=$qrData'; // QR code API URL
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          elevation: 5,
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Title row with QR button
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Repair Details for ${repairDetails['problem_type']}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.deepPurple,
-                      ),
-                    ),
-                    // QR code button
-                    IconButton(
-                      icon: const Icon(Icons.qr_code, color: Colors.deepPurple),
-                      onPressed: () {
-                        // Trigger QR code generation
-                                                _showQRCodeDialog(repairDetails['id']); // Pass the repair ID or any data you want to encode
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Details (same as before)
-                _buildDetailRow(Icons.calendar_today, 'Date', repairDetails['created_at']),
-                _buildDetailRow(Icons.description, 'Description', repairDetails['details']),
-                _buildDetailRow(Icons.priority_high, 'Urgency Level', repairDetails['urgency_text']),
-                _buildDetailRow(Icons.monetization_on, 'Cost', '\$${repairDetails['cost'].toString()}'),
-
-                const SizedBox(height: 20),
-
-                // Additional form fields and buttons (same as your original implementation)
-                _buildInputField(
-                  Icons.monetization_on,
-                  'Enter New Cost',
-                  TextInputType.number,
-                  (value) {
-                    // Handle cost input
-                  },
-                ),
-                const SizedBox(height: 10),
-
-                _buildInputField(
-                  Icons.comment,
-                  'Comments/Recommendations',
-                  TextInputType.multiline,
-                  (value) {
-                    // Handle comments input
-                  },
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 10),
-
-                GestureDetector(
-                  onTap: () {
-                    _selectDate(context, nextRepairDateController);
-                  },
-                  child: AbsorbPointer(
-                    child: _buildInputField(
-                      Icons.calendar_today,
-                      'Next Repair Date (Optional)',
-                      TextInputType.none,
-                      (value) {
-                        // No callback needed here
-                      },
-                      controller: nextRepairDateController,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Steps and image upload
+                // Title
                 const Text(
-                  'Repair Steps:',
+                  'Scan the QR Code',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 24,
                     fontWeight: FontWeight.bold,
                     color: Colors.deepPurple,
                   ),
                 ),
                 const SizedBox(height: 10),
-                ..._buildRepairDetailsWithStatus(repairDetails['details']),
+
+                // Instruction text
+                const Text(
+                  'Please scan the QR code below to access the repair details.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.black54,
+                  ),
+                ),
                 const SizedBox(height: 20),
 
-                _buildImageUploadField(),
-
+                // Fetch QR code image from the API and display it
+                Image.network(
+                  qrApiUrl, // URL of the QR code generated by the API
+                  width: 200,
+                  height: 200,
+                  errorBuilder: (BuildContext context, Object exception,
+                      StackTrace? stackTrace) {
+                    return const Text('Error loading QR code');
+                  },
+                ),
                 const SizedBox(height: 20),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        // Handle submission here if needed
-                        Navigator.of(context).pop();
-                      },
-                      style: ButtonStyle(
-                        backgroundColor: WidgetStateProperty.all(Colors.deepPurple),
-                        padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 20, vertical: 10)),
+                // Action button
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  style: ButtonStyle(
+                    backgroundColor: WidgetStateProperty.all(
+                        Colors.deepPurple), // Background color
+                    padding: WidgetStateProperty.all(const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 12)),
+                    shape: WidgetStateProperty.all<RoundedRectangleBorder>(
+                      RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.0),
                       ),
-                      child: const Text('Submit'),
                     ),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      style: ButtonStyle(
-                        backgroundColor: WidgetStateProperty.all(Colors.grey[300]),
-                        foregroundColor: WidgetStateProperty.all(Colors.black),
-                        padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 20, vertical: 10)),
-                      ),
-                      child: const Text('Close'),
-                    ),
-                  ],
+                  ),
+                  child: const Text(
+                    'Close',
+                    style: TextStyle(
+                        fontSize: 16, color: Colors.white), // Text color
+                  ),
                 ),
               ],
             ),
           ),
-        ),
-      );
-    },
-  );
-}
-void _showQRCodeDialog(int repairId) {
-  String qrData = 'https://expertstrials.xyz/Garifix_app/api/repair_details/$repairId'; // Data for QR code
-  String qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=$qrData'; // QR code API URL
-
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return Dialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        elevation: 5,
-        backgroundColor: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Title
-              const Text(
-                'Scan the QR Code',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.deepPurple,
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Instruction text
-              const Text(
-                'Please scan the QR code below to access the repair details.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.black54,
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Fetch QR code image from the API and display it
-              Image.network(
-                qrApiUrl, // URL of the QR code generated by the API
-                width: 200,
-                height: 200,
-                errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
-                  return const Text('Error loading QR code');
-                },
-              ),
-              const SizedBox(height: 20),
-
-
-
-              // Action button
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                style: ButtonStyle(
-                  backgroundColor: WidgetStateProperty.all(Colors.deepPurple), // Background color
-                  padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 30, vertical: 12)),
-                  shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                    RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
-                    ),
-                  ),
-                ),
-                child: const Text(
-                  'Close',
-                  style: TextStyle(fontSize: 16, color: Colors.white), // Text color
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
 // Function to select a date
-Future<void> _selectDate(BuildContext context, TextEditingController controller) async {
-  final DateTime? picked = await showDatePicker(
-    context: context,
-    initialDate: DateTime.now(),
-    firstDate: DateTime(2000),
-    lastDate: DateTime(2101),
-  );
-  if (picked != null && picked != DateTime.now()) {
-    controller.text = "${picked.toLocal()}".split(' ')[0]; // Format the date as needed
+  Future<void> _selectDate(
+      BuildContext context, TextEditingController controller) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2101),
+    );
+    if (picked != null && picked != DateTime.now()) {
+      controller.text =
+          "${picked.toLocal()}".split(' ')[0]; // Format the date as needed
+    }
   }
-}
 
 // Function to build the input field for image upload
-Widget _buildImageUploadField() {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Text(
-        'Upload Images of Repairs:',
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      ),
-      const SizedBox(height: 8),
-      ElevatedButton(
-        onPressed: () {
-          // Handle image upload here
-        },
-        style: ButtonStyle(
-          backgroundColor: WidgetStateProperty.all(Colors.blue),
-        ),
-        child: const Text('Choose Image'),
-      ),
-    ],
-  );
-}
-
-// Function to build repair details with radio buttons for completion status
-List<Widget> _buildRepairDetailsWithStatus(String details) {
-  // Split the details into paragraphs
-  List<String> paragraphs = details.split('\n');
-
-  return paragraphs.map((paragraph) {
-    return Row(
+  Widget _buildImageUploadField() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4.0),
-            child: Text(paragraph),
-          ),
+        const Text(
+          'Upload Images of Repairs:',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        Row(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.check, color: Colors.green),
-              onPressed: () {
-                // Handle completion status for this step
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.close, color: Colors.red),
-              onPressed: () {
-                // Handle non-completion status for this step
-              },
-            ),
-          ],
+        const SizedBox(height: 8),
+        ElevatedButton(
+          onPressed: () {
+            // Handle image upload here
+          },
+          style: ButtonStyle(
+            backgroundColor: WidgetStateProperty.all(Colors.blue),
+          ),
+          child: const Text('Choose Image'),
         ),
       ],
     );
-  }).toList();
-}
+  }
 
-// Function to build detail row with icon and paragraph handling
-Widget _buildDetailRow(IconData icon, String title, String value) {
-  return Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8.0), // Adds vertical spacing
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start, // Aligns icon and text at the top
-      children: [
-        Icon(icon, color: Colors.deepPurple, size: 24), // Size adjusted for better visibility
-        const SizedBox(width: 8),
-        Expanded( // Allows text to wrap properly
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+// Function to build repair details with radio buttons for completion status
+  List<Widget> _buildRepairDetailsWithStatus(String details) {
+    // Split the details into paragraphs
+    List<String> paragraphs = details.split('\n');
+
+    return paragraphs.map((paragraph) {
+      return Row(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              child: Text(paragraph),
+            ),
+          ),
+          Row(
             children: [
-              Text(
-                '$title:',
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold), // Bold title for emphasis
+              IconButton(
+                icon: const Icon(Icons.check, color: Colors.green),
+                onPressed: () {
+                  // Handle completion status for this step
+                },
               ),
-              const SizedBox(height: 4), // Space between title and value
-              Text(
-                value,
-                style: const TextStyle(fontSize: 16),
-                maxLines: 5, // Limits to 5 lines
-                overflow: TextOverflow.ellipsis, // Adds ellipsis if the text overflows
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.red),
+                onPressed: () {
+                  // Handle non-completion status for this step
+                },
               ),
             ],
           ),
-        ),
-      ],
-    ),
-  );
-}
+        ],
+      );
+    }).toList();
+  }
 
+// Function to build detail row with icon and paragraph handling
+  Widget _buildDetailRow(IconData icon, String title, String value) {
+    return Padding(
+      padding:
+          const EdgeInsets.symmetric(vertical: 8.0), // Adds vertical spacing
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start, // Aligns icon and text at the top
+        children: [
+          Icon(icon,
+              color: Colors.deepPurple,
+              size: 24), // Size adjusted for better visibility
+          const SizedBox(width: 8),
+          Expanded(
+            // Allows text to wrap properly
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$title:',
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold), // Bold title for emphasis
+                ),
+                const SizedBox(height: 4), // Space between title and value
+                Text(
+                  value,
+                  style: const TextStyle(fontSize: 16),
+                  maxLines: 5, // Limits to 5 lines
+                  overflow: TextOverflow
+                      .ellipsis, // Adds ellipsis if the text overflows
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
 // Function to build input fields
-Widget _buildInputField(IconData icon, String label, TextInputType keyboardType, Function(String) onChanged, {TextEditingController? controller, int maxLines = 1}) {
-  return TextField(
-    controller: controller,
-    keyboardType: keyboardType,
-    maxLines: maxLines,
-    decoration: InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon),
-      border: const OutlineInputBorder(),
-      contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
-    ),
-    onChanged: onChanged,
-  );
-}
-
-
+  Widget _buildInputField(IconData icon, String label,
+      TextInputType keyboardType, Function(String) onChanged,
+      {TextEditingController? controller, int maxLines = 1}) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLines: maxLines,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: const OutlineInputBorder(),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 10, horizontal: 15),
+      ),
+      onChanged: onChanged,
+    );
+  }
 }
 
 class FindMechanicPage extends StatefulWidget {
@@ -1467,13 +1622,39 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
   Position? _previousPosition;
   String? userEmail; // Variable to hold the user email
   List<dynamic> mechanics = [];
+  
+  List<Map<String, dynamic>> messages = []; // Messages list
+  
+  late ChatService _chatService; // Declare ChatService instance
 
   @override
   void initState() {
     super.initState();
+    _chatService = ChatService(); // Initialize ChatService
+    _chatService.startLongPolling(_onMessagesReceived); // Start polling for messages
     _getUserLocation();
-    _loadUserEmail(); // Call to load user email when the widget is initialized
+    _loadUserEmail(); // Load user email when the widget is initialized
   }
+
+  // Method to handle incoming messages
+// Assuming newMessages contains a list of strings (you might need to adapt this)
+void _onMessagesReceived(List<Map<String, dynamic>> newMessages) {
+  setState(() {
+    // Add the new messages directly to your messages list
+    messages.addAll(newMessages);
+  });
+}
+
+
+  @override
+  void dispose() {
+    _chatService.stopLongPolling(); // Stop polling when the widget is disposed
+    super.dispose();
+  }
+
+
+
+
 
   Future<void> _loadUserEmail() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -1551,7 +1732,6 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
   // Current Location Section
   Widget _buildCurrentLocationSection() {
     return Container(
-
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.deepPurple.shade100,
@@ -1587,7 +1767,8 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
         backgroundColor: Colors.deepPurple,
         elevation: 10, // Adds shadow for a more dynamic look
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.start, // Aligns content to the far left
+          mainAxisAlignment:
+              MainAxisAlignment.start, // Aligns content to the far left
           children: [
             // Logo with a subtle glow effect
             Container(
@@ -1666,11 +1847,16 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
                       final mechanic = mechanics[index];
                       return _buildMechanicCard(
                         name: mechanic['name'],
-                        rating: mechanic['rating'].toString(), // Ensure rating is a string
-                        distance: mechanic['distance'].toString(), // Ensure distance is a string
+                        rating: mechanic['rating']
+                            .toString(), // Ensure rating is a string
+                        distance: mechanic['distance']
+                            .toString(), // Ensure distance is a string
                         phone: mechanic['phone'],
                         expertise: mechanic['expertise'],
-                        profileImageUrl: 'https://expertstrials.xyz/Garifix_app/' + mechanic['profile_image'], // Concatenate the base URL
+                        profileImageUrl:
+                            'https://expertstrials.xyz/Garifix_app/' +
+                                mechanic[
+                                    'profile_image'], // Concatenate the base URL
                       );
                     },
                   ),
@@ -1681,7 +1867,8 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
           // Floating filter icons on the right
           Positioned(
             right: 8,
-            top: MediaQuery.of(context).size.height * 0.05, // Adjusted to screen height
+            top: MediaQuery.of(context).size.height *
+                0.05, // Adjusted to screen height
             child: Column(
               children: [
                 _buildFloatingActionButton(
@@ -1843,6 +2030,215 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
     );
   }
 
+void _showMessageBottomSheet(
+  BuildContext context,
+  String mechanicName,
+  String profileImageUrl,
+) {
+  List<Map<String, dynamic>> messages = [];
+  String newMessage = '';
+  bool isTyping = false;
+  double keyboardHeight = 0;
+
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+    ),
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, setState) {
+          // Handle keyboard height
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (MediaQuery.of(context).viewInsets.bottom != keyboardHeight) {
+              setState(() {
+                keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+              });
+            }
+          });
+
+          return GestureDetector(
+            onTap: () {
+              FocusScope.of(context).unfocus(); // Dismiss keyboard when tapping outside
+            },
+            child: AnimatedPadding(
+              padding: EdgeInsets.only(bottom: keyboardHeight),
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+                  color: Colors.grey[50],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundImage: NetworkImage(profileImageUrl),
+                          radius: 30,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            mechanicName,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Divider(color: Colors.grey[300]),
+                    const SizedBox(height: 10),
+
+                    // Messages List
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          final message = messages[index];
+                          return MessageCard(
+                            avatar: message['avatar'],
+                            sender: message['sender'],
+                            text: message['text'],
+                            time: message['time'],
+                            isRead: true,
+                            unreadCount: 0,
+                          );
+                        },
+                      ),
+                    ),
+
+                    // Typing Indicator
+                    if (isTyping)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Row(
+                          children: [
+                            const CircularProgressIndicator(strokeWidth: 2),
+                            const SizedBox(width: 10),
+                            Text('Typing...', style: TextStyle(color: Colors.grey[600])),
+                          ],
+                        ),
+                      ),
+
+                    const SizedBox(height: 10),
+
+                    // Message Input Field
+                    _buildMessageInput(
+                      onChanged: (value) {
+                        setState(() {
+                          newMessage = value;
+                          isTyping = value.isNotEmpty;
+                        });
+                      },
+                      onSend: () {
+                        if (newMessage.isNotEmpty) {
+                          _chatService.sendMessage(newMessage, mechanicName); // Send message with mechanic name
+                          setState(() {
+                            messages.add({
+                              'avatar': profileImageUrl,
+                              'sender': 'You',
+                              'text': newMessage,
+                              'time': TimeOfDay.now().format(context),
+                            });
+                            newMessage = '';
+                            isTyping = false;
+                          });
+                        }
+                      },
+                      newMessage: newMessage,
+                    ),
+
+                    // Quick Replies
+                    _buildQuickReplySuggestions((reply) {
+                      setState(() {
+                        messages.add({
+                          'avatar': profileImageUrl,
+                          'sender': 'You',
+                          'text': reply,
+                          'time': TimeOfDay.now().format(context),
+                        });
+                      });
+                    }),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+
+  Widget _buildMessageInput(
+      {required ValueChanged<String> onChanged,
+      required VoidCallback onSend,
+      required String newMessage}) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              hintText: 'Type your message...',
+              filled: true,
+              fillColor: Colors.grey[200],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30),
+                borderSide: BorderSide.none,
+              ),
+              prefixIcon: const Icon(Icons.message, color: Colors.deepPurple),
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            maxLines: null,
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.send, color: Colors.deepPurple),
+          onPressed: onSend,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickReplySuggestions(Function(String) onSelectReply) {
+    final List<String> quickReplies = [
+      "👍",
+      "👋",
+      "🤔",
+      "🚗"
+    ]; // Sample quick replies
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: quickReplies.map((reply) {
+        return GestureDetector(
+          onTap: () => onSelectReply(reply),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: Colors.deepPurple[100],
+            ),
+            child: Text(reply, style: const TextStyle(fontSize: 18)),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
 // Mechanic Card UI
   Widget _buildMechanicCard({
     required String name,
@@ -1855,7 +2251,7 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 10),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      elevation: 4,
+      elevation: 6,
       child: ListTile(
         leading: CircleAvatar(
           backgroundImage: NetworkImage(profileImageUrl),
@@ -1864,26 +2260,40 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
         ),
         title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(
-            'Rating: $rating ★\nDistance: $distance\nExpertise: $expertise'),
-        trailing: IconButton(
-          icon: const Icon(Icons.phone, color: Colors.deepPurple),
-          onPressed: () async {
-            if (phone != "N/A" && phone.isNotEmpty) {
-              final Uri launchUri = Uri(
-                scheme: 'tel',
-                path: phone, // This will be the mechanic's phone number
-              );
-              // Launch the dialer
-              if (await canLaunch(launchUri.toString())) {
-                await launch(launchUri.toString());
-              } else {
-                throw 'Could not launch $launchUri';
-              }
-            } else {
-              // Optionally, handle case where phone number is not available
-              print('Phone number is not available');
-            }
-          },
+          'Rating: $rating ★\nDistance: $distance km away\nExpertise: $expertise',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.phone, color: Colors.deepPurple),
+              onPressed: () async {
+                if (phone != "N/A" && phone.isNotEmpty) {
+                  final Uri launchUri = Uri(
+                    scheme: 'tel',
+                    path: phone, // This will be the mechanic's phone number
+                  );
+                  // Launch the dialer
+                  if (await canLaunch(launchUri.toString())) {
+                    await launch(launchUri.toString());
+                  } else {
+                    throw 'Could not launch $launchUri';
+                  }
+                } else {
+                  // Optionally, handle case where phone number is not available
+                  print('Phone number is not available');
+                }
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.message,
+                  color: Colors.deepPurple), // Message icon
+              onPressed: () {
+                _showMessageBottomSheet(context, name, profileImageUrl);
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -1895,9 +2305,6 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
     print('Posting user location: $position');
   }
 }
-
-
-
 
 
 class ExplorePage extends StatefulWidget {
@@ -1913,7 +2320,7 @@ class _ExplorePageState extends State<ExplorePage> {
   // List of widgets for different sections
   final List<Widget> _navPages = [
     const HomeSection(),
-    const ProductsSection(),
+    const ProductScreen(),
     const MessagesSection(),
     const ExploreSection(),
   ];
@@ -1932,7 +2339,8 @@ class _ExplorePageState extends State<ExplorePage> {
         backgroundColor: Colors.deepPurple,
         elevation: 10, // Adds shadow for a more dynamic look
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.start, // Aligns content to the far left
+          mainAxisAlignment:
+              MainAxisAlignment.start, // Aligns content to the far left
           children: [
             // Logo with a subtle glow effect
             Container(
@@ -1994,7 +2402,8 @@ class _ExplorePageState extends State<ExplorePage> {
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60.0), // Set height for the bottom navigation
+          preferredSize: const Size.fromHeight(
+              60.0), // Set height for the bottom navigation
           child: BottomNavigationBar(
             items: const <BottomNavigationBarItem>[
               BottomNavigationBarItem(
@@ -2015,7 +2424,8 @@ class _ExplorePageState extends State<ExplorePage> {
               ),
             ],
             currentIndex: _selectedNavIndex,
-            selectedItemColor: const Color.fromARGB(255, 255, 171, 64), // Single color
+            selectedItemColor:
+                const Color.fromARGB(255, 255, 171, 64), // Single color
             unselectedItemColor: Colors.grey,
             onTap: _onNavItemTapped,
             type: BottomNavigationBarType.fixed,
@@ -2029,13 +2439,6 @@ class _ExplorePageState extends State<ExplorePage> {
     );
   }
 }
-
-
-
-
-
-
-
 
 class HomeSection extends StatefulWidget {
   const HomeSection({super.key});
@@ -2077,7 +2480,8 @@ class _HomeSectionState extends State<HomeSection> {
 
       if (response.statusCode == 200) {
         final List<dynamic> jsonData = json.decode(response.body);
-        List<Post> fetchedPosts = jsonData.map((json) => Post.fromJson(json)).toList();
+        List<Post> fetchedPosts =
+            jsonData.map((json) => Post.fromJson(json)).toList();
         fetchedPosts = removeDuplicatesById(fetchedPosts);
 
         setState(() {
@@ -2118,7 +2522,8 @@ class _HomeSectionState extends State<HomeSection> {
                                 post.latitude!, post.longitude!),
                             builder: (context, snapshot) {
                               String locationText = 'Location not available';
-                              if (snapshot.connectionState == ConnectionState.waiting) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
                                 locationText = 'Fetching location...';
                               } else if (snapshot.hasData) {
                                 locationText = snapshot.data!;
@@ -2130,8 +2535,11 @@ class _HomeSectionState extends State<HomeSection> {
                                 mechanicName: post.fullName,
                                 description: post.description,
                                 datePosted: post.createdAt.toString(),
-                                imagePath: 'https://expertstrials.xyz/Garifix_app/${post.imagePath}',
-                                userProfilePic: 'https://expertstrials.xyz/Garifix_app/${post.profileImage}' ?? 'assets/default_user.png',
+                                imagePath:
+                                    'https://expertstrials.xyz/Garifix_app/${post.imagePath}',
+                                userProfilePic:
+                                    'https://expertstrials.xyz/Garifix_app/${post.profileImage}' ??
+                                        'assets/default_user.png',
                                 location: locationText,
                               );
                             },
@@ -2157,9 +2565,11 @@ class _HomeSectionState extends State<HomeSection> {
     );
   }
 
-  Future<String> _getAddressFromLatLng(double latitude, double longitude) async {
+  Future<String> _getAddressFromLatLng(
+      double latitude, double longitude) async {
     try {
-      List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude);
+      List<Placemark> placemarks =
+          await placemarkFromCoordinates(latitude, longitude);
       Placemark place = placemarks[0];
       return '${place.street}, ${place.locality}, ${place.country}';
     } catch (e) {
@@ -2167,337 +2577,429 @@ class _HomeSectionState extends State<HomeSection> {
       return 'Location not available';
     }
   }
-void _showPostDialog(BuildContext context) {
-  final TextEditingController descriptionController = TextEditingController();
-  String? imagePath;
-  final ImagePicker picker = ImagePicker();
 
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text(
-          'Create a New Post',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.deepPurple,
-            fontSize: 24,
+  void _showPostDialog(BuildContext context) {
+    final TextEditingController descriptionController = TextEditingController();
+    String? imagePath;
+    final ImagePicker picker = ImagePicker();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Create a New Post',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.deepPurple,
+              fontSize: 24,
+            ),
           ),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        content: SingleChildScrollView(
-          child: StatefulBuilder(
-            builder: (BuildContext context, StateSetter setState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () async {
-                      final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
-                      if (pickedFile != null) {
-                        setState(() {
-                          imagePath = pickedFile.path;
-                        });
-                      }
-                    },
-                    child: Container(
-                      height: 150,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(15),
-                        image: imagePath != null
-                            ? DecorationImage(
-                                image: FileImage(File(imagePath!)),
-                                fit: BoxFit.cover,
-                              )
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          content: SingleChildScrollView(
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setState) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () async {
+                        final XFile? pickedFile =
+                            await picker.pickImage(source: ImageSource.gallery);
+                        if (pickedFile != null) {
+                          setState(() {
+                            imagePath = pickedFile.path;
+                          });
+                        }
+                      },
+                      child: Container(
+                        height: 150,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(15),
+                          image: imagePath != null
+                              ? DecorationImage(
+                                  image: FileImage(File(imagePath!)),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 8,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: imagePath == null
+                            ? const Icon(Icons.add_a_photo,
+                                size: 40, color: Colors.grey)
                             : null,
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 8,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
                       ),
-                      alignment: Alignment.center,
-                      child: imagePath == null
-                          ? const Icon(Icons.add_a_photo, size: 40, color: Colors.grey)
-                          : null,
                     ),
-                  ),
-                  const SizedBox(height: 15),
-                  TextField(
-                    controller: descriptionController,
-                    maxLines: 4,
-                    decoration: InputDecoration(
-                      hintText: 'Enter post description...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      contentPadding: const EdgeInsets.all(10),
+                    const SizedBox(height: 15),
+                    TextField(
+                      controller: descriptionController,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: 'Enter post description...',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15)),
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        contentPadding: const EdgeInsets.all(10),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                ],
-              );
-            },
+                    const SizedBox(height: 10),
+                  ],
+                );
+              },
+            ),
           ),
-        ),
-        actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).pop(); // Close the dialog
-                },
-                icon: const Icon(Icons.cancel, color: Colors.white),
-                label: const Text('Cancel', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                  },
+                  icon: const Icon(Icons.cancel, color: Colors.white),
+                  label: const Text('Cancel',
+                      style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    elevation: 8,
+                    shadowColor: Colors.red.withOpacity(0.5),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  elevation: 8,
-                  shadowColor: Colors.red.withOpacity(0.5),
                 ),
-              ),
-ElevatedButton.icon(
-  onPressed: () async {
-    // Check if fields are filled
-    if (descriptionController.text.isNotEmpty && imagePath != null) {
-      // Call the function to create the post
-      await _createPost(descriptionController.text, imagePath, context);
-      Navigator.of(context).pop(); // Close the dialog
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields!')));
-    }
-  },
-  icon: const Icon(Icons.post_add, color: Colors.white),
-  label: const Text('Post', style: TextStyle(color: Colors.white)),
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.deepPurpleAccent,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(30),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-    elevation: 8,
-    shadowColor: Colors.deepPurple.withOpacity(0.5),
-  ),
-),
-
-            ],
-          ),
-        ],
-      );
-    },
-  );
-}
-
-Future<void> _createPost(String description, String? imagePath, BuildContext context) async {
-  final SharedPreferences prefs = await SharedPreferences.getInstance();
-  final String? token = prefs.getString('jwt_token'); // Get the JWT token
-
-  // Define the URL for your Flask backend
-  const String url = 'https://expertstrials.xyz/Garifix_app/api/posts'; // Adjust the endpoint accordingly
-
-  // Prepare the request
-  final request = http.MultipartRequest('POST', Uri.parse(url))
-    ..fields['description'] = description
-    ..headers['Authorization'] = 'Bearer $token'; // Add the JWT token in the headers
-
-  if (imagePath != null) {
-    // Attach the image file if it exists
-    final imageFile = await http.MultipartFile.fromPath('image', imagePath);
-    request.files.add(imageFile);
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    // Check if fields are filled
+                    if (descriptionController.text.isNotEmpty &&
+                        imagePath != null) {
+                      // Call the function to create the post
+                      await _createPost(
+                          descriptionController.text, imagePath, context);
+                      Navigator.of(context).pop(); // Close the dialog
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Please fill in all fields!')));
+                    }
+                  },
+                  icon: const Icon(Icons.post_add, color: Colors.white),
+                  label:
+                      const Text('Post', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurpleAccent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    elevation: 8,
+                    shadowColor: Colors.deepPurple.withOpacity(0.5),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
   }
 
-  // Send the request
-  try {
-    final response = await request.send();
-    if (response.statusCode == 200) {
-      print('Post created successfully');
-      // Show success dialog or SnackBar
+  Future<void> _createPost(
+      String description, String? imagePath, BuildContext context) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token'); // Get the JWT token
+
+    // Define the URL for your Flask backend
+    const String url =
+        'https://expertstrials.xyz/Garifix_app/api/posts'; // Adjust the endpoint accordingly
+
+    // Prepare the request
+    final request = http.MultipartRequest('POST', Uri.parse(url))
+      ..fields['description'] = description
+      ..headers['Authorization'] =
+          'Bearer $token'; // Add the JWT token in the headers
+
+    if (imagePath != null) {
+      // Attach the image file if it exists
+      final imageFile = await http.MultipartFile.fromPath('image', imagePath);
+      request.files.add(imageFile);
+    }
+
+    // Send the request
+    try {
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        print('Post created successfully');
+        // Show success dialog or SnackBar
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post created successfully!')),
+        );
+      } else {
+        print('Failed to create post: ${response.statusCode}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to create post!')),
+        );
+      }
+    } catch (e) {
+      print('Error occurred: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Post created successfully!')),
-      );
-    } else {
-      print('Failed to create post: ${response.statusCode}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to create post!')),
+        const SnackBar(
+            content: Text('An error occurred while creating the post!')),
       );
     }
-  } catch (e) {
-    print('Error occurred: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('An error occurred while creating the post!')),
+  }
+
+  Widget _buildExplorePost({
+    required String mechanicName,
+    required String description,
+    required String datePosted,
+    required String imagePath,
+    required String userProfilePic,
+    required String location,
+  }) {
+    int likeCount = 0;
+    bool isLiked = false;
+    bool isSaved = false;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          elevation: 4,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(15),
+                  topRight: Radius.circular(15),
+                ),
+                child: Image.network(
+                  imagePath,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                (loadingProgress.expectedTotalBytes ?? 1)
+                            : null,
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(child: Icon(Icons.error));
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundImage: NetworkImage(
+                            userProfilePic.isNotEmpty
+                                ? userProfilePic
+                                : 'https://example.com/default_user.png', // Default image URL if needed
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              mechanicName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.deepPurple,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              location,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(description, style: const TextStyle(fontSize: 14)),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(datePosted,
+                            style: const TextStyle(color: Colors.grey)),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                isLiked
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: isLiked ? Colors.red : Colors.deepPurple,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  isLiked = !isLiked;
+                                  likeCount += isLiked ? 1 : -1;
+                                });
+                              },
+                            ),
+                            Text(likeCount.toString()),
+                            IconButton(
+                              icon: Icon(
+                                isSaved
+                                    ? Icons.bookmark
+                                    : Icons.bookmark_border,
+                                color: Colors.deepPurple,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  isSaved = !isSaved;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
-
-Widget _buildExplorePost({
-  required String mechanicName,
-  required String description,
-  required String datePosted,
-  required String imagePath,
-  required String userProfilePic,
-  required String location,
-}) {
-  int likeCount = 0;
-  bool isLiked = false;
-  bool isSaved = false;
-
-  return StatefulBuilder(
-    builder: (context, setState) {
-      return Card(
-        margin: const EdgeInsets.symmetric(vertical: 10),
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(15),
-                topRight: Radius.circular(15),
-              ),
-              child: Image.network(
-                imagePath,
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              (loadingProgress.expectedTotalBytes ?? 1)
-                          : null,
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return const Center(child: Icon(Icons.error));
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundImage: NetworkImage(
-                          userProfilePic.isNotEmpty 
-                            ? userProfilePic 
-                            : 'https://example.com/default_user.png', // Default image URL if needed
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            mechanicName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.deepPurple,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            location,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(description, style: const TextStyle(fontSize: 14)),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(datePosted, style: const TextStyle(color: Colors.grey)),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              isLiked ? Icons.favorite : Icons.favorite_border,
-                              color: isLiked ? Colors.red : Colors.deepPurple,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                isLiked = !isLiked;
-                                likeCount += isLiked ? 1 : -1;
-                              });
-                            },
-                          ),
-                          Text(likeCount.toString()),
-                          IconButton(
-                            icon: Icon(
-                              isSaved ? Icons.bookmark : Icons.bookmark_border,
-                              color: Colors.deepPurple,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                isSaved = !isSaved;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
-
-}
-
-
-
-
-
-class ProductsSection extends StatefulWidget {
-  const ProductsSection({super.key});
+class ProductScreen extends StatefulWidget {
+  const ProductScreen({super.key});
 
   @override
-  _ProductsSectionState createState() => _ProductsSectionState();
+  _ProductScreenState createState() => _ProductScreenState();
 }
 
-class _ProductsSectionState extends State<ProductsSection> {
-  String searchQuery = '';
-  List<Map<String, dynamic>> filteredProducts = productList;
-  bool isSearchVisible = false; // To manage the visibility of the search bar
+class _ProductScreenState extends State<ProductScreen> {
+  List<dynamic> filteredProducts = [];
+  bool isLoading = true; // Loading indicator
+  bool isSearchVisible = false;
+  String errorMessage = ""; // Store error messages
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeProducts(); // Call the data initializer
+  }
+
+  Future<void> _initializeProducts() async {
+    print("Initializing products...");
+    try {
+      await fetchProducts();
+    } catch (e) {
+      print("Error initializing products: $e");
+      setState(() {
+        errorMessage = "Failed to load products. Please try again.";
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> fetchProducts() async {
+    setState(() {
+      isLoading = true; // Start loading state
+      errorMessage = ""; // Clear previous errors
+    });
+
+    print("fetchProducts called");
+
+    try {
+      print("Making API request...");
+      final response = await http
+          .get(Uri.parse('https://expertstrials.xyz/Garifix_app/api/products'));
+
+      print('Response status code: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> productList = json.decode(response.body);
+
+        // Print the entire response data for debugging
+        print("Response body: $productList");
+
+        // Log and update the state with the fetched products
+        print("Products fetched successfully, count: ${productList.length}");
+
+        // Convert location coordinates to addresses
+        for (var product in productList) {
+          if (product['location'] != 'Location unavailable') {
+            var coordinates = product['location'].split(',');
+            double latitude = double.parse(coordinates[0].trim());
+            double longitude = double.parse(coordinates[1].trim());
+            List<Placemark> placemarks =
+                await placemarkFromCoordinates(latitude, longitude);
+            String address = placemarks.isNotEmpty
+                ? placemarks.first.street ?? 'Address not found'
+                : 'Address not found';
+            product['location'] = address;
+          }
+        }
+
+        setState(() {
+          filteredProducts = productList;
+          isLoading = false;
+        });
+      } else {
+        print("Failed to load products with status: ${response.statusCode}");
+        throw Exception('Failed to load products');
+      }
+    } catch (e) {
+      print("Error fetching products: $e");
+      setState(() {
+        isLoading = false;
+        errorMessage = "Error fetching products.";
+      });
+    }
+  }
 
   void filterProducts(String query) {
+    final filtered = filteredProducts.where((product) {
+      final titleLower = product['title'].toLowerCase();
+      final companyNameLower = product['companyName'].toLowerCase();
+      return titleLower.contains(query.toLowerCase()) ||
+          companyNameLower.contains(query.toLowerCase());
+    }).toList();
+
     setState(() {
-      searchQuery = query.toLowerCase();
-      filteredProducts = productList.where((product) {
-        final companyName = product['companyName'].toLowerCase();
-        final title = product['title'].toLowerCase();
-        return companyName.contains(searchQuery) || title.contains(searchQuery);
-      }).toList();
+      filteredProducts = filtered;
     });
   }
 
@@ -2505,22 +3007,29 @@ class _ProductsSectionState extends State<ProductsSection> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Toggle search bar visibility
-          setState(() {
-            isSearchVisible = !isSearchVisible;
-          });
-        },
-        backgroundColor: Colors.deepPurple,
-        child: const Icon(Icons.filter_list),
+      floatingActionButton: Stack(
+        children: [
+          Positioned(
+            right: 16,
+            bottom: MediaQuery.of(context).size.height / 8 +
+                1, // Increase the value to move it lower
+            child: FloatingActionButton(
+              onPressed: () {
+                setState(() {
+                  isSearchVisible = !isSearchVisible;
+                });
+              },
+              backgroundColor: Colors.blueAccent,
+              child: const Icon(Icons.search),
+            ),
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(12.0),
         child: Column(
           children: [
-            // Search Bar
-            if (isSearchVisible) // Conditionally render the search bar
+            if (isSearchVisible)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 8.0),
                 child: TextField(
@@ -2533,28 +3042,36 @@ class _ProductsSectionState extends State<ProductsSection> {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide.none,
                     ),
-                    prefixIcon: const Icon(Icons.search, color: Colors.deepPurple),
+                    prefixIcon:
+                        const Icon(Icons.search, color: Colors.deepPurple),
                   ),
                 ),
               ),
-            const SizedBox(height: 8), // Spacer to add some space when search is hidden
-
+            const SizedBox(height: 8),
             Expanded(
-              child: ListView.builder(
-                itemCount: filteredProducts.length,
-                itemBuilder: (context, index) {
-                  final product = filteredProducts[index];
-
-                  return ProductCard(
-                    imageUrl: product['imageUrl'] ?? '',
-                    title: product['title'] ?? 'No Title',
-                    price: product['price'] ?? '\$0.00',
-                    description: product['description'] ?? 'No Description',
-                    companyName: product['companyName'] ?? 'Unknown Company',
-                    location: product['location'] ?? 'Unknown Location',
-                  );
-                },
-              ),
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : errorMessage.isNotEmpty
+                      ? Center(child: Text(errorMessage))
+                      : filteredProducts.isEmpty
+                          ? const Center(child: Text("No products found"))
+                          : ListView.builder(
+                              itemCount: filteredProducts.length,
+                              itemBuilder: (context, index) {
+                                final product = filteredProducts[index];
+                                return ProductCard(
+                                  imageUrl: product['imageUrl'] ?? '',
+                                  title: product['title'] ?? 'No Title',
+                                  price: product['price'] ?? '\$0.00',
+                                  description: product['description'] ??
+                                      'No Description',
+                                  companyName: product['companyName'] ??
+                                      'Unknown Company',
+                                  location:
+                                      product['location'] ?? 'Unknown Location',
+                                );
+                              },
+                            ),
             ),
           ],
         ),
@@ -2594,13 +3111,13 @@ class ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Company Info Section
             Row(
               children: [
                 CircleAvatar(
                   radius: 20,
                   backgroundImage: NetworkImage(imageUrl),
-                  onBackgroundImageError: (error, stackTrace) => const Icon(Icons.error),
+                  onBackgroundImageError: (error, stackTrace) =>
+                      const Icon(Icons.error),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -2632,54 +3149,47 @@ class ProductCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-
-// Enhanced Product Image Section with Zoomed-Out Effect
-Container(
-  decoration: BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(12), // Increased radius for softer corners
-    boxShadow: const [
-      BoxShadow(
-        color: Colors.black26,
-        blurRadius: 10, // Shadow blur effect
-        offset: Offset(0, 3), // Shadow position
-      ),
-    ],
-  ),
-  clipBehavior: Clip.antiAlias, // Ensures the child is clipped
-  child: Stack(
-    children: [
-      // Product Image
-      Image.network(
-        imageUrl,
-        height: 200, // Decreased height to zoom out the image
-        width: double.infinity,
-        fit: BoxFit.contain, // Changed to contain to fit the image within the given dimensions
-        errorBuilder: (context, error, stackTrace) => const Center(
-          child: Icon(
-            Icons.error,
-            size: 80,
-            color: Colors.red, // Change color of error icon
-          ),
-        ),
-      ),
-      // Overlay with gradient for better visibility
-      Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.black54, Colors.transparent], // Gradient effect
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
-          ),
-        ),
-      ),
-    ],
-  ),
-),
-const SizedBox(height: 8),
-
-
-            // Product Details
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 10,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                children: [
+                  Image.network(
+                    imageUrl,
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Center(
+                      child: Icon(
+                        Icons.error,
+                        size: 80,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.black54, Colors.transparent],
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
             Text(
               title,
               style: const TextStyle(
@@ -2710,8 +3220,6 @@ const SizedBox(height: 8),
               ),
             ),
             const SizedBox(height: 8),
-
-            // Action Buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -2729,7 +3237,8 @@ const SizedBox(height: 8),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 16),
                     textStyle: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -2743,7 +3252,8 @@ const SizedBox(height: 8),
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.bookmark_border, color: Colors.deepPurple),
+                  icon: const Icon(Icons.bookmark_border,
+                      color: Colors.deepPurple),
                   onPressed: () {
                     // Implement wishlist functionality
                   },
@@ -2757,47 +3267,6 @@ const SizedBox(height: 8),
   }
 }
 
-// Sample Product Data
-final List<Map<String, dynamic>> productList = [
-  {
-    'imageUrl': 'https://maximausa.com/cdn/shop/products/M198648180.png?v=1674756022',
-    'title': 'Premium Oil Filter',
-    'price': '\$29.99',
-    'description': 'High-quality oil filter for long-lasting performance and engine protection.',
-    'companyName': 'Maxima USA',
-    'location': 'California, USA',
-  },
-  {
-    'imageUrl': 'https://ppepower.com/cdn/shop/files/2020-2024-GM-6.6L-Duramax-Premium-High-Efficiency-Engine-Oil-Filter-Pacific-Performance-Engineering-739257_1200x.jpg?v=1715216700',
-    'title': 'Duramax Engine Oil Filter',
-    'price': '\$24.99',
-    'description': 'Efficient engine oil filter designed for maximum engine health and durability.',
-    'companyName': 'Duramax Performance',
-    'location': 'Texas, USA',
-  },
-  {
-    'imageUrl': 'https://www.boschautopartes.mx/documents/652389/5114023/FiltrosdeAceitePremium_PDP_Carousel_MX.jpg',
-    'title': 'Bosch Oil Filter',
-    'price': '\$34.99',
-    'description': 'Bosch quality oil filter to keep your car engine running smoothly.',
-    'companyName': 'Bosch Auto Parts',
-    'location': 'Stuttgart, Germany',
-  },
-  {
-    'imageUrl': 'https://images-na.ssl-images-amazon.com/images/I/41Js3Q49G4L._UL500_.jpg',
-    'title': 'Premium Air Filter',
-    'price': '\$19.99',
-    'description': 'Advanced air filter for a cleaner and more efficient engine performance.',
-    'companyName': 'AirPro Filters',
-    'location': 'Illinois, USA',
-  },
-];
-
-
-
-
-
-
 class MessagesSection extends StatefulWidget {
   const MessagesSection({super.key});
 
@@ -2808,14 +3277,16 @@ class MessagesSection extends StatefulWidget {
 class _MessagesSectionState extends State<MessagesSection> {
   final List<Map<String, dynamic>> messages = [
     {
-      'avatar': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTzly6IVaAUXTkRvHgdnUelmf8VNvXTUHW32w&s',
+      'avatar':
+          'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTzly6IVaAUXTkRvHgdnUelmf8VNvXTUHW32w&s',
       'sender': 'John Doe',
       'text': 'Hey! How are you doing?',
       'time': '10:30 AM',
       'read': false,
     },
     {
-      'avatar': 'https://www.singulart.com/blog/wp-content/uploads/2023/10/Famous-Portrait-Paintings-848x530-1.jpg',
+      'avatar':
+          'https://www.singulart.com/blog/wp-content/uploads/2023/10/Famous-Portrait-Paintings-848x530-1.jpg',
       'sender': 'Jane Smith',
       'text': 'Just wanted to check in!',
       'time': '10:31 AM',
@@ -2832,14 +3303,16 @@ class _MessagesSectionState extends State<MessagesSection> {
   ];
 
   String? selectedSender; // Track the selected sender
-  final List<Map<String, dynamic>> conversation = []; // Track conversation messages
+  final List<Map<String, dynamic>> conversation =
+      []; // Track conversation messages
   String newMessage = '';
 
   void sendMessage() {
     if (newMessage.isNotEmpty) {
       setState(() {
         conversation.add({
-          'avatar': 'https://via.placeholder.com/50', // Placeholder for the current user
+          'avatar':
+              'https://via.placeholder.com/50', // Placeholder for the current user
           'sender': 'You',
           'text': newMessage,
           'time': TimeOfDay.now().format(context),
@@ -2853,11 +3326,13 @@ class _MessagesSectionState extends State<MessagesSection> {
   void toggleConversation(String sender) {
     if (selectedSender == sender) {
       setState(() {
-        selectedSender = null; // Hide the conversation if the same sender is clicked
+        selectedSender =
+            null; // Hide the conversation if the same sender is clicked
       });
     } else {
       setState(() {
-        selectedSender = sender; // Show the conversation for the selected sender
+        selectedSender =
+            sender; // Show the conversation for the selected sender
         conversation.clear(); // Clear previous messages for a new conversation
       });
     }
@@ -2874,11 +3349,13 @@ class _MessagesSectionState extends State<MessagesSection> {
                 children: [
                   CircleAvatar(
                     backgroundImage: NetworkImage(
-                      messages.firstWhere((msg) => msg['sender'] == selectedSender)['avatar'],
+                      messages.firstWhere(
+                          (msg) => msg['sender'] == selectedSender)['avatar'],
                     ),
                     radius: 25,
                   ),
-                  const SizedBox(width: 10), // Increased space for better layout
+                  const SizedBox(
+                      width: 10), // Increased space for better layout
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2888,14 +3365,16 @@ class _MessagesSectionState extends State<MessagesSection> {
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18, // Increased font size
-                            color: Colors.white, // Changed text color for contrast
+                            color:
+                                Colors.white, // Changed text color for contrast
                           ),
                         ),
                         const Text(
                           'Last seen: 10:32 AM',
                           style: TextStyle(
                             fontSize: 14, // Slightly increased font size
-                            color: Colors.white70, // Lighter color for the last seen text
+                            color: Colors
+                                .white70, // Lighter color for the last seen text
                           ),
                         ),
                       ],
@@ -2903,7 +3382,8 @@ class _MessagesSectionState extends State<MessagesSection> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.more_vert, color: Colors.white), // More options button
+                    icon: const Icon(Icons.more_vert,
+                        color: Colors.white), // More options button
                     onPressed: () {
                       // Add your functionality here
                     },
@@ -2911,11 +3391,13 @@ class _MessagesSectionState extends State<MessagesSection> {
                 ],
               ),
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white), // Back button
+                icon: const Icon(Icons.arrow_back,
+                    color: Colors.white), // Back button
                 onPressed: () {
                   setState(() {
                     selectedSender = null; // Go back to messages
-                    conversation.clear(); // Clear the conversation when going back
+                    conversation
+                        .clear(); // Clear the conversation when going back
                   });
                 },
               ),
@@ -2927,7 +3409,8 @@ class _MessagesSectionState extends State<MessagesSection> {
           children: [
             // Show the list of messages or DM conversation
             Expanded(
-              child: selectedSender == null // Check if there's a selected sender
+              child: selectedSender ==
+                      null // Check if there's a selected sender
                   ? ListView.builder(
                       itemCount: messages.length,
                       itemBuilder: (context, index) {
@@ -3011,7 +3494,9 @@ class _MessagesSectionState extends State<MessagesSection> {
   }
 
   int _getUnreadCount() {
-    return messages.where((msg) => !msg['read']).length; // Count unread messages
+    return messages
+        .where((msg) => !msg['read'])
+        .length; // Count unread messages
   }
 }
 
@@ -3023,7 +3508,8 @@ class MessageCard extends StatelessWidget {
   final bool isRead; // New parameter for read status
   final int unreadCount; // New parameter for unread count
 
-  const MessageCard({super.key, 
+  const MessageCard({
+    super.key,
     required this.avatar,
     required this.sender,
     required this.text,
@@ -3047,7 +3533,10 @@ class MessageCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isRead ? Colors.white : Colors.lightBlueAccent.withOpacity(0.1), // Different color for unread messages
+                color: isRead
+                    ? Colors.white
+                    : Colors.lightBlueAccent.withOpacity(
+                        0.1), // Different color for unread messages
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
@@ -3067,11 +3556,13 @@ class MessageCard extends StatelessWidget {
                         sender,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: isRead ? Colors.deepPurple : Colors.blue, // Change color for unread
+                          color: isRead
+                              ? Colors.deepPurple
+                              : Colors.blue, // Change color for unread
                         ),
                       ),
                       // Display unread message count if greater than 0
-                      if (unreadCount > 0) 
+                      if (unreadCount > 0)
                         CircleAvatar(
                           backgroundColor: Colors.red,
                           radius: 12,
@@ -3107,10 +3598,6 @@ class MessageCard extends StatelessWidget {
     );
   }
 }
-
-
-
-
 
 class ExploreSection extends StatelessWidget {
   const ExploreSection({super.key});
@@ -3182,19 +3669,19 @@ class ExploreSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 30),
                 // Optional: Add a button or link
-ElevatedButton(
-  onPressed: () {
-    // Add your functionality here (e.g., subscribe, back to home)
-  },
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.amber, // Primary button color
-    foregroundColor: Colors.black,  // Text color
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-    textStyle: const TextStyle(fontSize: 18),
-  ),
-  child: const Text('Notify Me'),
-),
-
+                ElevatedButton(
+                  onPressed: () {
+                    // Add your functionality here (e.g., subscribe, back to home)
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber, // Primary button color
+                    foregroundColor: Colors.black, // Text color
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    textStyle: const TextStyle(fontSize: 18),
+                  ),
+                  child: const Text('Notify Me'),
+                ),
               ],
             ),
           ),
@@ -3261,9 +3748,6 @@ class _AnimatedTextState extends State<AnimatedText>
   }
 }
 
-
-
-
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
 
@@ -3271,16 +3755,149 @@ class AccountPage extends StatefulWidget {
   _AccountPageState createState() => _AccountPageState();
 }
 
+// Car model class
+class Car {
+  final String carName;
+  final String color;
+  final String? document; // Allowing document to be nullable
+  final String image;
+  final String licensePlate;
+  final double mileage;
+  final String year;
+
+  Car({
+    required this.carName,
+    required this.color,
+    this.document, // This field is now optional
+    required this.image,
+    required this.licensePlate,
+    required this.mileage,
+    required this.year,
+  });
+
+  factory Car.fromJson(Map<String, dynamic> json) {
+    return Car(
+      carName: json['car_name'] as String,
+      color: json['color'] as String,
+      document: json['document'] as String?, // Accepts null
+      image: json['image'] as String,
+      licensePlate: json['license_plate'] as String,
+      mileage: (json['mileage'] as num).toDouble(), // Safe conversion
+      year: json['year'] as String,
+    );
+  }
+}
+
+class DocumentViewerScreen extends StatelessWidget {
+  final String carName;
+  final String? document;
+
+  const DocumentViewerScreen({super.key, required this.carName, this.document});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('$carName Documents'),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Documents for $carName',
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            if (document != null)
+              Text(
+                'Document: $document',
+                style: const TextStyle(fontSize: 18),
+              )
+            else
+              const Text(
+                'No documents available.',
+                style: TextStyle(fontSize: 18, color: Colors.red),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _AccountPageState extends State<AccountPage> {
   String? _imageUrl; // URL for the profile image
   final ImagePicker _picker = ImagePicker();
+  String? fullName;
+  String? email;
+  String? profileImage; // Add this for the profile image
+  String? phoneNumber;
+  String? address; // Add this for user address
+  List<Map<String, dynamic>> paymentDetails = []; // Declare paymentDetails here
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.deepPurple,
-        title: const Text('Profile'),
+        automaticallyImplyLeading: false, // This removes the left arrow
+        title: Row(
+          mainAxisAlignment:
+              MainAxisAlignment.start, // Aligns content to the far left
+          children: [
+            // Logo with a subtle glow effect
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.7),
+                    blurRadius: 10,
+                    spreadRadius: 3,
+                  ),
+                ],
+              ),
+              child: Image.asset(
+                'assets/logo/app_logo.png', // Path to the Mecar logo
+                height: 50,
+                width: 50,
+              ),
+            ),
+            const SizedBox(width: 15), // Space between logo and name
+            // Gradient text for the company name
+            ShaderMask(
+              shaderCallback: (Rect bounds) {
+                return const LinearGradient(
+                  colors: [Color.fromARGB(255, 255, 171, 64), Colors.yellow],
+                  tileMode: TileMode.mirror,
+                ).createShader(bounds);
+              },
+              child: const Text(
+                'Mecar',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1.5,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(2.0, 2.0),
+                      blurRadius: 3.0,
+                      color: Colors.black26,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings, color: Colors.white),
@@ -3303,7 +3920,7 @@ class _AccountPageState extends State<AccountPage> {
             const SizedBox(height: 20),
             _buildProfileHeader(context),
             const SizedBox(height: 30),
-            _buildCarSection(),
+            _buildCarSection(context),
             const SizedBox(height: 30),
             _buildContactSection(),
             const SizedBox(height: 30),
@@ -3317,6 +3934,9 @@ class _AccountPageState extends State<AccountPage> {
   }
 
   Widget _buildProfileHeader(BuildContext context) {
+    // Base URL for profile images
+    const String baseUrl = 'https://expertstrials.xyz/Garifix_app/';
+
     return Center(
       child: Column(
         children: [
@@ -3326,9 +3946,11 @@ class _AccountPageState extends State<AccountPage> {
                 radius: 55,
                 backgroundColor: Colors.grey[200],
                 // Display the user's profile image or a placeholder
-                backgroundImage: _imageUrl != null
-                    ? NetworkImage(_imageUrl!)
-                    : const AssetImage('assets/placeholder.png') as ImageProvider,
+                backgroundImage: _imageUrl != null && _imageUrl!.isNotEmpty
+                    ? NetworkImage(baseUrl +
+                        _imageUrl!) // Load profile image with full URL
+                    : const AssetImage('assets/placeholder.png')
+                        as ImageProvider, // Placeholder image
               ),
               Positioned(
                 bottom: 0,
@@ -3344,13 +3966,17 @@ class _AccountPageState extends State<AccountPage> {
               ),
             ],
           ),
-          const Text(
-            'John Doe',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+          // Update this line to use fullName
+          Text(
+            fullName ?? 'Loading...', // Use dynamic fullName or default text
+            style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepPurple),
           ),
           const SizedBox(height: 1),
           const Text(
-            'Joined: January 2018',
+            'Joined: January 2018', // You may also consider making this dynamic
             style: TextStyle(fontSize: 14, color: Colors.grey),
           ),
         ],
@@ -3394,7 +4020,8 @@ class _AccountPageState extends State<AccountPage> {
             var responseJson = jsonDecode(responseData.body);
 
             // Assuming your server sends back the image URL after upload
-            if (responseJson['success'] == true && responseJson['profile_image_url'] != null) {
+            if (responseJson['success'] == true &&
+                responseJson['profile_image_url'] != null) {
               setState(() {
                 // Update the image URL with the one returned from the server
                 _imageUrl = responseJson['profile_image_url'];
@@ -3414,293 +4041,928 @@ class _AccountPageState extends State<AccountPage> {
       }
     }
   }
-// Payment Section Widget
-Widget _buildPaymentSection() {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Row(
-          children: [
-            Icon(
-              Icons.payment, // Icon for Payment section
-              color: Colors.deepPurple,
-              size: 30,
-            ),
-            SizedBox(width: 8), // Spacing between icon and text
-            Text(
-              'Payment Information',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 4,
-          child: Column(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.phone, color: Colors.deepPurple),
-                title: const Text('+1 234 567 890'), // Phone number
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.deepPurple),
-                  onPressed: () {
-                    // Implement phone number edit functionality
-                  },
-                ),
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.monetization_on, color: Colors.deepPurple),
-                title: const Text('Amount Paid'),
-                subtitle: const Text('\$250.00'), // Placeholder for amount paid
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.deepPurple),
-                  onPressed: () {
-                    // Implement amount edit functionality
-                  },
-                ),
-              ),
-              const Divider(),
-              ListTile(
-                leading: const Icon(Icons.calendar_today, color: Colors.deepPurple),
-                title: const Text('Package Type'),
-                subtitle: const Text('Monthly'), // Can be "Monthly" or "Annually"
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.deepPurple),
-                  onPressed: () {
-                    // Implement package type edit functionality
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
-// Horizontal scrollable My Car section
-Widget _buildCarSection() {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Row(
-          children: [
-            Icon(
-              Icons.directions_car, // Icon for My Cars section
-              color: Colors.deepPurple,
-              size: 30, // Adjust the size as needed
-            ),
-            SizedBox(width: 8), // Spacing between icon and text
-            Text(
-              'My Cars',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        SizedBox(
-          height: 180, // Adjusted height for car cards
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              _buildCarCard('Toyota Camry', 'ABC-1234', 'Black', '2019'),
-              _buildCarCard('Tesla Model S', 'XYZ-5678', 'White', '2022'),
-              _buildCarCard('Ford Mustang', 'MNO-4321', 'Red', '2021'),
-              _buildAddCarCard(),
-            ],
-          ),
-        ),
-      ],
-    ),
-  );
-}
 
-// Widget for each car card
-Widget _buildCarCard(String name, String plate, String color, String year) {
-  return Container(
-    width: 240, // Width for each car card
-    margin: const EdgeInsets.only(right: 16),
-    child: Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      elevation: 4,
-      child: Stack( // Use Stack to position the edit icon
+// Payment Section Widget
+  Widget _buildPaymentSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SvgPicture.asset('assets/icons/car.svg', height: 40),
-                const SizedBox(height: 10),
-                Text(
-                  name,
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-                // Use maxLines to prevent overflow
-                Text(
-                  'License Plate: $plate\nColor: $color\nYear: $year',
-                  style: const TextStyle(color: Colors.grey),
-                  maxLines: 3, // Limit to 3 lines
-                  overflow: TextOverflow.ellipsis, // Add ellipsis if text overflows
-                ),
-              ],
-            ),
+          const Row(
+            children: [
+              Icon(
+                Icons.payment, // Icon for Payment section
+                color: Colors.deepPurple,
+                size: 30,
+              ),
+              SizedBox(width: 8), // Spacing between icon and text
+              Text(
+                'Payment Information',
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple),
+              ),
+            ],
           ),
-          Positioned( // Position the edit button at the top right
-            top: 8,
-            right: 8,
-            child: IconButton(
-              icon: const Icon(Icons.edit, color: Colors.deepPurple),
-              onPressed: () {
-                // Implement car details edit functionality
-              },
+          const SizedBox(height: 10),
+          Card(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            elevation: 4,
+            child: Column(
+              children: paymentDetails.map<Widget>((payment) {
+                return Column(
+                  children: [
+                    ListTile(
+                      leading:
+                          const Icon(Icons.phone, color: Colors.deepPurple),
+                      title:
+                          Text(payment['phone_number']), // Dynamic phone number
+                      trailing: IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.deepPurple),
+                        onPressed: () {
+                          // Implement phone number edit functionality
+                        },
+                      ),
+                    ),
+                    const Divider(),
+                    ListTile(
+                      leading: const Icon(Icons.monetization_on,
+                          color: Colors.deepPurple),
+                      title: const Text('Amount Paid'),
+                      subtitle: Text(
+                          'Ksh ${payment['amount']}'), // Dynamic amount paid
+                      trailing: IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.deepPurple),
+                        onPressed: () {
+                          // Implement amount edit functionality
+                        },
+                      ),
+                    ),
+                    const Divider(),
+                    ListTile(
+                      leading: const Icon(Icons.calendar_today,
+                          color: Colors.deepPurple),
+                      title: const Text('Package Type'),
+                      subtitle: Text(
+                          payment['subscription_type']), // Dynamic package type
+                      trailing: IconButton(
+                        icon: const Icon(Icons.edit, color: Colors.deepPurple),
+                        onPressed: () {
+                          // Implement package type edit functionality
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
             ),
           ),
         ],
       ),
-    ),
-  );
-}
+    );
+  }
 
+  Future<List<Car>> fetchCars() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token');
 
-// Add new car card
-Widget _buildAddCarCard() {
-  return Container(
-    width: 160, // Smaller width for add car button
-    margin: const EdgeInsets.only(right: 16),
-    child: GestureDetector(
-      onTap: () {
-        // Implement add new car functionality
-      },
-      child: Card(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        elevation: 8, // Increased elevation for better shadow effect
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient( // Gradient background
-              colors: [
-                Colors.deepPurple.withOpacity(0.5), 
-                Colors.deepPurple.withOpacity(0.2)
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16.0), // Padding around icon
-              child: Column(
-                mainAxisSize: MainAxisSize.min, // Adjust height based on content
-                children: [
-                  Icon(Icons.add, size: 40, color: Colors.white), // White icon for better contrast
-                  SizedBox(height: 8), // Space between icon and text
-                  Text(
-                    'Add New Car',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
+    try {
+      final response = await http.get(
+        Uri.parse('https://expertstrials.xyz/Garifix_app/api/my-cars'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      // Print the status code and body for debugging
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Decode the response body
+        final Map<String, dynamic> jsonResponse = json.decode(response.body);
+        // Access the data key to get the list of cars
+        List<dynamic> carData = jsonResponse['data'];
+
+        // Print the JSON response for debugging
+        print('Fetched car data: $carData');
+
+        return carData.map((car) => Car.fromJson(car)).toList();
+      } else {
+        // Print error response for debugging
+        print('Failed to load cars. Status code: ${response.statusCode}');
+        print('Error response: ${response.body}');
+        throw Exception('Failed to load cars');
+      }
+    } catch (e) {
+      // Print any exceptions that occur during the fetch
+      print('Error occurred: $e');
+      throw Exception('Failed to fetch cars: $e');
+    }
+  }
+
+// Horizontal scrollable My Car section
+  Widget _buildCarSection(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.directions_car, // Icon for My Cars section
+                color: Colors.deepPurple,
+                size: 30, // Adjust the size as needed
               ),
-            ),
+              SizedBox(width: 8), // Spacing between icon and text
+              Text(
+                'My Cars',
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple),
+              ),
+            ],
           ),
+          const SizedBox(height: 10),
+          FutureBuilder<List<Car>>(
+            future: fetchCars(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              } else if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              } else {
+                return SizedBox(
+                  height: 180, // Adjusted height for car cards
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: snapshot.data!.length +
+                        1, // Increase count by 1 for the Add Car card
+                    itemBuilder: (context, index) {
+                      if (index == snapshot.data!.length) {
+                        return _buildAddCarCard(
+                            context); // Add Car card at the end
+                      }
+                      final car =
+                          snapshot.data![index]; // Fetch the car from the list
+                      return _buildCarCard(car); // Build the car card
+                    },
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+// Widget for each car card
+// Widget for each car card
+  Widget _buildCarCard(Car car) {
+    return Container(
+      width: 240, // Width for each car card
+      margin: const EdgeInsets.only(right: 16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(20),
+        image: DecorationImage(
+          image: NetworkImage(
+              'https://expertstrials.xyz/Garifix_app/${car.image}'), // Use full image URL
+          fit: BoxFit.cover,
         ),
       ),
-    ),
-  );
-}
-
-
-// Contact Information with detailed icons
-Widget _buildContactSection() {
-  return Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Row(
-          children: [
-            Icon(
-              Icons.contact_phone, // Icon for contact information
-              color: Colors.deepPurple,
-              size: 30, // Adjust the size as needed
-            ),
-            SizedBox(width: 8), // Spacing between icon and text
-            Text(
-              'Contact Information',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        Card(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: Card(
+          color: Colors.black54, // Overlay color for better text visibility
           elevation: 4,
-          child: Column(
+          child: Stack(
+            // Use Stack to position the edit icon
             children: [
-              // Username Field
-              ListTile(
-                leading: const Icon(Icons.person, color: Colors.deepPurple), // Icon for username
-                title: const Text('John Doe'), // Placeholder for username
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.deepPurple),
-                  onPressed: () {
-                    // Implement username edit functionality
-                  },
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SvgPicture.asset('assets/icons/car.svg', height: 40),
+                    const SizedBox(height: 10),
+                    Text(
+                      car.carName, // Use car.carName instead of car.name
+                      style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white),
+                    ),
+                    // Use maxLines to prevent overflow
+                    Text(
+                      'License Plate: ${car.licensePlate}\nColor: ${car.color}',
+                      style: const TextStyle(color: Colors.white70),
+                      maxLines: 2, // Limit to 2 lines
+                      overflow: TextOverflow
+                          .ellipsis, // Add ellipsis if text overflows
+                    ),
+                    const SizedBox(
+                        height: 4), // Space between car info and year/mileage
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment
+                          .spaceBetween, // Distribute space between elements
+                      children: [
+                        Expanded(
+                          // Expand to take available space
+                          child: Text(
+                            'Year: ${car.year}',
+                            style: const TextStyle(color: Colors.white70),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(
+                            width: 8), // Small space between year and mileage
+                        Expanded(
+                          child: Text(
+                            'Mileage: ${car.mileage.toString()} km',
+                            style: const TextStyle(color: Colors.white70),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Optional: Display the document if it exists
+                    if (car.document != null)
+                      Text(
+                        'Document: ${car.document}',
+                        style: const TextStyle(color: Colors.white70),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
                 ),
               ),
-              const Divider(),
-              // Email Field
-              ListTile(
-                leading: const Icon(Icons.email, color: Colors.deepPurple),
-                title: const Text('john.doe@email.com'),
-                trailing: IconButton(
+              Positioned(
+                // Position the edit button at the top right
+                top: 8,
+                right: 8,
+                child: IconButton(
                   icon: const Icon(Icons.edit, color: Colors.deepPurple),
                   onPressed: () {
-                    // Implement email edit functionality
-                  },
-                ),
-              ),
-              const Divider(),
-              // Phone Number Field
-              ListTile(
-                leading: const Icon(Icons.phone, color: Colors.deepPurple),
-                title: const Text('+1 234 567 890'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.deepPurple),
-                  onPressed: () {
-                    // Implement phone number edit functionality
-                  },
-                ),
-              ),
-              const Divider(),
-              // Address Field
-              ListTile(
-                leading: const Icon(Icons.location_on, color: Colors.deepPurple),
-                title: const Text('123 Street, City, Country'),
-                trailing: IconButton(
-                  icon: const Icon(Icons.edit, color: Colors.deepPurple),
-                  onPressed: () {
-                    // Implement address edit functionality
+                    // Implement car details edit functionality
                   },
                 ),
               ),
             ],
           ),
         ),
-      ],
-    ),
-  );
-}
+      ),
+    );
+  }
+
+// Add new car card with form dialog
+  Widget _buildAddCarCard(BuildContext context) {
+    return Container(
+      width: 160, // Smaller width for add car button
+      margin: const EdgeInsets.only(right: 16),
+      child: GestureDetector(
+        onTap: () {
+          // Show form dialog when tapped
+          _showAddCarFormDialog(context);
+        },
+        child: Card(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 8, // Increased elevation for better shadow effect
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                // Gradient background
+                colors: [
+                  Colors.deepPurple.withOpacity(0.5),
+                  Colors.deepPurple.withOpacity(0.2)
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0), // Padding around icon
+                child: Column(
+                  mainAxisSize:
+                      MainAxisSize.min, // Adjust height based on content
+                  children: [
+                    Icon(Icons.add,
+                        size: 40,
+                        color: Colors.white), // White icon for better contrast
+                    SizedBox(height: 8), // Space between icon and text
+                    Text(
+                      'Add New Car',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+// Function to show success dialog and call the add car form dialog
+  void _showSuccessDialog(BuildContext context, VoidCallback onSuccess) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green),
+              SizedBox(width: 10),
+              Text('Success'),
+            ],
+          ),
+          content: const Text('The car has been added successfully!'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                onSuccess(); // Call the function to show the add car form dialog
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAddCarFormDialog(BuildContext context) {
+    final carNameController = TextEditingController();
+    final licensePlateController = TextEditingController();
+    final colorController = TextEditingController();
+    final yearController = TextEditingController();
+    final mileageController = TextEditingController();
+    String? carImagePreviewPath;
+    final ImagePicker picker = ImagePicker();
+    String? documentName;
+
+    // Function to pick a document
+    Future<void> pickDocument() async {
+      final XFile? document = await picker.pickImage(
+          source: ImageSource.gallery); // Change as per requirement
+      if (document != null) {
+        setState(() {
+          documentName = document.name; // Save the document name for display
+        });
+      }
+    }
+
+    Future<void> pickImage(StateSetter setState) async {
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image != null) {
+        setState(() {
+          carImagePreviewPath = image.path;
+        });
+      }
+    }
+
+    Future<void> addCar(BuildContext context) async {
+      // Get the JWT token
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('jwt_token');
+
+      // Prepare the request data
+      final Map<String, dynamic> carData = {
+        'car_name': carNameController.text,
+        'license_plate': licensePlateController.text,
+        'color': colorController.text,
+        'year': yearController.text,
+        'mileage': mileageController.text,
+        'car_image':
+            carImagePreviewPath != null ? File(carImagePreviewPath!) : null,
+        'document_name': documentName,
+      };
+
+      // Create multipart request
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://expertstrials.xyz/Garifix_app/api/add-car'),
+      );
+
+      // Add JWT token to headers
+      request.headers['Authorization'] = 'Bearer $token';
+
+      // Add fields to the request
+      request.fields['car_name'] = carData['car_name'];
+      request.fields['license_plate'] = carData['license_plate'];
+      request.fields['color'] = carData['color'];
+      request.fields['year'] = carData['year'];
+      request.fields['mileage'] = carData['mileage'];
+
+      // Add image file if selected
+      if (carImagePreviewPath != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'car_image',
+            carImagePreviewPath!,
+          ),
+        );
+      }
+
+      // Add document file if selected
+      if (documentName != null) {
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'document',
+            documentName!,
+          ),
+        );
+      }
+
+      try {
+        final response = await request.send();
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          // Handle success
+          print('Car added successfully');
+          _showSuccessDialog(context, () {
+            _showAddCarFormDialog(
+                context); // Call to show the add car form dialog
+          });
+        } else {
+          // Handle other status codes
+          print('Failed to add car: ${response.reasonPhrase}');
+        }
+      } catch (e) {
+        print('Error: $e');
+      }
+    }
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SingleChildScrollView(
+              child: StatefulBuilder(
+                builder: (BuildContext context, StateSetter setState) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.add_circle,
+                              color: Colors.deepPurple, size: 30),
+                          SizedBox(width: 8),
+                          Text(
+                            'Add New Car',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.deepPurple,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      // Image upload with preview box
+                      GestureDetector(
+                        onTap: () async {
+                          await pickImage(setState);
+                        },
+                        child: Container(
+                          width: double.infinity,
+                          height: 150,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(12),
+                            border:
+                                Border.all(color: Colors.deepPurple, width: 1),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.deepPurple.withOpacity(0.3),
+                                offset: const Offset(0, 5),
+                                blurRadius: 10,
+                              ),
+                              BoxShadow(
+                                color: Colors.deepPurple.withOpacity(0.15),
+                                offset: const Offset(0, 15),
+                                blurRadius: 20,
+                              ),
+                            ],
+                          ),
+                          child: carImagePreviewPath != null
+                              ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.file(
+                                    File(carImagePreviewPath!),
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                  ),
+                                )
+                              : const Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.photo_camera,
+                                        color: Colors.deepPurple, size: 40),
+                                    SizedBox(height: 8),
+                                    Text(
+                                      'Upload Car Photo',
+                                      style: TextStyle(
+                                          color: Colors.deepPurple,
+                                          fontSize: 16),
+                                    ),
+                                  ],
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Car details inputs with icons and shadows
+                      _buildStyledTextField(
+                        controller: carNameController,
+                        labelText: 'Car Name',
+                        hintText: 'e.g., Toyota Camry',
+                        icon: Icons.directions_car,
+                      ),
+                      _buildStyledTextField(
+                        controller: licensePlateController,
+                        labelText: 'License Plate',
+                        hintText: 'e.g., ABC-1234',
+                        icon: Icons.confirmation_number,
+                      ),
+                      _buildStyledTextField(
+                        controller: colorController,
+                        labelText: 'Color',
+                        hintText: 'e.g., Black',
+                        icon: Icons.color_lens,
+                      ),
+                      _buildStyledTextField(
+                        controller: yearController,
+                        labelText: 'Year',
+                        hintText: 'e.g., 2020',
+                        icon: Icons.calendar_today,
+                        keyboardType: TextInputType.number,
+                      ),
+                      _buildStyledTextField(
+                        controller: mileageController,
+                        labelText: 'Mileage (Optional)',
+                        hintText: 'e.g., 15000 km',
+                        icon: Icons.speed,
+                        keyboardType: TextInputType.number,
+                      ),
+                      const SizedBox(height: 20),
+                      // Document upload field
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.description,
+                                  color: Colors.deepPurple),
+                              const SizedBox(width: 10),
+                              Text(
+                                'Upload Document (Optional)',
+                                style: TextStyle(
+                                    color: Colors.deepPurple[700],
+                                    fontSize: 16),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              await pickDocument();
+                            },
+                            icon: const Icon(Icons.upload_file,
+                                color: Colors.white),
+                            label: const Text('Choose File'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  const Color.fromARGB(255, 222, 218, 230),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              elevation: 5,
+                              shadowColor: Colors.deepPurple.withOpacity(0.3),
+                            ),
+                          ),
+                          // Display the document name after selection
+                          if (documentName != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text(
+                                'Selected: $documentName',
+                                style:
+                                    const TextStyle(color: Colors.deepPurple),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+                      // Action buttons with shadows and icons
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          _buildStyledButton(
+                            context,
+                            label: 'Cancel',
+                            color: Colors.redAccent,
+                            icon: Icons.cancel,
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              addCar(
+                                  context); // Call the function to send data to backend
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepPurple,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                  vertical: 12, horizontal: 20),
+                              elevation: 8,
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.add),
+                                SizedBox(width: 8),
+                                Text('Add Car'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+// Helper method to build a TextField with shadow
+  Widget _buildStyledTextField({
+    required TextEditingController controller,
+    required String labelText,
+    required String hintText,
+    required IconData icon,
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10.0),
+      child: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.deepPurple.withOpacity(0.1),
+              offset: const Offset(0, 4),
+              blurRadius: 10,
+            ),
+          ],
+        ),
+        child: TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(
+            labelText: labelText,
+            hintText: hintText,
+            prefixIcon: Icon(icon, color: Colors.deepPurple),
+            border: const OutlineInputBorder(),
+            filled: true,
+            fillColor: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
+// Helper method to build a Button with shadow
+  Widget _buildStyledButton(BuildContext context,
+      {required String label, required Color color, required IconData icon}) {
+    return ElevatedButton(
+      onPressed: () {
+        Navigator.of(context).pop(); // Close the dialog
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+        elevation: 10,
+        shadowColor: color.withOpacity(0.5),
+      ).copyWith(elevation: WidgetStateProperty.all(10)), // Increase shadow
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              color.withOpacity(0.8),
+              color.withOpacity(1),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.3),
+              offset: const Offset(0, 8),
+              blurRadius: 10,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize:
+              MainAxisSize.min, // Ensure the button takes minimum space
+          children: [
+            Icon(icon, color: Colors.white),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _fetchUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token');
+
+    if (token != null) {
+      final response = await http.get(
+        Uri.parse('https://expertstrials.xyz/Garifix_app/api/user'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        // Print the raw data from the API response
+        print('Response Data: $data');
+
+        if (data['success']) {
+          setState(() {
+            fullName = data['data']['full_name'];
+            email = data['data']['email'];
+            phoneNumber = data['data']['phone_number'];
+            // Extract the profile image URL
+            _imageUrl = data['data']['profile_image']; // Profile image
+
+            // Extract latitude and longitude for geocoding
+            double? latitude = data['data']['location']['latitude'];
+            double? longitude = data['data']['location']['longitude'];
+
+            // Fetch address using latitude and longitude
+            _getAddressFromLatLng(latitude, longitude);
+
+            // Handle payment details
+            paymentDetails = List<Map<String, dynamic>>.from(data['data'][
+                'payments']); // Convert List<dynamic> to List<Map<String, dynamic>>
+          });
+        } else {
+          // Handle error response and print the message
+          print('Error message from API: ${data['message']}');
+        }
+      } else {
+        // Handle server error
+        print('Failed to load user data. Status Code: ${response.statusCode}');
+        print(
+            'Response: ${response.body}'); // Print the full response body for debugging
+      }
+    } else {
+      print('No token found. User is not authenticated.');
+    }
+  }
+
+// Method to get the address from latitude and longitude
+  Future<void> _getAddressFromLatLng(
+      double? latitude, double? longitude) async {
+    if (latitude != null && longitude != null) {
+      try {
+        List<Placemark> placemarks =
+            await placemarkFromCoordinates(latitude, longitude);
+        Placemark place = placemarks[0]; // Get the first result
+        setState(() {
+          address =
+              '${place.street}, ${place.locality}, ${place.postalCode}, ${place.country}';
+        });
+      } catch (e) {
+        print('Error fetching address: $e');
+      }
+    }
+  }
+
+  Widget _buildContactSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(
+                Icons.contact_phone,
+                color: Colors.deepPurple,
+                size: 30,
+              ),
+              SizedBox(width: 8),
+              Text(
+                'Contact Information',
+                style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Card(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            elevation: 4,
+            child: Column(
+              children: [
+                // Username Field
+                ListTile(
+                  leading: const Icon(Icons.person, color: Colors.deepPurple),
+                  title: Text(fullName ?? 'Loading...'), // Dynamic username
+                  trailing: IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.deepPurple),
+                    onPressed: () {
+                      // Implement username edit functionality
+                    },
+                  ),
+                ),
+                const Divider(),
+                // Email Field
+                ListTile(
+                  leading: const Icon(Icons.email, color: Colors.deepPurple),
+                  title: Text(email ?? 'Loading...'), // Dynamic email
+                  trailing: IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.deepPurple),
+                    onPressed: () {
+                      // Implement email edit functionality
+                    },
+                  ),
+                ),
+                const Divider(),
+                // Phone Number Field
+                ListTile(
+                  leading: const Icon(Icons.phone, color: Colors.deepPurple),
+                  title:
+                      Text(phoneNumber ?? 'Loading...'), // Dynamic phone number
+                  trailing: IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.deepPurple),
+                    onPressed: () {
+                      // Implement phone number edit functionality
+                    },
+                  ),
+                ),
+                const Divider(),
+                // Address Field
+                ListTile(
+                  leading:
+                      const Icon(Icons.location_on, color: Colors.deepPurple),
+                  title: Text(address ?? 'Loading...'), // Dynamic address
+                  trailing: IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.deepPurple),
+                    onPressed: () {
+                      // Implement address edit functionality
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   // Documents and Insurance section
   Widget _buildDocumentsSection() {
@@ -3711,16 +4973,21 @@ Widget _buildContactSection() {
         children: [
           const Text(
             'Insurance & Documents',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+            style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepPurple),
           ),
           const SizedBox(height: 10),
           Card(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             elevation: 4,
             child: ListTile(
               leading: const Icon(Icons.file_copy, color: Colors.deepPurple),
               title: const Text('View Insurance & Documents'),
-              trailing: const Icon(Icons.arrow_forward, color: Colors.deepPurple),
+              trailing:
+                  const Icon(Icons.arrow_forward, color: Colors.deepPurple),
               onTap: () {
                 // Navigate to document viewer
               },

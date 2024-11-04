@@ -5,10 +5,13 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'package:geocoding/geocoding.dart';
 // Import shared_preferences
 import 'post.dart'; // Make sure to import the Post model
+
 class AutoStoreHomeScreen extends StatefulWidget {
   const AutoStoreHomeScreen({super.key});
 
@@ -18,19 +21,167 @@ class AutoStoreHomeScreen extends StatefulWidget {
 
 class _AutoStoreHomeScreenState extends State<AutoStoreHomeScreen> {
   int _currentIndex = 0;
+  String _userLocationName = '';
+  String? userEmail; // Variable to hold user email
+  Position? _previousPosition; // Variable to hold the previous location
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkLocationPermission();
+    });
+    _loadUserEmail(); // Load user email from SharedPreferences
+  }
+
+  Future<void> _loadUserEmail() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      userEmail = prefs.getString('userEmail'); // Retrieve user email
+    });
+  }
+
+  Future<void> _checkLocationPermission() async {
+    var status = await Permission.location.status;
+    if (!status.isGranted) {
+      _showLocationPermissionDialog();
+    } else {
+      _getUserLocation(); // Fetch location if permission is already granted
+    }
+  }
+
+  Future<void> _getUserLocation() async {
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      List<Placemark> placemarks =
+          await placemarkFromCoordinates(position.latitude, position.longitude);
+      Placemark place = placemarks[0];
+      _userLocationName = '${place.locality}, ${place.country}';
+
+      print('User Location: $_userLocationName');
+
+      // Check if the location has changed more than 2 kilometers
+      if (_previousPosition == null ||
+          Geolocator.distanceBetween(
+                  _previousPosition!.latitude,
+                  _previousPosition!.longitude,
+                  position.latitude,
+                  position.longitude) >
+              2000) {
+        _previousPosition = position; // Update previous position
+        _postUserLocation(position); // Post the new location
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Location: $_userLocationName')),
+        );
+      }
+    } catch (e) {
+      print('Error fetching location: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Error fetching location!')),
+        );
+      }
+    }
+  }
+
+  Future<void> _postUserLocation(Position position) async {
+    if (userEmail == null) return; // Ensure email is available
+
+    final url = Uri.parse(
+        'https://expertstrials.xyz/Garifix_app/post_location'); // Your backend URL
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json', // Specify that you're sending JSON
+      },
+      body: jsonEncode({
+        'email': userEmail,
+        'latitude': position.latitude.toString(),
+        'longitude': position.longitude.toString(),
+      }),
+    );
+
+    if (response.statusCode == 201) {
+      print('Location posted successfully');
+    } else {
+      print('Failed to post location: ${response.statusCode}');
+    }
+  }
+
+  void _showLocationPermissionDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.location_on, color: Colors.deepPurple),
+              SizedBox(width: 10),
+              Text(
+                'Location Permission Needed',
+                style: TextStyle(
+                  fontSize:
+                      16, // Font size in logical pixels, not exact px but equivalent
+                  color: Colors.blue, // Text color changed to blue
+                ),
+              ),
+            ],
+          ),
+          content: const SingleChildScrollView(
+            // Added to avoid overflow issues
+            child: Text(
+              'To show mechanics near you, please allow location access.',
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Deny'),
+            ),
+            TextButton(
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await Permission.location.request();
+                if (mounted) {
+                  if (await Permission.location.isGranted) {
+                    _getUserLocation();
+                  } else {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Location permission denied!')),
+                      );
+                    }
+                  }
+                }
+              },
+              child: const Text('Allow'),
+            ),
+          ],
+        );
+      },
+    );
+  }
   // List of pages to navigate between
   final List<Widget> _pages = [
-    const HomePageScreen(),       // Home Page
-    const ExplorePage(),    // Explore Page
-    const OrdersScreen(),     // Orders Page
-    const AccountsScreen(),   // Accounts Page
+    const HomePageScreen(), // Home Page
+    const ExplorePage(), // Explore Page
+    const OrdersScreen(), // Orders Page
+    const AccountsScreen(), // Accounts Page
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-
       body: _pages[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
@@ -53,7 +204,8 @@ class _AutoStoreHomeScreenState extends State<AutoStoreHomeScreen> {
             label: 'Orders',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.account_circle, color: Color.fromRGBO(191, 187, 197, 1)),
+            icon: Icon(Icons.account_circle,
+                color: Color.fromRGBO(191, 187, 197, 1)),
             label: 'Accounts',
           ),
         ],
@@ -65,7 +217,6 @@ class _AutoStoreHomeScreenState extends State<AutoStoreHomeScreen> {
     );
   }
 }
-
 
 class HomePageScreen extends StatelessWidget {
   const HomePageScreen({super.key});
@@ -195,90 +346,89 @@ class HomePageScreen extends StatelessWidget {
     );
   }
 
-Widget _buildStatisticsSection() {
-  return SizedBox(
-    height: 140,  // Adjusts height of the stat card section
-    child: ListView(
-      scrollDirection: Axis.horizontal,
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      children: [
-        _buildStatCard(
-          icon: Icons.post_add,
-          label: 'Posts Today',
-          value: '5',
-          color: Colors.purple.shade100,
-        ),
-        _buildStatCard(
-          icon: Icons.calendar_today,
-          label: 'Monthly Posts',
-          value: '120',
-          color: Colors.blue.shade100,
-        ),
-        _buildStatCard(
-          icon: Icons.remove_red_eye,
-          label: '24h Engagement',
-          value: '300',
-          color: Colors.green.shade100,
-        ),
-        _buildStatCard(
-          icon: Icons.timeline,
-          label: 'Monthly Engagement',
-          value: '5K',
-          color: Colors.orange.shade100,
-        ),
-      ],
-    ),
-  );
-}
-
-Widget _buildStatCard({
-  required IconData icon,
-  required String label,
-  required String value,
-  required Color color,
-}) {
-  return Container(
-    width: 130,
-    margin: const EdgeInsets.symmetric(horizontal: 8.0),
-    padding: const EdgeInsets.all(12.0),
-    decoration: BoxDecoration(
-      color: color,
-      borderRadius: BorderRadius.circular(15),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.1),
-          blurRadius: 8,
-          offset: const Offset(0, 4),
-        ),
-      ],
-    ),
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(icon, color: Colors.deepPurple, size: 32),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: Colors.black87,
+  Widget _buildStatisticsSection() {
+    return SizedBox(
+      height: 140, // Adjusts height of the stat card section
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+        children: [
+          _buildStatCard(
+            icon: Icons.post_add,
+            label: 'Posts Today',
+            value: '5',
+            color: Colors.purple.shade100,
           ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            fontSize: 14,
-            color: Colors.black54,
+          _buildStatCard(
+            icon: Icons.calendar_today,
+            label: 'Monthly Posts',
+            value: '120',
+            color: Colors.blue.shade100,
           ),
-        ),
-      ],
-    ),
-  );
-}
+          _buildStatCard(
+            icon: Icons.remove_red_eye,
+            label: '24h Engagement',
+            value: '300',
+            color: Colors.green.shade100,
+          ),
+          _buildStatCard(
+            icon: Icons.timeline,
+            label: 'Monthly Engagement',
+            value: '5K',
+            color: Colors.orange.shade100,
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Container(
+      width: 130,
+      margin: const EdgeInsets.symmetric(horizontal: 8.0),
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, color: Colors.deepPurple, size: 32),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 14,
+              color: Colors.black54,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   Widget _buildRecentPosts() {
     return Column(
@@ -298,7 +448,10 @@ Widget _buildStatCard({
     );
   }
 
-  Widget _buildPostStatCard({required String title, required String views, required String engagements}) {
+  Widget _buildPostStatCard(
+      {required String title,
+      required String views,
+      required String engagements}) {
     return Card(
       elevation: 5,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -306,7 +459,8 @@ Widget _buildStatCard({
         padding: const EdgeInsets.all(16.0),
         child: Row(
           children: [
-            const Icon(FontAwesomeIcons.cogs, color: Colors.deepPurpleAccent, size: 28),
+            const Icon(FontAwesomeIcons.cogs,
+                color: Colors.deepPurpleAccent, size: 28),
             const SizedBox(width: 15),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -320,8 +474,12 @@ Widget _buildStatCard({
                   ),
                 ),
                 const SizedBox(height: 5),
-                Text(views, style: const TextStyle(fontSize: 14, color: Colors.black54)),
-                Text(engagements, style: const TextStyle(fontSize: 14, color: Colors.black54)),
+                Text(views,
+                    style:
+                        const TextStyle(fontSize: 14, color: Colors.black54)),
+                Text(engagements,
+                    style:
+                        const TextStyle(fontSize: 14, color: Colors.black54)),
               ],
             ),
           ],
@@ -379,10 +537,26 @@ Widget _buildStatCard({
 
   Widget _buildProductList() {
     final List<Map<String, String>> products = [
-      {'name': 'Brake Pads', 'image': 'assets/brake_pads.png', 'price': 'Ksh 2500'},
-      {'name': 'Air Filters', 'image': 'assets/air_filters.png', 'price': 'Ksh 1200'},
-      {'name': 'Spark Plugs', 'image': 'assets/spark_plugs.png', 'price': 'Ksh 800'},
-      {'name': 'Car Battery', 'image': 'assets/car_battery.png', 'price': 'Ksh 9000'},
+      {
+        'name': 'Brake Pads',
+        'image': 'assets/brake_pads.png',
+        'price': 'Ksh 2500'
+      },
+      {
+        'name': 'Air Filters',
+        'image': 'assets/air_filters.png',
+        'price': 'Ksh 1200'
+      },
+      {
+        'name': 'Spark Plugs',
+        'image': 'assets/spark_plugs.png',
+        'price': 'Ksh 800'
+      },
+      {
+        'name': 'Car Battery',
+        'image': 'assets/car_battery.png',
+        'price': 'Ksh 9000'
+      },
     ];
 
     return SingleChildScrollView(
@@ -429,7 +603,6 @@ Widget _buildStatCard({
   }
 }
 
-
 // Placeholder screens for navigation tabs
 class ExplorePage extends StatefulWidget {
   const ExplorePage({super.key});
@@ -444,7 +617,7 @@ class _ExplorePageState extends State<ExplorePage> {
   // List of widgets for different sections
   final List<Widget> _navPages = [
     const HomeSection(),
-    ProductScreen(),
+    const ProductScreen(),
     const MessagesSection(),
     const ExploreSection(),
   ];
@@ -463,7 +636,8 @@ class _ExplorePageState extends State<ExplorePage> {
         backgroundColor: Colors.deepPurple,
         elevation: 10, // Adds shadow for a more dynamic look
         title: Row(
-          mainAxisAlignment: MainAxisAlignment.start, // Aligns content to the far left
+          mainAxisAlignment:
+              MainAxisAlignment.start, // Aligns content to the far left
           children: [
             // Logo with a subtle glow effect
             Container(
@@ -525,7 +699,8 @@ class _ExplorePageState extends State<ExplorePage> {
           ),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60.0), // Set height for the bottom navigation
+          preferredSize: const Size.fromHeight(
+              60.0), // Set height for the bottom navigation
           child: BottomNavigationBar(
             items: const <BottomNavigationBarItem>[
               BottomNavigationBarItem(
@@ -546,7 +721,8 @@ class _ExplorePageState extends State<ExplorePage> {
               ),
             ],
             currentIndex: _selectedNavIndex,
-            selectedItemColor: const Color.fromARGB(255, 255, 171, 64), // Single color
+            selectedItemColor:
+                const Color.fromARGB(255, 255, 171, 64), // Single color
             unselectedItemColor: Colors.grey,
             onTap: _onNavItemTapped,
             type: BottomNavigationBarType.fixed,
@@ -560,13 +736,6 @@ class _ExplorePageState extends State<ExplorePage> {
     );
   }
 }
-
-
-
-
-
-
-
 
 class HomeSection extends StatefulWidget {
   const HomeSection({super.key});
@@ -608,7 +777,8 @@ class _HomeSectionState extends State<HomeSection> {
 
       if (response.statusCode == 200) {
         final List<dynamic> jsonData = json.decode(response.body);
-        List<Post> fetchedPosts = jsonData.map((json) => Post.fromJson(json)).toList();
+        List<Post> fetchedPosts =
+            jsonData.map((json) => Post.fromJson(json)).toList();
         fetchedPosts = removeDuplicatesById(fetchedPosts);
 
         setState(() {
@@ -649,7 +819,8 @@ class _HomeSectionState extends State<HomeSection> {
                                 post.latitude!, post.longitude!),
                             builder: (context, snapshot) {
                               String locationText = 'Location not available';
-                              if (snapshot.connectionState == ConnectionState.waiting) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
                                 locationText = 'Fetching location...';
                               } else if (snapshot.hasData) {
                                 locationText = snapshot.data!;
@@ -661,8 +832,11 @@ class _HomeSectionState extends State<HomeSection> {
                                 mechanicName: post.fullName,
                                 description: post.description,
                                 datePosted: post.createdAt.toString(),
-                                imagePath: 'https://expertstrials.xyz/Garifix_app/${post.imagePath}',
-                                userProfilePic: 'https://expertstrials.xyz/Garifix_app/${post.profileImage}' ?? 'assets/default_user.png',
+                                imagePath:
+                                    'https://expertstrials.xyz/Garifix_app/${post.imagePath}',
+                                userProfilePic:
+                                    'https://expertstrials.xyz/Garifix_app/${post.profileImage}' ??
+                                        'assets/default_user.png',
                                 location: locationText,
                               );
                             },
@@ -688,9 +862,11 @@ class _HomeSectionState extends State<HomeSection> {
     );
   }
 
-  Future<String> _getAddressFromLatLng(double latitude, double longitude) async {
+  Future<String> _getAddressFromLatLng(
+      double latitude, double longitude) async {
     try {
-      List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude);
+      List<Placemark> placemarks =
+          await placemarkFromCoordinates(latitude, longitude);
       Placemark place = placemarks[0];
       return '${place.street}, ${place.locality}, ${place.country}';
     } catch (e) {
@@ -698,314 +874,330 @@ class _HomeSectionState extends State<HomeSection> {
       return 'Location not available';
     }
   }
-void _showPostDialog(BuildContext context) {
-  final TextEditingController descriptionController = TextEditingController();
-  String? imagePath;
-  final ImagePicker picker = ImagePicker();
 
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text(
-          'Create a New Post',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.deepPurple,
-            fontSize: 24,
+  void _showPostDialog(BuildContext context) {
+    final TextEditingController descriptionController = TextEditingController();
+    String? imagePath;
+    final ImagePicker picker = ImagePicker();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Create a New Post',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.deepPurple,
+              fontSize: 24,
+            ),
           ),
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-        ),
-        content: SingleChildScrollView(
-          child: StatefulBuilder(
-            builder: (BuildContext context, StateSetter setState) {
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  GestureDetector(
-                    onTap: () async {
-                      final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
-                      if (pickedFile != null) {
-                        setState(() {
-                          imagePath = pickedFile.path;
-                        });
-                      }
-                    },
-                    child: Container(
-                      height: 150,
-                      decoration: BoxDecoration(
-                        color: Colors.grey[200],
-                        borderRadius: BorderRadius.circular(15),
-                        image: imagePath != null
-                            ? DecorationImage(
-                                image: FileImage(File(imagePath!)),
-                                fit: BoxFit.cover,
-                              )
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          content: SingleChildScrollView(
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setState) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () async {
+                        final XFile? pickedFile =
+                            await picker.pickImage(source: ImageSource.gallery);
+                        if (pickedFile != null) {
+                          setState(() {
+                            imagePath = pickedFile.path;
+                          });
+                        }
+                      },
+                      child: Container(
+                        height: 150,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(15),
+                          image: imagePath != null
+                              ? DecorationImage(
+                                  image: FileImage(File(imagePath!)),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 8,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: imagePath == null
+                            ? const Icon(Icons.add_a_photo,
+                                size: 40, color: Colors.grey)
                             : null,
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 8,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
                       ),
-                      alignment: Alignment.center,
-                      child: imagePath == null
-                          ? const Icon(Icons.add_a_photo, size: 40, color: Colors.grey)
-                          : null,
                     ),
-                  ),
-                  const SizedBox(height: 15),
-                  TextField(
-                    controller: descriptionController,
-                    maxLines: 4,
-                    decoration: InputDecoration(
-                      hintText: 'Enter post description...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                      filled: true,
-                      fillColor: Colors.grey[100],
-                      contentPadding: const EdgeInsets.all(10),
+                    const SizedBox(height: 15),
+                    TextField(
+                      controller: descriptionController,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: 'Enter post description...',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15)),
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        contentPadding: const EdgeInsets.all(10),
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                ],
-              );
-            },
+                    const SizedBox(height: 10),
+                  ],
+                );
+              },
+            ),
           ),
-        ),
-        actions: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).pop(); // Close the dialog
-                },
-                icon: const Icon(Icons.cancel, color: Colors.white),
-                label: const Text('Cancel', style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.redAccent,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                  },
+                  icon: const Icon(Icons.cancel, color: Colors.white),
+                  label: const Text('Cancel',
+                      style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    elevation: 8,
+                    shadowColor: Colors.red.withOpacity(0.5),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                  elevation: 8,
-                  shadowColor: Colors.red.withOpacity(0.5),
                 ),
-              ),
-ElevatedButton.icon(
-  onPressed: () async {
-    // Check if fields are filled
-    if (descriptionController.text.isNotEmpty && imagePath != null) {
-      // Call the function to create the post
-      await _createPost(descriptionController.text, imagePath, context);
-      Navigator.of(context).pop(); // Close the dialog
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields!')));
-    }
-  },
-  icon: const Icon(Icons.post_add, color: Colors.white),
-  label: const Text('Post', style: TextStyle(color: Colors.white)),
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.deepPurpleAccent,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(30),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-    elevation: 8,
-    shadowColor: Colors.deepPurple.withOpacity(0.5),
-  ),
-),
-
-            ],
-          ),
-        ],
-      );
-    },
-  );
-}
-
-Future<void> _createPost(String description, String? imagePath, BuildContext context) async {
-  final SharedPreferences prefs = await SharedPreferences.getInstance();
-  final String? token = prefs.getString('jwt_token'); // Get the JWT token
-
-  // Define the URL for your Flask backend
-  const String url = 'https://expertstrials.xyz/Garifix_app/api/posts'; // Adjust the endpoint accordingly
-
-  // Prepare the request
-  final request = http.MultipartRequest('POST', Uri.parse(url))
-    ..fields['description'] = description
-    ..headers['Authorization'] = 'Bearer $token'; // Add the JWT token in the headers
-
-  if (imagePath != null) {
-    // Attach the image file if it exists
-    final imageFile = await http.MultipartFile.fromPath('image', imagePath);
-    request.files.add(imageFile);
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    // Check if fields are filled
+                    if (descriptionController.text.isNotEmpty &&
+                        imagePath != null) {
+                      // Call the function to create the post
+                      await _createPost(
+                          descriptionController.text, imagePath, context);
+                      Navigator.of(context).pop(); // Close the dialog
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Please fill in all fields!')));
+                    }
+                  },
+                  icon: const Icon(Icons.post_add, color: Colors.white),
+                  label:
+                      const Text('Post', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurpleAccent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    elevation: 8,
+                    shadowColor: Colors.deepPurple.withOpacity(0.5),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
   }
 
-  // Send the request
-  try {
-    final response = await request.send();
-    if (response.statusCode == 200) {
-      print('Post created successfully');
-      // Show success dialog or SnackBar
+  Future<void> _createPost(
+      String description, String? imagePath, BuildContext context) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token'); // Get the JWT token
+
+    // Define the URL for your Flask backend
+    const String url =
+        'https://expertstrials.xyz/Garifix_app/api/posts'; // Adjust the endpoint accordingly
+
+    // Prepare the request
+    final request = http.MultipartRequest('POST', Uri.parse(url))
+      ..fields['description'] = description
+      ..headers['Authorization'] =
+          'Bearer $token'; // Add the JWT token in the headers
+
+    if (imagePath != null) {
+      // Attach the image file if it exists
+      final imageFile = await http.MultipartFile.fromPath('image', imagePath);
+      request.files.add(imageFile);
+    }
+
+    // Send the request
+    try {
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        print('Post created successfully');
+        // Show success dialog or SnackBar
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post created successfully!')),
+        );
+      } else {
+        print('Failed to create post: ${response.statusCode}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to create post!')),
+        );
+      }
+    } catch (e) {
+      print('Error occurred: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Post created successfully!')),
-      );
-    } else {
-      print('Failed to create post: ${response.statusCode}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to create post!')),
+        const SnackBar(
+            content: Text('An error occurred while creating the post!')),
       );
     }
-  } catch (e) {
-    print('Error occurred: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('An error occurred while creating the post!')),
+  }
+
+  Widget _buildExplorePost({
+    required String mechanicName,
+    required String description,
+    required String datePosted,
+    required String imagePath,
+    required String userProfilePic,
+    required String location,
+  }) {
+    int likeCount = 0;
+    bool isLiked = false;
+    bool isSaved = false;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          elevation: 4,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(15),
+                  topRight: Radius.circular(15),
+                ),
+                child: Image.network(
+                  imagePath,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                (loadingProgress.expectedTotalBytes ?? 1)
+                            : null,
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(child: Icon(Icons.error));
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundImage: NetworkImage(
+                            userProfilePic.isNotEmpty
+                                ? userProfilePic
+                                : 'https://example.com/default_user.png', // Default image URL if needed
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              mechanicName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.deepPurple,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              location,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(description, style: const TextStyle(fontSize: 14)),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(datePosted,
+                            style: const TextStyle(color: Colors.grey)),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                isLiked
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: isLiked ? Colors.red : Colors.deepPurple,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  isLiked = !isLiked;
+                                  likeCount += isLiked ? 1 : -1;
+                                });
+                              },
+                            ),
+                            Text(likeCount.toString()),
+                            IconButton(
+                              icon: Icon(
+                                isSaved
+                                    ? Icons.bookmark
+                                    : Icons.bookmark_border,
+                                color: Colors.deepPurple,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  isSaved = !isSaved;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
-
-
-Widget _buildExplorePost({
-  required String mechanicName,
-  required String description,
-  required String datePosted,
-  required String imagePath,
-  required String userProfilePic,
-  required String location,
-}) {
-  int likeCount = 0;
-  bool isLiked = false;
-  bool isSaved = false;
-
-  return StatefulBuilder(
-    builder: (context, setState) {
-      return Card(
-        margin: const EdgeInsets.symmetric(vertical: 10),
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(15),
-                topRight: Radius.circular(15),
-              ),
-              child: Image.network(
-                imagePath,
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Center(
-                    child: CircularProgressIndicator(
-                      value: loadingProgress.expectedTotalBytes != null
-                          ? loadingProgress.cumulativeBytesLoaded /
-                              (loadingProgress.expectedTotalBytes ?? 1)
-                          : null,
-                    ),
-                  );
-                },
-                errorBuilder: (context, error, stackTrace) {
-                  return const Center(child: Icon(Icons.error));
-                },
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundImage: NetworkImage(
-                          userProfilePic.isNotEmpty 
-                            ? userProfilePic 
-                            : 'https://example.com/default_user.png', // Default image URL if needed
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            mechanicName,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Colors.deepPurple,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            location,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(description, style: const TextStyle(fontSize: 14)),
-                  const SizedBox(height: 10),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(datePosted, style: const TextStyle(color: Colors.grey)),
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: Icon(
-                              isLiked ? Icons.favorite : Icons.favorite_border,
-                              color: isLiked ? Colors.red : Colors.deepPurple,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                isLiked = !isLiked;
-                                likeCount += isLiked ? 1 : -1;
-                              });
-                            },
-                          ),
-                          Text(likeCount.toString()),
-                          IconButton(
-                            icon: Icon(
-                              isSaved ? Icons.bookmark : Icons.bookmark_border,
-                              color: Colors.deepPurple,
-                            ),
-                            onPressed: () {
-                              setState(() {
-                                isSaved = !isSaved;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      );
-    },
-  );
-}
-
-}
-
-
 
 
 
@@ -1018,34 +1210,79 @@ class ProductScreen extends StatefulWidget {
 
 class _ProductScreenState extends State<ProductScreen> {
   List<dynamic> filteredProducts = [];
+  bool isLoading = true; // Loading indicator
   bool isSearchVisible = false;
+  String errorMessage = ""; // Store error messages
 
   @override
   void initState() {
     super.initState();
-    fetchProducts(); // Fetch products when the widget initializes
+    _initializeProducts(); // Call the data initializer
+  }
+
+  Future<void> _initializeProducts() async {
+    print("Initializing products...");
+    try {
+      await fetchProducts();
+    } catch (e) {
+      print("Error initializing products: $e");
+      setState(() {
+        errorMessage = "Failed to load products. Please try again.";
+        isLoading = false;
+      });
+    }
   }
 
 Future<void> fetchProducts() async {
+  setState(() {
+    isLoading = true; // Start loading state
+    errorMessage = ""; // Clear previous errors
+  });
+
+  print("fetchProducts called");
+
   try {
-    final response = await http.get(Uri.parse('https://expertstrials.xyz/Garifix_app/api/products'));
+    print("Making API request...");
+    final response = await http
+        .get(Uri.parse('https://expertstrials.xyz/Garifix_app/api/products'));
 
-    // Print the response status code
-    print('Response status: ${response.statusCode}');
-
-    // Print the response body
-    print('Response body: ${response.body}');
+    print('Response status code: ${response.statusCode}');
 
     if (response.statusCode == 200) {
       final List<dynamic> productList = json.decode(response.body);
+      
+      // Print the entire response data for debugging
+      print("Response body: $productList");
+
+      // Log and update the state with the fetched products
+      print("Products fetched successfully, count: ${productList.length}");
+      
+      // Convert location coordinates to addresses
+      for (var product in productList) {
+        if (product['location'] != 'Location unavailable') {
+          var coordinates = product['location'].split(',');
+          double latitude = double.parse(coordinates[0].trim());
+          double longitude = double.parse(coordinates[1].trim());
+          List<Placemark> placemarks = await placemarkFromCoordinates(latitude, longitude);
+          String address = placemarks.isNotEmpty ? placemarks.first.street ?? 'Address not found' : 'Address not found';
+          product['location'] = address;
+        }
+      }
+      
       setState(() {
         filteredProducts = productList;
+        isLoading = false;
       });
     } else {
+      print("Failed to load products with status: ${response.statusCode}");
       throw Exception('Failed to load products');
     }
   } catch (e) {
     print("Error fetching products: $e");
+    setState(() {
+      isLoading = false;
+      errorMessage = "Error fetching products.";
+    });
   }
 }
 
@@ -1054,7 +1291,8 @@ Future<void> fetchProducts() async {
     final filtered = filteredProducts.where((product) {
       final titleLower = product['title'].toLowerCase();
       final companyNameLower = product['companyName'].toLowerCase();
-      return titleLower.contains(query.toLowerCase()) || companyNameLower.contains(query.toLowerCase());
+      return titleLower.contains(query.toLowerCase()) ||
+          companyNameLower.contains(query.toLowerCase());
     }).toList();
 
     setState(() {
@@ -1074,24 +1312,25 @@ Future<void> fetchProducts() async {
             child: FloatingActionButton(
               onPressed: () {
                 setState(() {
-                  isSearchVisible = !isSearchVisible; // Toggle search bar visibility
+                  isSearchVisible = !isSearchVisible;
                 });
               },
               backgroundColor: Colors.blueAccent,
               child: const Icon(Icons.search),
             ),
           ),
-          Positioned(
-            right: 16,
-            bottom: MediaQuery.of(context).size.height / 8,
-            child: FloatingActionButton(
-              onPressed: () {
-                // Implement the post creation dialog
-              },
-              backgroundColor: Colors.deepPurple,
-              child: const Icon(Icons.add),
-            ),
-          ),
+Positioned(
+  right: 16,
+  bottom: MediaQuery.of(context).size.height / 8,
+  child: FloatingActionButton(
+    onPressed: () {
+      _showPostDialog(context); // Show the post creation dialog
+    },
+    backgroundColor: Colors.deepPurple,
+    child: const Icon(Icons.add),
+  ),
+),
+
         ],
       ),
       body: Padding(
@@ -1111,27 +1350,33 @@ Future<void> fetchProducts() async {
                       borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide.none,
                     ),
-                    prefixIcon: const Icon(Icons.search, color: Colors.deepPurple),
+                    prefixIcon:
+                        const Icon(Icons.search, color: Colors.deepPurple),
                   ),
                 ),
               ),
             const SizedBox(height: 8),
-
             Expanded(
-              child: ListView.builder(
-                itemCount: filteredProducts.length,
-                itemBuilder: (context, index) {
-                  final product = filteredProducts[index];
-                  return ProductCard(
-                    imageUrl: product['imageUrl'] ?? '',
-                    title: product['title'] ?? 'No Title',
-                    price: product['price'] ?? '\$0.00',
-                    description: product['description'] ?? 'No Description',
-                    companyName: product['companyName'] ?? 'Unknown Company',
-                    location: product['location'] ?? 'Unknown Location',
-                  );
-                },
-              ),
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : errorMessage.isNotEmpty
+                      ? Center(child: Text(errorMessage))
+                      : filteredProducts.isEmpty
+                          ? const Center(child: Text("No products found"))
+                          : ListView.builder(
+                              itemCount: filteredProducts.length,
+                              itemBuilder: (context, index) {
+                                final product = filteredProducts[index];
+                                return ProductCard(
+                                  imageUrl: product['imageUrl'] ?? '',
+                                  title: product['title'] ?? 'No Title',
+                                  price: product['price'] ?? '\$0.00',
+                                  description: product['description'] ?? 'No Description',
+                                  companyName: product['companyName'] ?? 'Unknown Company',
+                                  location: product['location'] ?? 'Unknown Location',
+                                );
+                              },
+                            ),
             ),
           ],
         ),
@@ -1139,7 +1384,6 @@ Future<void> fetchProducts() async {
     );
   }
 }
-
 
 void _showPostDialog(BuildContext context) {
   final TextEditingController descriptionController = TextEditingController();
@@ -1171,7 +1415,8 @@ void _showPostDialog(BuildContext context) {
                 children: [
                   GestureDetector(
                     onTap: () async {
-                      final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
+                      final XFile? pickedFile =
+                          await picker.pickImage(source: ImageSource.gallery);
                       if (pickedFile != null) {
                         setState(() {
                           imagePath = pickedFile.path;
@@ -1199,7 +1444,8 @@ void _showPostDialog(BuildContext context) {
                       ),
                       alignment: Alignment.center,
                       child: imagePath == null
-                          ? const Icon(Icons.add_a_photo, size: 40, color: Colors.grey)
+                          ? const Icon(Icons.add_a_photo,
+                              size: 40, color: Colors.grey)
                           : null,
                     ),
                   ),
@@ -1208,7 +1454,8 @@ void _showPostDialog(BuildContext context) {
                     controller: titleController,
                     decoration: InputDecoration(
                       hintText: 'Enter product name/title...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15)),
                       filled: true,
                       fillColor: Colors.grey[100],
                       contentPadding: const EdgeInsets.all(10),
@@ -1220,7 +1467,8 @@ void _showPostDialog(BuildContext context) {
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       hintText: 'Enter price in Ksh...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15)),
                       filled: true,
                       fillColor: Colors.grey[100],
                       contentPadding: const EdgeInsets.all(10),
@@ -1232,7 +1480,8 @@ void _showPostDialog(BuildContext context) {
                     maxLines: 4,
                     decoration: InputDecoration(
                       hintText: 'Enter post description...',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15)),
                       filled: true,
                       fillColor: Colors.grey[100],
                       contentPadding: const EdgeInsets.all(10),
@@ -1252,13 +1501,15 @@ void _showPostDialog(BuildContext context) {
                   Navigator.of(context).pop(); // Close the dialog
                 },
                 icon: const Icon(Icons.cancel, color: Colors.white),
-                label: const Text('Cancel', style: TextStyle(color: Colors.white)),
+                label:
+                    const Text('Cancel', style: TextStyle(color: Colors.white)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.redAccent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   elevation: 8,
                   shadowColor: Colors.red.withOpacity(0.5),
                 ),
@@ -1270,50 +1521,52 @@ void _showPostDialog(BuildContext context) {
                       priceController.text.isNotEmpty &&
                       descriptionController.text.isNotEmpty &&
                       imagePath != null) {
-
                     // Fetch JWT token
-                    final SharedPreferences prefs = await SharedPreferences.getInstance();
+                    final SharedPreferences prefs =
+                        await SharedPreferences.getInstance();
                     final String? token = prefs.getString('jwt_token');
-                    
+
                     // Prepare data for upload
                     var request = http.MultipartRequest(
                       'POST',
-                      Uri.parse('https://expertstrials.xyz/Garifix_app/create/post'),
+                      Uri.parse(
+                          'https://expertstrials.xyz/Garifix_app/create/post'),
                     );
                     request.headers['Authorization'] = 'Bearer $token';
 
                     request.fields['title'] = titleController.text;
                     request.fields['price'] = priceController.text;
                     request.fields['description'] = descriptionController.text;
-                    
-                    request.files.add(await http.MultipartFile.fromPath('image', imagePath!));
+
+                    request.files.add(
+                        await http.MultipartFile.fromPath('image', imagePath!));
 
                     var response = await request.send();
-                    
+
                     // Check if the request was successful
-if (response.statusCode == 201) {
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Post created successfully!')));
-    Navigator.of(context).pop(); // Close dialog
-} else {
-    ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to create post.')));
-}
-
-
+                    if (response.statusCode == 201) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Post created successfully!')));
+                      Navigator.of(context).pop(); // Close dialog
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Failed to create post.')));
+                    }
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Please fill in all fields!')));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Please fill in all fields!')));
                   }
                 },
                 icon: const Icon(Icons.post_add, color: Colors.white),
-                label: const Text('Post', style: TextStyle(color: Colors.white)),
+                label:
+                    const Text('Post', style: TextStyle(color: Colors.white)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurpleAccent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                   elevation: 8,
                   shadowColor: Colors.deepPurple.withOpacity(0.5),
                 ),
@@ -1325,7 +1578,6 @@ if (response.statusCode == 201) {
     },
   );
 }
-
 
 class ProductCard extends StatelessWidget {
   final String imageUrl;
@@ -1363,7 +1615,8 @@ class ProductCard extends StatelessWidget {
                 CircleAvatar(
                   radius: 20,
                   backgroundImage: NetworkImage(imageUrl),
-                  onBackgroundImageError: (error, stackTrace) => const Icon(Icons.error),
+                  onBackgroundImageError: (error, stackTrace) =>
+                      const Icon(Icons.error),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -1395,7 +1648,6 @@ class ProductCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-
             Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -1437,7 +1689,6 @@ class ProductCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-
             Text(
               title,
               style: const TextStyle(
@@ -1468,7 +1719,6 @@ class ProductCard extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
@@ -1486,7 +1736,8 @@ class ProductCard extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 16),
                     textStyle: const TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -1500,7 +1751,8 @@ class ProductCard extends StatelessWidget {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.bookmark_border, color: Colors.deepPurple),
+                  icon: const Icon(Icons.bookmark_border,
+                      color: Colors.deepPurple),
                   onPressed: () {
                     // Implement wishlist functionality
                   },
@@ -1514,10 +1766,6 @@ class ProductCard extends StatelessWidget {
   }
 }
 
-
-
-
-
 class MessagesSection extends StatefulWidget {
   const MessagesSection({super.key});
 
@@ -1528,14 +1776,16 @@ class MessagesSection extends StatefulWidget {
 class _MessagesSectionState extends State<MessagesSection> {
   final List<Map<String, dynamic>> messages = [
     {
-      'avatar': 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTzly6IVaAUXTkRvHgdnUelmf8VNvXTUHW32w&s',
+      'avatar':
+          'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTzly6IVaAUXTkRvHgdnUelmf8VNvXTUHW32w&s',
       'sender': 'John Doe',
       'text': 'Hey! How are you doing?',
       'time': '10:30 AM',
       'read': false,
     },
     {
-      'avatar': 'https://www.singulart.com/blog/wp-content/uploads/2023/10/Famous-Portrait-Paintings-848x530-1.jpg',
+      'avatar':
+          'https://www.singulart.com/blog/wp-content/uploads/2023/10/Famous-Portrait-Paintings-848x530-1.jpg',
       'sender': 'Jane Smith',
       'text': 'Just wanted to check in!',
       'time': '10:31 AM',
@@ -1552,14 +1802,16 @@ class _MessagesSectionState extends State<MessagesSection> {
   ];
 
   String? selectedSender; // Track the selected sender
-  final List<Map<String, dynamic>> conversation = []; // Track conversation messages
+  final List<Map<String, dynamic>> conversation =
+      []; // Track conversation messages
   String newMessage = '';
 
   void sendMessage() {
     if (newMessage.isNotEmpty) {
       setState(() {
         conversation.add({
-          'avatar': 'https://via.placeholder.com/50', // Placeholder for the current user
+          'avatar':
+              'https://via.placeholder.com/50', // Placeholder for the current user
           'sender': 'You',
           'text': newMessage,
           'time': TimeOfDay.now().format(context),
@@ -1573,11 +1825,13 @@ class _MessagesSectionState extends State<MessagesSection> {
   void toggleConversation(String sender) {
     if (selectedSender == sender) {
       setState(() {
-        selectedSender = null; // Hide the conversation if the same sender is clicked
+        selectedSender =
+            null; // Hide the conversation if the same sender is clicked
       });
     } else {
       setState(() {
-        selectedSender = sender; // Show the conversation for the selected sender
+        selectedSender =
+            sender; // Show the conversation for the selected sender
         conversation.clear(); // Clear previous messages for a new conversation
       });
     }
@@ -1594,11 +1848,13 @@ class _MessagesSectionState extends State<MessagesSection> {
                 children: [
                   CircleAvatar(
                     backgroundImage: NetworkImage(
-                      messages.firstWhere((msg) => msg['sender'] == selectedSender)['avatar'],
+                      messages.firstWhere(
+                          (msg) => msg['sender'] == selectedSender)['avatar'],
                     ),
                     radius: 25,
                   ),
-                  const SizedBox(width: 10), // Increased space for better layout
+                  const SizedBox(
+                      width: 10), // Increased space for better layout
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1608,14 +1864,16 @@ class _MessagesSectionState extends State<MessagesSection> {
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 18, // Increased font size
-                            color: Colors.white, // Changed text color for contrast
+                            color:
+                                Colors.white, // Changed text color for contrast
                           ),
                         ),
                         const Text(
                           'Last seen: 10:32 AM',
                           style: TextStyle(
                             fontSize: 14, // Slightly increased font size
-                            color: Colors.white70, // Lighter color for the last seen text
+                            color: Colors
+                                .white70, // Lighter color for the last seen text
                           ),
                         ),
                       ],
@@ -1623,7 +1881,8 @@ class _MessagesSectionState extends State<MessagesSection> {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.more_vert, color: Colors.white), // More options button
+                    icon: const Icon(Icons.more_vert,
+                        color: Colors.white), // More options button
                     onPressed: () {
                       // Add your functionality here
                     },
@@ -1631,11 +1890,13 @@ class _MessagesSectionState extends State<MessagesSection> {
                 ],
               ),
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back, color: Colors.white), // Back button
+                icon: const Icon(Icons.arrow_back,
+                    color: Colors.white), // Back button
                 onPressed: () {
                   setState(() {
                     selectedSender = null; // Go back to messages
-                    conversation.clear(); // Clear the conversation when going back
+                    conversation
+                        .clear(); // Clear the conversation when going back
                   });
                 },
               ),
@@ -1647,7 +1908,8 @@ class _MessagesSectionState extends State<MessagesSection> {
           children: [
             // Show the list of messages or DM conversation
             Expanded(
-              child: selectedSender == null // Check if there's a selected sender
+              child: selectedSender ==
+                      null // Check if there's a selected sender
                   ? ListView.builder(
                       itemCount: messages.length,
                       itemBuilder: (context, index) {
@@ -1731,7 +1993,9 @@ class _MessagesSectionState extends State<MessagesSection> {
   }
 
   int _getUnreadCount() {
-    return messages.where((msg) => !msg['read']).length; // Count unread messages
+    return messages
+        .where((msg) => !msg['read'])
+        .length; // Count unread messages
   }
 }
 
@@ -1743,7 +2007,8 @@ class MessageCard extends StatelessWidget {
   final bool isRead; // New parameter for read status
   final int unreadCount; // New parameter for unread count
 
-  const MessageCard({super.key, 
+  const MessageCard({
+    super.key,
     required this.avatar,
     required this.sender,
     required this.text,
@@ -1767,7 +2032,10 @@ class MessageCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isRead ? Colors.white : Colors.lightBlueAccent.withOpacity(0.1), // Different color for unread messages
+                color: isRead
+                    ? Colors.white
+                    : Colors.lightBlueAccent.withOpacity(
+                        0.1), // Different color for unread messages
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
@@ -1787,11 +2055,13 @@ class MessageCard extends StatelessWidget {
                         sender,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: isRead ? Colors.deepPurple : Colors.blue, // Change color for unread
+                          color: isRead
+                              ? Colors.deepPurple
+                              : Colors.blue, // Change color for unread
                         ),
                       ),
                       // Display unread message count if greater than 0
-                      if (unreadCount > 0) 
+                      if (unreadCount > 0)
                         CircleAvatar(
                           backgroundColor: Colors.red,
                           radius: 12,
@@ -1827,10 +2097,6 @@ class MessageCard extends StatelessWidget {
     );
   }
 }
-
-
-
-
 
 class ExploreSection extends StatelessWidget {
   const ExploreSection({super.key});
@@ -1902,19 +2168,19 @@ class ExploreSection extends StatelessWidget {
                 ),
                 const SizedBox(height: 30),
                 // Optional: Add a button or link
-ElevatedButton(
-  onPressed: () {
-    // Add your functionality here (e.g., subscribe, back to home)
-  },
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.amber, // Primary button color
-    foregroundColor: Colors.black,  // Text color
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-    textStyle: const TextStyle(fontSize: 18),
-  ),
-  child: const Text('Notify Me'),
-),
-
+                ElevatedButton(
+                  onPressed: () {
+                    // Add your functionality here (e.g., subscribe, back to home)
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber, // Primary button color
+                    foregroundColor: Colors.black, // Text color
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    textStyle: const TextStyle(fontSize: 18),
+                  ),
+                  child: const Text('Notify Me'),
+                ),
               ],
             ),
           ),
@@ -1981,8 +2247,6 @@ class _AnimatedTextState extends State<AnimatedText>
   }
 }
 
-
-
 class OrdersScreen extends StatelessWidget {
   const OrdersScreen({super.key});
 
@@ -1991,8 +2255,6 @@ class OrdersScreen extends StatelessWidget {
     return const Center(child: Text("Orders Screen"));
   }
 }
-
-
 
 class AccountsScreen extends StatefulWidget {
   const AccountsScreen({super.key});
@@ -2011,15 +2273,16 @@ class _AccountsScreenState extends State<AccountsScreen> {
   // Method to pick an image from the gallery
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
-    final XFile? pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    final XFile? pickedFile =
+        await picker.pickImage(source: ImageSource.gallery);
 
     if (pickedFile != null) {
       setState(() {
         profileImage = File(pickedFile.path);
       });
-      
+
       // Automatically upload the profile data after selecting a new image
-      await _uploadProfileData();  // Upload the new profile image
+      await _uploadProfileData(); // Upload the new profile image
     }
   }
 
@@ -2046,7 +2309,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
     // Add the image file
     if (profileImage != null) {
-      request.files.add(await http.MultipartFile.fromPath('image', profileImage!.path));
+      request.files
+          .add(await http.MultipartFile.fromPath('image', profileImage!.path));
     }
 
     // Add additional user data
@@ -2068,7 +2332,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text("Failed to update profile: ${responseData['message']}")),
+            SnackBar(
+                content: Text(
+                    "Failed to update profile: ${responseData['message']}")),
           );
         }
       } else {
@@ -2105,7 +2371,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
                       radius: 50,
                       backgroundImage: profileImage != null
                           ? FileImage(profileImage!)
-                          : const AssetImage("assets/profile_placeholder.png") as ImageProvider,
+                          : const AssetImage("assets/profile_placeholder.png")
+                              as ImageProvider,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -2140,7 +2407,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
               ),
             ),
@@ -2178,15 +2446,19 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
   // Method to show the Edit Profile Dialog
   void _showEditProfileDialog(BuildContext context) {
-    final TextEditingController nameController = TextEditingController(text: userName);
-    final TextEditingController emailController = TextEditingController(text: userEmail);
-    final TextEditingController phoneController = TextEditingController(text: userPhone);
+    final TextEditingController nameController =
+        TextEditingController(text: userName);
+    final TextEditingController emailController =
+        TextEditingController(text: userEmail);
+    final TextEditingController phoneController =
+        TextEditingController(text: userPhone);
 
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
           title: const Text("Edit Profile"),
           content: SingleChildScrollView(
             child: Column(
