@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'dart:async';
+import 'package:lottie/lottie.dart'; // Ensure you have this package in your pubspec.yaml
 
 class SocketService {
   late IO.Socket socket;
@@ -286,58 +287,108 @@ class _CarOwnerScreenState extends State<CarOwnerPage> {
 // Home Page
 
 
+
+
+
 class ChatService {
   final String apiUrl = 'https://expertstrials.xyz/Garifix_app'; // Your server URL
   Timer? _pollingTimer;
+  String? authToken; // Variable to store the JWT token
+
+  // Constructor to initialize the ChatService with the token
+  ChatService() {
+    _initializeToken();
+  }
+
+  // Initialize the JWT token from SharedPreferences
+  Future<void> _initializeToken() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    authToken = prefs.getString('jwt_token'); // Fetch the JWT token
+  }
 
   // Start long polling for messages
-  void startLongPolling(Function(List<Map<String, dynamic>>) onMessageReceived) {
-    _pollingTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
-      try {
-        final response = await http.get(Uri.parse('$apiUrl/messages'));
-        print('Polling response status: ${response.statusCode}'); // Print response status
-        if (response.statusCode == 200) {
-          // Parse the response body to a List<Map<String, dynamic>>
-          List<Map<String, dynamic>> messages = List<Map<String, dynamic>>.from(json.decode(response.body));
-          print('Messages received: $messages'); // Print messages received
+// Start long polling for messages
+void startLongPolling(Function(List<Map<String, dynamic>>) onMessageReceived) async {
+  await _initializeToken(); // Ensure token is loaded before polling
+
+  if (authToken == null) {
+    print('Error: JWT token is not initialized.');
+    return;
+  }
+
+  _pollingTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$apiUrl/messages'),
+        headers: {
+          'Authorization': 'Bearer $authToken',
+        },
+      );
+      print('Polling response status: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        final String currentUserId = responseData['user_id'].toString(); // Convert to String
+        List<Map<String, dynamic>> messages = List<Map<String, dynamic>>.from(responseData['conversations']);
+        print('Messages received: $messages');
+        if (messages.isNotEmpty) {
+          // Process each message to identify sender and receiver
+          for (var conversation in messages) {
+            for (var message in conversation['messages']) {
+              String messageRole = (message['sender_id'].toString() == currentUserId) ? 'sender' : 'receiver'; // Convert sender_id to String
+              print('Message ID: ${message['id']} - You are the $messageRole');
+            }
+          }
+          // Pass messages to the callback
           onMessageReceived(messages);
         } else {
-          print('Error fetching messages: ${response.reasonPhrase}'); // Print error reason
+          print('No new messages received.');
         }
-      } catch (e) {
-        print('Error during polling: $e'); // Catch and print any errors
+      } else {
+        print('Error fetching messages: ${response.reasonPhrase}');
       }
-    });
-  }
+    } catch (e) {
+      print('Error during polling: $e');
+    }
+  });
+}
+
+
+
 
   // Stop long polling
   void stopLongPolling() {
     _pollingTimer?.cancel();
   }
 
-  // Send a message to the server
-  Future<void> sendMessage(String message, String mechanicName) async {
+  // Send a message with id, mechanic name, and message to the server
+  Future<void> sendMessage(String id, String message, String mechanicName) async {
     try {
       final response = await http.post(
         Uri.parse('$apiUrl/send'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken', // Include the JWT token in the request
+        },
         body: json.encode({
+          'id': id,  // Include the id in the request body
           'message': message,
-          'mechanic_name': mechanicName, // Include the mechanic name in the body
+          'mechanic_name': mechanicName,
         }),
       );
 
-      print('Send message response status: ${response.statusCode}'); // Print send response status
+      print('Send message response status: ${response.statusCode}');
       if (response.statusCode != 200) {
-        print('Error sending message: ${response.reasonPhrase}'); // Print error reason
+        print('Error sending message: ${response.reasonPhrase}');
       } else {
-        print('Message sent successfully: $message'); // Print success message
+        print('Message sent successfully: $message');
       }
     } catch (e) {
-      print('Error sending message: $e'); // Catch and print any errors
+      print('Error sending message: $e');
     }
   }
 }
+
+
 
 
 
@@ -707,7 +758,204 @@ class CarCard extends StatelessWidget {
   }
 }
 
-// Repairs Page
+class _AdditionalCostsDialog extends StatefulWidget {
+  @override
+  __AdditionalCostsDialogState createState() => __AdditionalCostsDialogState();
+}
+
+class __AdditionalCostsDialogState extends State<_AdditionalCostsDialog> {
+  // A list to store the controllers for each row
+  List<Map<String, TextEditingController>> costRows = [
+    {
+      'costName': TextEditingController(),
+      'company': TextEditingController(),
+      'cost': TextEditingController(),
+    }
+  ];
+
+  @override
+  void dispose() {
+    // Dispose controllers when the dialog is closed
+    for (var row in costRows) {
+      row['costName']?.dispose();
+      row['company']?.dispose();
+      row['cost']?.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+      ),
+      insetPadding: const EdgeInsets.all(16),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title Text
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Add Additional Costs',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple,
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.deepPurple),
+                  onPressed: () => Navigator.of(context).pop(), // Close dialog
+                ),
+              ],
+            ),
+            const Divider(color: Colors.deepPurple, thickness: 1),
+
+            // Table header
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: const [
+                Expanded(child: Text('Cost Name', textAlign: TextAlign.center)),
+                Expanded(child: Text('Company', textAlign: TextAlign.center)),
+                Expanded(child: Text('Cost', textAlign: TextAlign.center)),
+              ],
+            ),
+            const Divider(),
+
+            // Dynamic rows for cost entries
+            Column(
+              children: List.generate(costRows.length, (index) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: costRows[index]['costName'],
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                            labelText: 'Cost Name',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 15),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: costRows[index]['company'],
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                            labelText: 'Company',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 15),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: costRows[index]['cost'],
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                            labelText: 'Cost',
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(15),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 15),
+                          ),
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle, color: Colors.red),
+                        onPressed: () {
+                          if (costRows.length > 1) {
+                            setState(() {
+                              costRows.removeAt(index); // Remove this row
+                            });
+                          }
+                        },
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Add Row button with icon
+            Align(
+              alignment: Alignment.centerRight,
+              child: IconButton(
+                icon: const Icon(Icons.add_circle, color: Colors.deepPurple, size: 30),
+                onPressed: () {
+                  setState(() {
+                    costRows.add({
+                      'costName': TextEditingController(),
+                      'company': TextEditingController(),
+                      'cost': TextEditingController(),
+                    });
+                  });
+                },
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Add cost button with gradient
+            ElevatedButton(
+              onPressed: () {
+                // Handle adding the additional costs
+                print('Additional Costs Added');
+                Navigator.of(context).pop(); // Close the dialog
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple, // Background color
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30), // Rounded corners
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 30,
+                  vertical: 15,
+                ),
+                shadowColor: Colors.deepPurpleAccent,
+                elevation: 10,
+              ),
+              child: const Text(
+                'Add Costs',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 class RepairsPage extends StatefulWidget {
   const RepairsPage({super.key});
@@ -722,7 +970,7 @@ class _RepairsPageState extends State<RepairsPage>
   List<dynamic> _repairsHistory = []; // List to hold fetched data
 
   bool _isFabClicked = false;
-
+  List<XFile> _images = []; // List to store selected images
   final ValueNotifier<double> _urgencyLevel = ValueNotifier<double>(3.0);
   final _formKey = GlobalKey<FormState>();
   String? _problemType;
@@ -810,39 +1058,89 @@ Future<void> _submitForm() async {
   }
 }
 
-// Method to show success message dialog
-  void _showSuccessDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text(
-            'Success!',
-            style: TextStyle(
-                fontSize: 24, fontWeight: FontWeight.bold, color: Colors.green),
-          ),
-          content: const Text(
-            'Your problem report has been submitted successfully!',
-            style: TextStyle(fontSize: 16),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child:
-                  const Text('OK', style: TextStyle(color: Colors.deepPurple)),
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-                // Refresh the data after success
-                _fetchRepairsHistory();
-                setState(() {
-                  // Trigger a UI refresh
-                });
-              },
+
+
+void _showSuccessDialog() {
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 30),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Large animated tick icon
+            Padding(
+              padding: const EdgeInsets.only(top: 20),
+              child: Lottie.asset(
+                'assets/lotti/Animation - 1730958529727.json', // Ensure the path is correct
+                width: 100,
+                height: 100,
+                repeat: false,
+              ),
+            ),
+            // Dialog content
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  const Text(
+                    'Success!',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Your problem report has been submitted successfully!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 16, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.deepPurple,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      elevation: 3,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Close the dialog
+                      // Refresh the data after success
+                      _fetchRepairsHistory();
+                      setState(() {
+                        // Trigger a UI refresh
+                      });
+                    },
+                    child: const Text(
+                      'OK',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   // Method to show the form in a modal bottom sheet
   void _showProblemForm() {
@@ -1229,247 +1527,341 @@ Future<void> _submitForm() async {
     }
   }
 
-  void _showDetailsDialog(Map<String, dynamic> repairDetails) {
-    TextEditingController nextRepairDateController = TextEditingController();
+void _showDetailsDialog(Map<String, dynamic> repairDetails) {
+  TextEditingController nextRepairDateController = TextEditingController();
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          elevation: 0,
-          backgroundColor: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Title row with QR button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      final screenHeight = MediaQuery.of(context).size.height;
+      final screenWidth = MediaQuery.of(context).size.width;
+
+      return Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        insetPadding: const EdgeInsets.all(8), // Reduce padding to use more screen space
+        child: Container(
+          width: screenWidth * 0.95, // Cover most of the screen width
+          height: screenHeight * 0.85, // Cover most of the screen height
+          padding: const EdgeInsets.all(16.0),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Title row with QR button
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
                         'Repair Details for ${repairDetails['problem_type']}',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Colors.deepPurple,
                         ),
-                      ),
-                      // QR code button
-                      IconButton(
-                        icon:
-                            const Icon(Icons.qr_code, color: Colors.deepPurple),
-                        onPressed: () {
-                          // Trigger QR code generation
-                          _showQRCodeDialog(repairDetails[
-                              'id']); // Pass the repair ID or any data you want to encode
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Details (same as before)
-                  _buildDetailRow(Icons.calendar_today, 'Date',
-                      repairDetails['created_at']),
-                  _buildDetailRow(Icons.description, 'Description',
-                      repairDetails['details']),
-                  _buildDetailRow(Icons.priority_high, 'Urgency Level',
-                      repairDetails['urgency_text']),
-                  _buildDetailRow(Icons.monetization_on, 'Cost',
-                      '\$${repairDetails['cost'].toString()}'),
-
-                  const SizedBox(height: 20),
-
-                  // Additional form fields and buttons (same as your original implementation)
-                  _buildInputField(
-                    Icons.monetization_on,
-                    'Enter New Cost',
-                    TextInputType.number,
-                    (value) {
-                      // Handle cost input
-                    },
-                  ),
-                  const SizedBox(height: 10),
-
-                  _buildInputField(
-                    Icons.comment,
-                    'Comments/Recommendations',
-                    TextInputType.multiline,
-                    (value) {
-                      // Handle comments input
-                    },
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 10),
-
-                  GestureDetector(
-                    onTap: () {
-                      _selectDate(context, nextRepairDateController);
-                    },
-                    child: AbsorbPointer(
-                      child: _buildInputField(
-                        Icons.calendar_today,
-                        'Next Repair Date (Optional)',
-                        TextInputType.none,
-                        (value) {
-                          // No callback needed here
-                        },
-                        controller: nextRepairDateController,
+                        overflow: TextOverflow.ellipsis, // Handle overflow
                       ),
                     ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Steps and image upload
-                  const Text(
-                    'Repair Steps:',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
+                    // QR code button
+                    IconButton(
+                      icon: const Icon(Icons.qr_code, color: Colors.deepPurple),
+                      onPressed: () {
+                        // Trigger QR code generation
+                        _showQRCodeDialog(repairDetails['id']);
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  ..._buildRepairDetailsWithStatus(repairDetails['details']),
-                  const SizedBox(height: 20),
+                  ],
+                ),
+                const SizedBox(height: 16),
 
-                  _buildImageUploadField(),
+                // Details
+                _buildDetailRow(
+                  Icons.calendar_today,
+                  'Date',
+                  repairDetails['created_at'],
+                ),
+                _buildDetailRow(
+                  Icons.description,
+                  'Description',
+                  repairDetails['details'],
+                ),
+                _buildDetailRow(
+                  Icons.priority_high,
+                  'Urgency Level',
+                  repairDetails['urgency_text'],
+                ),
+                _buildDetailRow(
+                  Icons.monetization_on,
+                  'Cost',
+                  '\$${repairDetails['cost'].toString()}',
+                ),
+                const SizedBox(height: 20),
 
-                  const SizedBox(height: 20),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      ElevatedButton(
-                        onPressed: () {
-                          // Handle submission here if needed
-                          Navigator.of(context).pop();
-                        },
-                        style: ButtonStyle(
-                          backgroundColor:
-                              WidgetStateProperty.all(Colors.deepPurple),
-                          padding: WidgetStateProperty.all(
-                              const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 10)),
-                        ),
-                        child: const Text('Submit'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        style: ButtonStyle(
-                          backgroundColor:
-                              WidgetStateProperty.all(Colors.grey[300]),
-                          foregroundColor:
-                              WidgetStateProperty.all(Colors.black),
-                          padding: WidgetStateProperty.all(
-                              const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 10)),
-                        ),
-                        child: const Text('Close'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                // Additional form fields
+Row(
+  children: [
+    Flexible(
+      child: _buildInputField(
+        Icons.monetization_on,
+        'Enter Labor Cost',
+        TextInputType.number,
+        (value) {
+          // Handle cost input
+        },
+      ),
+    ),
+    SizedBox(width: 8), // Space between the button and the input field
+    Flexible(
+      child: ElevatedButton(
+        onPressed: () {
+          _showAdditionalCostsDialog(context);
+        },
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.deepPurple,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          elevation: 8,
+          shadowColor: Colors.deepPurpleAccent,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.add_circle, color: Colors.white, size: 20),
+            SizedBox(width: 8),
+            Text(
+              'Add Additional Costs',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
             ),
-          ),
-        );
-      },
-    );
-  }
+          ],
+        ),
+      ),
+    ),
 
-  void _showQRCodeDialog(int repairId) {
-    String qrData =
-        'https://expertstrials.xyz/Garifix_app/api/repair_details/$repairId'; // Data for QR code
-    String qrApiUrl =
-        'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=$qrData'; // QR code API URL
+  ],
+),
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          elevation: 5,
-          backgroundColor: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Title
+                const SizedBox(height: 10),
+
+                _buildInputField(
+                  Icons.comment,
+                  'Comments/Recommendations',
+                  TextInputType.multiline,
+                  (value) {
+                    // Handle comments input
+                  },
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 10),
+
+                GestureDetector(
+                  onTap: () {
+                    _selectDate(context, nextRepairDateController);
+                  },
+                  child: AbsorbPointer(
+                    child: _buildInputField(
+                      Icons.calendar_today,
+                      'Next Repair Date (Optional)',
+                      TextInputType.none,
+                      (value) {
+                        // No callback needed here
+                      },
+                      controller: nextRepairDateController,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Steps and image upload
                 const Text(
-                  'Scan the QR Code',
+                  'Repairs Done:',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.deepPurple,
                   ),
                 ),
                 const SizedBox(height: 10),
-
-                // Instruction text
-                const Text(
-                  'Please scan the QR code below to access the repair details.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.black54,
-                  ),
-                ),
+                ..._buildRepairDetailsWithStatus(repairDetails['details']),
                 const SizedBox(height: 20),
 
-                // Fetch QR code image from the API and display it
-                Image.network(
-                  qrApiUrl, // URL of the QR code generated by the API
-                  width: 200,
-                  height: 200,
-                  errorBuilder: (BuildContext context, Object exception,
-                      StackTrace? stackTrace) {
-                    return const Text('Error loading QR code');
-                  },
-                ),
-                const SizedBox(height: 20),
+                _buildImageUploadField(),
 
-                // Action button
-                ElevatedButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  style: ButtonStyle(
-                    backgroundColor: WidgetStateProperty.all(
-                        Colors.deepPurple), // Background color
-                    padding: WidgetStateProperty.all(const EdgeInsets.symmetric(
-                        horizontal: 30, vertical: 12)),
-                    shape: WidgetStateProperty.all<RoundedRectangleBorder>(
-                      RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                    ),
-                  ),
-                  child: const Text(
-                    'Close',
-                    style: TextStyle(
-                        fontSize: 16, color: Colors.white), // Text color
-                  ),
-                ),
+
+
+
+                // Buttons row
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    ElevatedButton(
+      onPressed: () {
+        Navigator.of(context).pop();
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.deepPurple, // Button background color
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30), // Rounded corners
+        ),
+        shadowColor: Colors.deepPurpleAccent, // Shadow color for the button
+        elevation: 8, // Elevation to give it a floating effect
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+          SizedBox(width: 8),
+          Text(
+            'Submit',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    ),
+    ElevatedButton(
+      onPressed: () {
+        Navigator.of(context).pop();
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.orangeAccent, // Button background color
+        foregroundColor: Colors.black,
+        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(30), // Rounded corners
+        ),
+        shadowColor: Colors.orange, // Shadow color for the button
+        elevation: 8, // Elevation for a floating effect
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          Icon(Icons.cancel, color: Colors.white, size: 20),
+          SizedBox(width: 8),
+          Text(
+            'Close',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    ),
+  ],
+),
+
               ],
             ),
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
+
+void _showAdditionalCostsDialog(BuildContext context) {
+  // Use StatefulWidget to manage the rows dynamically
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return _AdditionalCostsDialog();
+    },
+  );
+}
+
+
+
+
+void _showQRCodeDialog(int repairId) {
+  // Encrypt the repair ID using Base64 encoding
+  String encodedRepairId = base64Encode(utf8.encode(repairId.toString()));
+
+  // The URL with the encrypted repair ID for the QR code
+  String qrData = 'https://expertstrials.xyz/Garifix_app/api/repair_details/$encodedRepairId'; // Data for QR code
+  String qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=$qrData'; // QR code API URL
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        elevation: 5,
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Title
+              const Text(
+                'Scan the QR Code',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurple,
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              // Instruction text with encrypted repair ID
+              Text(
+                'Please scan the QR code below to access the repair details for Repair ID: $encodedRepairId',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.black54,
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Fetch QR code image from the API and display it
+              Image.network(
+                qrApiUrl, // URL of the QR code generated by the API
+                width: 200,
+                height: 200,
+                errorBuilder: (BuildContext context, Object exception, StackTrace? stackTrace) {
+                  return const Text('Error loading QR code');
+                },
+              ),
+              const SizedBox(height: 20),
+
+              // Action button
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                style: ButtonStyle(
+                  backgroundColor: MaterialStateProperty.all(Colors.deepPurple), // Background color
+                  padding: MaterialStateProperty.all(const EdgeInsets.symmetric(horizontal: 30, vertical: 12)),
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                  ),
+                ),
+                child: const Text(
+                  'Close',
+                  style: TextStyle(fontSize: 16, color: Colors.white), // Text color
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
 
 // Function to select a date
   Future<void> _selectDate(
@@ -1486,28 +1878,83 @@ Future<void> _submitForm() async {
     }
   }
 
-// Function to build the input field for image upload
-  Widget _buildImageUploadField() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Upload Images of Repairs:',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+Future<void> _pickImages() async {
+  final ImagePicker _picker = ImagePicker();
+  final List<XFile> selectedImages = await _picker.pickMultiImage() ?? [];
+
+  print("Selected Images: $selectedImages");
+
+  if (selectedImages.isNotEmpty) {
+    setState(() {
+      _images = selectedImages;
+    });
+  }
+}
+
+Widget _buildImageUploadField() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Upload Images of Repairs:',
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
+      const SizedBox(height: 8),
+      ElevatedButton(
+        onPressed: _pickImages, // Handle image upload here
+        style: ButtonStyle(
+          backgroundColor: MaterialStateProperty.all(Colors.blue),
         ),
+        child: const Text('Choose Images'),
+      ),
+      const SizedBox(height: 8),
+      if (_images.isNotEmpty) ...[
+        const Text('Selected Images:', style: TextStyle(fontSize: 14)),
         const SizedBox(height: 8),
-        ElevatedButton(
-          onPressed: () {
-            // Handle image upload here
-          },
-          style: ButtonStyle(
-            backgroundColor: WidgetStateProperty.all(Colors.blue),
-          ),
-          child: const Text('Choose Image'),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: _images.map((image) {
+            // Ensure that the path is correct before proceeding
+            return FutureBuilder<bool>(
+              future: File(image.path).exists(), // Check if file exists
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.done) {
+                  if (snapshot.hasData && snapshot.data!) {
+                    return GestureDetector(
+                      onTap: () {
+                        print('Image clicked: ${image.path}');
+                      },
+                      child: Image.file(
+                        File(image.path), // Display the image
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      ),
+                    );
+                  } else {
+                    // If the file doesn't exist
+                    return const Text("Error: Image not found");
+                  }
+                } else {
+                  // Display loading spinner while checking the file existence
+                  return const CircularProgressIndicator();
+                }
+              },
+            );
+          }).toList(),
+        ),
+      ] else ...[
+        const Text(
+          'No images selected.',
+          style: TextStyle(fontSize: 14, color: Colors.red),
         ),
       ],
-    );
-  }
+    ],
+  );
+}
+
+
 
 // Function to build repair details with radio buttons for completion status
   List<Widget> _buildRepairDetailsWithStatus(String details) {
@@ -1640,10 +2087,11 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
 // Assuming newMessages contains a list of strings (you might need to adapt this)
 void _onMessagesReceived(List<Map<String, dynamic>> newMessages) {
   setState(() {
-    // Add the new messages directly to your messages list
     messages.addAll(newMessages);
+    print('Updated messages list: $messages'); // Log the updated messages list
   });
 }
+
 
 
   @override
@@ -1845,19 +2293,16 @@ void _onMessagesReceived(List<Map<String, dynamic>> newMessages) {
                     itemCount: mechanics.length,
                     itemBuilder: (context, index) {
                       final mechanic = mechanics[index];
-                      return _buildMechanicCard(
-                        name: mechanic['name'],
-                        rating: mechanic['rating']
-                            .toString(), // Ensure rating is a string
-                        distance: mechanic['distance']
-                            .toString(), // Ensure distance is a string
-                        phone: mechanic['phone'],
-                        expertise: mechanic['expertise'],
-                        profileImageUrl:
-                            'https://expertstrials.xyz/Garifix_app/' +
-                                mechanic[
-                                    'profile_image'], // Concatenate the base URL
-                      );
+return _buildMechanicCard(
+  id: mechanic['id'],  // Add the mechanic's ID here
+  name: mechanic['name'],
+  rating: mechanic['rating'].toString(),  // Ensure rating is a string
+  distance: mechanic['distance'].toString(),  // Ensure distance is a string
+  phone: mechanic['phone'],
+  expertise: mechanic['expertise'],
+  profileImageUrl: 'https://expertstrials.xyz/Garifix_app/' + mechanic['profile_image'],  // Concatenate the base URL
+);
+
                     },
                   ),
                 ),
@@ -2032,6 +2477,7 @@ void _onMessagesReceived(List<Map<String, dynamic>> newMessages) {
 
 void _showMessageBottomSheet(
   BuildContext context,
+  int id,  // Mechanic ID
   String mechanicName,
   String profileImageUrl,
 ) {
@@ -2050,7 +2496,6 @@ void _showMessageBottomSheet(
     builder: (BuildContext context) {
       return StatefulBuilder(
         builder: (BuildContext context, setState) {
-          // Handle keyboard height
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (MediaQuery.of(context).viewInsets.bottom != keyboardHeight) {
               setState(() {
@@ -2143,7 +2588,7 @@ void _showMessageBottomSheet(
                       },
                       onSend: () {
                         if (newMessage.isNotEmpty) {
-                          _chatService.sendMessage(newMessage, mechanicName); // Send message with mechanic name
+                          _chatService.sendMessage(id.toString(), newMessage, mechanicName); // Pass id as a string
                           setState(() {
                             messages.add({
                               'avatar': profileImageUrl,
@@ -2180,6 +2625,7 @@ void _showMessageBottomSheet(
     },
   );
 }
+
 
 
   Widget _buildMessageInput(
@@ -2240,64 +2686,63 @@ void _showMessageBottomSheet(
   }
 
 // Mechanic Card UI
-  Widget _buildMechanicCard({
-    required String name,
-    required String rating,
-    required String distance,
-    required String phone,
-    required String expertise,
-    required String profileImageUrl,
-  }) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      elevation: 6,
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundImage: NetworkImage(profileImageUrl),
-          backgroundColor: Colors.deepPurple,
-          child: const Icon(Icons.person, color: Colors.white), // Fallback icon
-        ),
-        title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-        subtitle: Text(
-          'Rating: $rating ★\nDistance: $distance km away\nExpertise: $expertise',
-          style: TextStyle(color: Colors.grey[600]),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.phone, color: Colors.deepPurple),
-              onPressed: () async {
-                if (phone != "N/A" && phone.isNotEmpty) {
-                  final Uri launchUri = Uri(
-                    scheme: 'tel',
-                    path: phone, // This will be the mechanic's phone number
-                  );
-                  // Launch the dialer
-                  if (await canLaunch(launchUri.toString())) {
-                    await launch(launchUri.toString());
-                  } else {
-                    throw 'Could not launch $launchUri';
-                  }
-                } else {
-                  // Optionally, handle case where phone number is not available
-                  print('Phone number is not available');
-                }
-              },
-            ),
-            IconButton(
-              icon: const Icon(Icons.message,
-                  color: Colors.deepPurple), // Message icon
-              onPressed: () {
-                _showMessageBottomSheet(context, name, profileImageUrl);
-              },
-            ),
-          ],
-        ),
+Widget _buildMechanicCard({
+  required int id,  // Add mechanic ID here
+  required String name,
+  required String rating,
+  required String distance,
+  required String phone,
+  required String expertise,
+  required String profileImageUrl,
+}) {
+  return Card(
+    margin: const EdgeInsets.symmetric(vertical: 10),
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+    elevation: 6,
+    child: ListTile(
+      leading: CircleAvatar(
+        backgroundImage: NetworkImage(profileImageUrl),
+        backgroundColor: Colors.deepPurple,
+        child: const Icon(Icons.person, color: Colors.white), // Fallback icon
       ),
-    );
-  }
+      title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
+      subtitle: Text(
+        'Rating: $rating ★\nDistance: $distance km away\nExpertise: $expertise',
+        style: TextStyle(color: Colors.grey[600]),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.phone, color: Colors.deepPurple),
+            onPressed: () async {
+              if (phone != "N/A" && phone.isNotEmpty) {
+                final Uri launchUri = Uri(
+                  scheme: 'tel',
+                  path: phone, // Mechanic's phone number
+                );
+                if (await canLaunch(launchUri.toString())) {
+                  await launch(launchUri.toString());
+                } else {
+                  throw 'Could not launch $launchUri';
+                }
+              } else {
+                print('Phone number is not available');
+              }
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.message, color: Colors.deepPurple), // Message icon
+            onPressed: () {
+              _showMessageBottomSheet(context, id, name, profileImageUrl);  // Pass mechanic ID
+            },
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 
   // Simulating posting user location
   void _postUserLocation(Position position) {
@@ -3267,6 +3712,8 @@ class ProductCard extends StatelessWidget {
   }
 }
 
+
+
 class MessagesSection extends StatefulWidget {
   const MessagesSection({super.key});
 
@@ -3275,192 +3722,374 @@ class MessagesSection extends StatefulWidget {
 }
 
 class _MessagesSectionState extends State<MessagesSection> {
-  final List<Map<String, dynamic>> messages = [
-    {
-      'avatar':
-          'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTzly6IVaAUXTkRvHgdnUelmf8VNvXTUHW32w&s',
-      'sender': 'John Doe',
-      'text': 'Hey! How are you doing?',
-      'time': '10:30 AM',
-      'read': false,
-    },
-    {
-      'avatar':
-          'https://www.singulart.com/blog/wp-content/uploads/2023/10/Famous-Portrait-Paintings-848x530-1.jpg',
-      'sender': 'Jane Smith',
-      'text': 'Just wanted to check in!',
-      'time': '10:31 AM',
-      'read': true,
-    },
-    {
-      'avatar': 'https://i.insider.com/5d2ce2b7b44ce742214c1007?width=700',
-      'sender': 'Alex Johnson',
-      'text': 'Did you get my last message?',
-      'time': '10:32 AM',
-      'read': false,
-    },
-    // Add more messages as needed...
-  ];
-
-  String? selectedSender; // Track the selected sender
-  final List<Map<String, dynamic>> conversation =
-      []; // Track conversation messages
+  List<Map<String, dynamic>> messages = [];
+  String? selectedSender;
+  final List<Map<String, dynamic>> conversation = [];
   String newMessage = '';
+  String? authToken;
+  String? selectedSenderName;    // Holds the receiver's name for the selected conversation
+  String? selectedProfileImage;  // Holds the receiver's profile image URL for the selected conversation
 
-  void sendMessage() {
-    if (newMessage.isNotEmpty) {
-      setState(() {
-        conversation.add({
-          'avatar':
-              'https://via.placeholder.com/50', // Placeholder for the current user
-          'sender': 'You',
-          'text': newMessage,
-          'time': TimeOfDay.now().format(context),
-          'read': true, // Marking the sent message as read
-        });
-        newMessage = ''; // Clear the input field after sending
-      });
-    }
+ Timer? _messageFetchTimer;  // Timer to call fetchMessages periodically
+Timer? _fetchMessagesTimer;
+  @override
+  void initState() {
+    super.initState();
+
+    // Start the timer to fetch messages every 500ms (0.5 seconds)
+    _messageFetchTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      _fetchMessages();
+    });
   }
 
-  void toggleConversation(String sender) {
-    if (selectedSender == sender) {
-      setState(() {
-        selectedSender =
-            null; // Hide the conversation if the same sender is clicked
-      });
+  Future<void> _fetchMessages() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    authToken = prefs.getString('jwt_token') ?? '';
+
+    print('Auth Token: $authToken');
+
+    final response = await http.get(
+      Uri.parse('https://expertstrials.xyz/Garifix_app/messages'),
+      headers: {
+        'Authorization': 'Bearer $authToken',
+      },
+    );
+
+    print('Response Status Code: ${response.statusCode}');
+    print('Response Body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      print('Decoded Response: $data');
+
+      if (data.containsKey('conversations') && data['conversations'] is List) {
+        final List<dynamic> conversations = data['conversations'];
+
+        // Map to store the latest message for each conversation, with unread count
+        final Map<int, Map<String, dynamic>> latestMessages = {};
+
+        for (var conversation in conversations) {
+          if (conversation['messages'] is List) {
+            for (var msg in conversation['messages']) {
+              // Null check for 'msg' and then safely accessing keys
+              final receiverId = msg?['receiver_id'];
+
+              if (receiverId != null) {
+                // Update to keep only the latest message per receiver
+                latestMessages[receiverId] = msg;
+
+                // Add a new key for unread count
+                final unreadCount = conversation['messages']
+                    .where((message) => message?['is_read'] == false)
+                    .length;
+
+                latestMessages[receiverId]?['unread_count'] = unreadCount;
+              }
+            }
+          }
+        }
+
+        setState(() {
+          messages = latestMessages.values.map((msg) {
+            return {
+              'id': msg['id'] ?? 0, // Provide default if null
+              'message': msg['message'] ?? '', // Default empty string
+              'receiver_id': msg['receiver_id'] ?? 0, // Default 0 if null
+              'receiver_name': msg['receiver_name'] ?? '', // Default empty string
+              'receiver_profile_image': msg['sender_profile_image'] != null
+                  ? 'https://expertstrials.xyz/Garifix_app/${msg['sender_profile_image']}'
+                  : 'https://expertstrials.xyz/Garifix_app/default_image.png',
+              'sender_id': msg['sender_id'] ?? 0, // Default 0 if null
+              'timestamp': msg['timestamp'] ?? '', // Default empty string
+              'read': msg['is_read'] ?? false, // Default to false
+              'unread_count': msg['unread_count'] ?? 0, // Unread count, default to 0
+            };
+          }).toList();
+        });
+      } else {
+        print('Conversations key not found or is not a list.');
+      }
     } else {
-      setState(() {
-        selectedSender =
-            sender; // Show the conversation for the selected sender
-        conversation.clear(); // Clear previous messages for a new conversation
-      });
+      print('Failed to load messages: ${response.body}');
     }
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: selectedSender != null
-          ? AppBar(
-              backgroundColor: Colors.deepPurpleAccent,
-              elevation: 4, // Adds shadow effect
-              title: Row(
+  void dispose() {
+    super.dispose();
+
+    // Cancel the timer when the widget is disposed
+    _messageFetchTimer?.cancel();
+  }
+
+
+
+  void sendMessage() {  
+    if (newMessage.isNotEmpty) {
+      // Create a method to send the message to your backend
+      _sendMessage(newMessage, selectedSender);
+    }
+  }
+
+  Future<void> _sendMessage(String messageText, String? receiverId) async {
+    if (receiverId != null && messageText.isNotEmpty) {
+      final response = await http.post(
+        Uri.parse('https://expertstrials.xyz/Garifix_app/send'), // Update with your API URL
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+        body: json.encode({
+          'id': receiverId,
+          'message': messageText,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          conversation.add({
+            'avatar': 'https://via.placeholder.com/50', // Placeholder for the current user
+            'sender': 'You',
+            'text': messageText,
+            'time': TimeOfDay.now().format(context),
+            'read': true,
+          });
+          newMessage = ''; // Clear the input field after sending
+        });
+      } else {
+        // Handle error appropriately
+        print('Failed to send message: ${response.body}');
+      }
+    }
+  }
+
+void toggleConversation(String receiverId, String receiverName, String profileImage) {
+  if (selectedSender == receiverId) {
+    setState(() {
+      selectedSender = null;           // Hide the conversation if the same sender is clicked
+      selectedSenderName = null;       // Reset selected name
+      selectedProfileImage = null;     // Reset profile image
+      conversation.clear();            // Clear conversation history
+    });
+
+    // Cancel the timer when closing the conversation
+    _fetchMessagesTimer?.cancel();
+  } else {
+    setState(() {
+      selectedSender = receiverId;     // Set selected sender by ID
+      selectedSenderName = receiverName;  // Set selected sender's name
+      selectedProfileImage = profileImage; // Set selected profile image
+      conversation.clear();            // Clear previous messages
+    });
+
+    _fetchConversation(receiverId);    // Fetch conversation based on ID
+
+    // Start periodic fetching of the conversation
+    _startPeriodicFetch(receiverId);
+  }
+}
+
+// Start a periodic timer to fetch messages every half second
+void _startPeriodicFetch(String receiverId) {
+  _fetchMessagesTimer?.cancel();  // Cancel any existing timer before starting a new one
+
+  _fetchMessagesTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+    _fetchConversation(receiverId);  // Fetch the conversation every 500ms
+  });
+}
+
+Future<void> _fetchConversation(String sender) async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final authToken = prefs.getString('jwt_token') ?? '';
+
+  print("Auth Token: $authToken");
+
+  final response = await http.get(
+    Uri.parse('https://expertstrials.xyz/Garifix_app/get_messages/$sender'),
+    headers: {
+      'Authorization': 'Bearer $authToken',
+    },
+  );
+
+  print("Response Status Code: ${response.statusCode}");
+  print("Response Body: ${response.body}");
+
+  if (response.statusCode == 200) {
+    try {
+      final Map<String, dynamic> data = json.decode(response.body);
+      print("Response Data: $data");
+
+      if (data.containsKey('conversations') && data['conversations'] is List) {
+        final List<dynamic> conversations = data['conversations'];
+
+        setState(() {
+          conversation.clear(); // Clear existing messages before adding new ones.
+
+          for (var conv in conversations) {
+            if (conv.containsKey('messages') && conv['messages'] is List) {
+              final List<dynamic> fetchedMessages = conv['messages'];
+
+              conversation.addAll(fetchedMessages.map((msg) {
+                return {
+                  'id': msg['id'] ?? 0,
+                  'message': msg['message'] ?? '',
+                  'receiver_id': msg['receiver_id'] ?? 0,
+                  'receiver_name': msg['receiver_name'] ?? '',
+                  'receiver_profile_image': msg['sender_profile_image'] != null
+                      ? 'https://expertstrials.xyz/Garifix_app/${msg['sender_profile_image']}'
+                      : 'https://expertstrials.xyz/Garifix_app/default_image.png',
+                  'sender_id': msg['sender_id'] ?? 0,
+                  'timestamp': msg['timestamp'] ?? '',
+                  'read': msg['is_read'] ?? false,
+                };
+              }).toList());
+            }
+          }
+        });
+      } else {
+        print("Conversations key not found or it's not a list.");
+      }
+    } catch (e) {
+      print("Error decoding response: $e");
+    }
+  } else {
+    print('Failed to load conversation for $sender. Status Code: ${response.statusCode}');
+  }
+}
+
+
+
+
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+appBar: selectedSender != null
+    ? AppBar(
+        backgroundColor: Colors.deepPurpleAccent,
+        elevation: 4,
+        title: Row(
+          children: [
+            // Profile image of the selected receiver
+            CircleAvatar(
+              backgroundImage: NetworkImage(
+                selectedProfileImage ?? 'default_image.png', // Default image if profile is not set
+              ),
+              radius: 20,
+            ),
+            const SizedBox(width: 10), // Spacing between image and text
+
+            // Column to show receiver's name and last seen information
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    backgroundImage: NetworkImage(
-                      messages.firstWhere(
-                          (msg) => msg['sender'] == selectedSender)['avatar'],
-                    ),
-                    radius: 25,
-                  ),
-                  const SizedBox(
-                      width: 10), // Increased space for better layout
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          selectedSender!,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 18, // Increased font size
-                            color:
-                                Colors.white, // Changed text color for contrast
-                          ),
-                        ),
-                        const Text(
-                          'Last seen: 10:32 AM',
-                          style: TextStyle(
-                            fontSize: 14, // Slightly increased font size
-                            color: Colors
-                                .white70, // Lighter color for the last seen text
-                          ),
-                        ),
-                      ],
+                  Text(
+                    selectedSenderName ?? 'Unknown', // Display receiver's name or fallback to 'Unknown'
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    icon: const Icon(Icons.more_vert,
-                        color: Colors.white), // More options button
-                    onPressed: () {
-                      // Add your functionality here
-                    },
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Last seen: 10:32 AM', // Static text for now; replace with dynamic last seen data if available
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                    ),
                   ),
                 ],
               ),
-              leading: IconButton(
-                icon: const Icon(Icons.arrow_back,
-                    color: Colors.white), // Back button
-                onPressed: () {
-                  setState(() {
-                    selectedSender = null; // Go back to messages
-                    conversation
-                        .clear(); // Clear the conversation when going back
-                  });
-                },
-              ),
-            )
-          : null, // No AppBar when no DM is active
-      body: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: Column(
-          children: [
-            // Show the list of messages or DM conversation
-            Expanded(
-              child: selectedSender ==
-                      null // Check if there's a selected sender
-                  ? ListView.builder(
-                      itemCount: messages.length,
-                      itemBuilder: (context, index) {
-                        final message = messages[index];
-                        return GestureDetector(
-                          onTap: () {
-                            toggleConversation(message['sender']);
-                          },
-                          child: MessageCard(
-                            avatar: message['avatar'],
-                            sender: message['sender'],
-                            text: message['text'],
-                            time: message['time'],
-                            isRead: message['read'], // Pass read status
-                            unreadCount: _getUnreadCount(), // Pass unread count
-                          ),
-                        );
-                      },
-                    )
-                  : _buildDMConversation(),
+            ),
+
+            // Optional Icon button for additional options
+            IconButton(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              onPressed: () {
+                // Additional functionality can be added here
+              },
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildDMConversation() {
-    return Column(
-      children: [
-        Expanded(
-          child: ListView.builder(
-            itemCount: conversation.length,
-            itemBuilder: (context, index) {
-              final message = conversation[index];
-              return MessageCard(
-                avatar: message['avatar'],
-                sender: message['sender'],
-                text: message['text'],
-                time: message['time'],
-                isRead: message['read'], // Pass read status
-                unreadCount: 0, // No unread count in DM
-              );
-            },
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            setState(() {
+              selectedSender = null;           // Clear selected sender
+              selectedSenderName = null;       // Clear selected name
+              selectedProfileImage = null;     // Clear selected profile image
+              conversation.clear();            // Clear conversation history
+            });
+          },
         ),
-        _buildMessageInput(),
-      ],
-    );
-  }
+      )
+    : null,
+
+    body: Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        children: [
+          Expanded(
+            child: selectedSender == null
+                ? ListView.builder(
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      final message = messages[index];
+                      return GestureDetector(
+      onTap: () {
+        // Pass receiver_id, receiver_name, and receiver_profile_image
+        toggleConversation(
+          message['receiver_id'].toString(),
+          message['receiver_name'] ?? 'Unknown',
+          message['receiver_profile_image'] ?? 'default_image.png',
+        );
+      },
+                        child: MessageCard(
+                          avatar: message['receiver_profile_image'] ?? 'default_image.png', // Display receiver's profile image
+                          sender: message['receiver_name'] ?? 'Unknown', // Display receiver's name
+                          text: message['message'] ?? '', // Use empty string as default for message text
+                          time: message['timestamp'] ?? '', // Use empty string as default for timestamp
+                          isRead: message['read'] ?? false, // Default to false
+                          unreadCount: message['unread_count'], // Display unread count for the conversation
+                        ),
+                      );
+                    },
+                  )
+                : _buildDMConversation(), // Show direct messages if selectedSender is set
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+
+Widget _buildDMConversation() {
+  return Column(
+    children: [
+      Expanded(
+        child: ListView.builder(
+          itemCount: conversation.length,
+          itemBuilder: (context, index) {
+            final message = conversation[index];
+            return MessageCard(
+              avatar: message['receiver_profile_image'] ?? 'default_image.png',
+              sender: 'you', // Set the sender to the word "you"
+              text: message['message'] ?? '',
+              time: message['timestamp'] ?? '',
+              isRead: message['read'] ?? false,
+              unreadCount: 0, // No unread count in DM
+            );
+          },
+        ),
+      ),
+      _buildMessageInput(), // Message input at the bottom
+    ],
+  );
+}
+
+
 
   Widget _buildMessageInput() {
     return Row(
@@ -3494,9 +4123,7 @@ class _MessagesSectionState extends State<MessagesSection> {
   }
 
   int _getUnreadCount() {
-    return messages
-        .where((msg) => !msg['read'])
-        .length; // Count unread messages
+    return messages.where((msg) => !msg['is_read']).length;
   }
 }
 
@@ -3505,8 +4132,8 @@ class MessageCard extends StatelessWidget {
   final String sender;
   final String text;
   final String time;
-  final bool isRead; // New parameter for read status
-  final int unreadCount; // New parameter for unread count
+  final bool isRead;
+  final int unreadCount;
 
   const MessageCard({
     super.key,
@@ -3514,8 +4141,8 @@ class MessageCard extends StatelessWidget {
     required this.sender,
     required this.text,
     required this.time,
-    required this.isRead, // Add read status parameter
-    required this.unreadCount, // Add unread count parameter
+    required this.isRead,
+    required this.unreadCount,
   });
 
   @override
@@ -3533,10 +4160,7 @@ class MessageCard extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isRead
-                    ? Colors.white
-                    : Colors.lightBlueAccent.withOpacity(
-                        0.1), // Different color for unread messages
+                color: isRead ? Colors.white : Colors.lightBlueAccent.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
@@ -3556,12 +4180,9 @@ class MessageCard extends StatelessWidget {
                         sender,
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
-                          color: isRead
-                              ? Colors.deepPurple
-                              : Colors.blue, // Change color for unread
+                          color: isRead ? Colors.deepPurple : Colors.blue,
                         ),
                       ),
-                      // Display unread message count if greater than 0
                       if (unreadCount > 0)
                         CircleAvatar(
                           backgroundColor: Colors.red,
@@ -3598,6 +4219,7 @@ class MessageCard extends StatelessWidget {
     );
   }
 }
+
 
 class ExploreSection extends StatelessWidget {
   const ExploreSection({super.key});

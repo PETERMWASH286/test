@@ -27,6 +27,9 @@ dependencies:
   awesome_dialog: ^3.0.0  # Update to the latest version compatible with your SDK
   simple_animations: ^5.0.0  # Check the latest compatible version
   socket_io_client: ^2.0.0
+  intl: ^0.17.0
+  lottie: ^1.2.2
+  encrypt: ^5.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -44,7 +47,7 @@ flutter:
     - assets/icons/facebook.svg
     - assets/logo/app_logo.png  # Added the app logo here
     - assets/logo/account.jpg
-
+    - assets/lotti/Animation - 1730958529727.json
 
 flutter_icons:
   android: true  # To generate an icon for Android
