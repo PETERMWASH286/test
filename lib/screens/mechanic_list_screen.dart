@@ -185,14 +185,6 @@ static final List<Widget> _bottomNavPages = <Widget>[
   Widget build(BuildContext context) {
     return Scaffold(
       body: _bottomNavPages[_selectedIndex],
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // Quick action for creating new jobs or tasks
-        },
-        backgroundColor: Colors.deepPurple,
-        tooltip: 'Add Job or Task',
-        child: const Icon(Icons.add),
-      ),
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
           BottomNavigationBarItem(
@@ -709,7 +701,6 @@ void _onQRCodeScanned(String qrData) async {
 
     // Display the details dialog with fetched repair details
     if (repairDetails != null) {
-      _showDetailsDialog(repairDetails);
     }
     // No need for else case here, since errors are handled in _fetchRepairDetails
   } else {
@@ -720,24 +711,31 @@ void _onQRCodeScanned(String qrData) async {
 // Fetch repair details from the backend
 Future<Map<String, dynamic>?> _fetchRepairDetails(String repairId, BuildContext context) async {
   try {
+    // Log the repairId to debug
+    print('Fetching details for Repair ID: $repairId');
+    
     final url = 'https://expertstrials.xyz/Garifix_app/api/repair_details/$repairId';
     final response = await http.get(Uri.parse(url));
 
     if (response.statusCode == 200) {
+      print('Repair details fetched successfully.');
       return jsonDecode(response.body);
     } else {
       // Return the error message from the response and show it in the error dialog
       String errorMessage = 'Error fetching repair details: ${response.statusCode} - ${response.body}';
       _showErrorDialog(errorMessage);  // Show error dialog
+      print('Error response: $errorMessage');  // Debugging the error
       return null;  // Return null to indicate failure
     }
   } catch (e) {
     // Handle exceptions and provide a detailed error message
     String errorMessage = 'Error fetching repair details: $e';
     _showErrorDialog(errorMessage);  // Show error dialog
+    print('Exception: $e');  // Log exception details for debugging
     return null;  // Return null to indicate failure
   }
 }
+
 
 // Show error dialog
 void _showErrorDialog(String message) {
@@ -758,136 +756,6 @@ void _showErrorDialog(String message) {
   );
 }
 
-
-
-  // Display dialog with repair details
-  void _showDetailsDialog(Map<String, dynamic> repairDetails) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(15),
-          ),
-          elevation: 0,
-          backgroundColor: Colors.white,
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Title row with QR button
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Repair Details for ${repairDetails['problem_type']}',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.deepPurple,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.qr_code, color: Colors.deepPurple),
-                        onPressed: () {
-                          _showQRCodeDialog(repairDetails['id']);
-                        },
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  // Display repair details
-                  _buildDetailRow(Icons.calendar_today, 'Date', repairDetails['created_at']),
-                  _buildDetailRow(Icons.description, 'Description', repairDetails['details']),
-                  _buildDetailRow(Icons.priority_high, 'Urgency Level', repairDetails['urgency_text']),
-                  _buildDetailRow(Icons.monetization_on, 'Cost', '\$${repairDetails['cost'].toString()}'),
-                  const SizedBox(height: 20),
-                  _buildInputField(
-                    Icons.monetization_on,
-                    'Enter New Cost',
-                    TextInputType.number,
-                    (value) {
-                      // Handle cost input
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  _buildInputField(
-                    Icons.comment,
-                    'Comments/Recommendations',
-                    TextInputType.multiline,
-                    (value) {
-                      // Handle comments input
-                    },
-                    maxLines: 3,
-                  ),
-                  const SizedBox(height: 10),
-                  GestureDetector(
-                    onTap: () {
-                      _selectDate(context, nextRepairDateController);
-                    },
-                    child: AbsorbPointer(
-                      child: _buildInputField(
-                        Icons.calendar_today,
-                        'Next Repair Date (Optional)',
-                        TextInputType.none,
-                        (value) {
-                          // No callback needed here
-                        },
-                        controller: nextRepairDateController,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Repair Steps:',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ..._buildRepairDetailsWithStatus(repairDetails['details']),
-                  const SizedBox(height: 20),
-                  _buildImageUploadField(),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        style: ButtonStyle(
-                          backgroundColor: WidgetStateProperty.all(Colors.deepPurple),
-                          padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 20, vertical: 10)),
-                        ),
-                        child: const Text('Submit'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                        style: ButtonStyle(
-                          backgroundColor: WidgetStateProperty.all(Colors.grey[300]),
-                          foregroundColor: WidgetStateProperty.all(Colors.black),
-                          padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 20, vertical: 10)),
-                        ),
-                        child: const Text('Close'),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 
 // Start QR Code Scanner
 void _startQRCodeScanner() {
@@ -1032,38 +900,299 @@ Widget build(BuildContext context) {
           ),
         ),
         // QR Code Scanner Icon
-Positioned(
-  right: 16,
-  top: MediaQuery.of(context).size.height * 0.55, // Positioning the icon
-  child: Container(
-    decoration: BoxDecoration(
-      color: Colors.white, // Background color
-      borderRadius: BorderRadius.circular(30), // Rounded corners
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.2), // Shadow color
-          blurRadius: 6, // Shadow blur radius
-          spreadRadius: 2, // Shadow spread radius
-          offset: const Offset(0, 2), // Shadow position
+        Positioned(
+          right: 16,
+          top: MediaQuery.of(context).size.height * 0.55, // Positioning the icon
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white, // Background color
+              borderRadius: BorderRadius.circular(30), // Rounded corners
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2), // Shadow color
+                  blurRadius: 6, // Shadow blur radius
+                  spreadRadius: 2, // Shadow spread radius
+                  offset: const Offset(0, 2), // Shadow position
+                ),
+              ],
+            ),
+            child: IconButton(
+              icon: const Icon(
+                Icons.qr_code_scanner,
+                size: 40, // Adjust size as needed
+                color: Colors.deepPurple,
+              ),
+              onPressed: _startQRCodeScanner, // Same functionality
+              tooltip: 'Scan QR Code',
+            ),
+          ),
         ),
-      ],
-    ),
-    child: IconButton(
-      icon: const Icon(
-        Icons.qr_code_scanner,
-        size: 40, // Adjust size as needed
-        color: Colors.deepPurple,
-      ),
-      onPressed: _startQRCodeScanner, // Same functionality
-      tooltip: 'Scan QR Code',
-    ),
-  ),
-),
-
+        // Floating Action Button to show dialog
+        Positioned(
+          right: 16,
+          bottom: 16, // Positioned at the bottom right
+          child: FloatingActionButton(
+            onPressed: () => _showMechanicDialog(context),
+            backgroundColor: Colors.deepPurple,
+            child: const Icon(
+              Icons.assignment_turned_in,
+              color: Colors.white,
+              size: 30,
+            ),
+          ),
+        ),
       ],
     ),
   );
 }
+
+Future<void> _showMechanicDialog(BuildContext context) async {
+  TextEditingController repairIdController = TextEditingController();
+
+  // Show the Mechanic Dialog
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 10,
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.build_circle_outlined, color: Colors.deepPurple, size: 30),
+                  const SizedBox(width: 10),
+                  const Text('Repair ID', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Text('Please enter the Repair ID (numbers and/or letters).', style: TextStyle(fontSize: 14, color: Colors.black54), textAlign: TextAlign.center),
+              const SizedBox(height: 10),
+              TextField(
+                controller: repairIdController,
+                keyboardType: TextInputType.text,
+                decoration: InputDecoration(
+                  labelText: 'Enter Repair ID',
+                  labelStyle: TextStyle(color: Colors.deepPurple),
+                  hintText: 'e.g. A123B456',
+                  hintStyle: TextStyle(color: Colors.deepPurple.shade100),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.deepPurple.shade200)),
+                  prefixIcon: Icon(Icons.directions_car, color: Colors.deepPurple),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  String repairId = repairIdController.text.trim();
+                  if (repairId.isNotEmpty) {
+                    try {
+                      if (_isBase64(repairId)) {
+                        String decodedRepairId = utf8.decode(base64Decode(repairId));
+                        print('Decoded Repair ID: $decodedRepairId');
+
+                        final repairDetails = await _fetchRepairDetails(decodedRepairId, context);
+                        if (repairDetails != null) {
+                          // Close the mechanic dialog before opening the details dialog
+                          Navigator.of(context).pop(); // Close Mechanic Dialog
+                          _showDetailsDialog(repairDetails, context); // Show Repair Details Dialog
+                        }
+                      } else {
+                        throw FormatException('Invalid Base64 format.');
+                      }
+                    } catch (e) {
+                      print('Error decoding Repair ID: $e');
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Invalid Repair ID format.')));
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Please enter a valid Repair ID.')));
+                  }
+                },
+                icon: const Icon(Icons.send, color: Colors.white),
+                label: const Text('Submit', style: TextStyle(fontSize: 16, color: Colors.white)),
+                style: ButtonStyle(
+                  backgroundColor: MaterialStateProperty.all(Colors.deepPurple),
+                  padding: MaterialStateProperty.all(const EdgeInsets.symmetric(horizontal: 35, vertical: 12)),
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                    RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+void _showDetailsDialog(Map<String, dynamic> repairDetails, BuildContext context) {
+  print('Repair Details: $repairDetails'); // Add this line to check the values
+
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Repair Details for ${repairDetails['problem_type'] ?? "Unknown"}', 
+                      style: const TextStyle(
+                        fontSize: 18, 
+                        fontWeight: FontWeight.bold, 
+                        color: Colors.deepPurple
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.qr_code, color: Colors.deepPurple),
+                      onPressed: () {
+                        _showQRCodeDialog(repairDetails['id']);
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                
+                // Displaying repair details
+                _buildDetailRow(Icons.calendar_today, 'Date', repairDetails['created_at'] ?? "Not available"),
+                _buildDetailRow(Icons.description, 'Description', repairDetails['details'] ?? "No details provided"),
+                _buildDetailRow(Icons.priority_high, 'Urgency Level', repairDetails['urgency_text'] ?? "No urgency level"),
+                _buildDetailRow(Icons.monetization_on, 'Cost', '\$${repairDetails['cost']?.toString() ?? "N/A"}'),
+                
+                // Handling images field
+                _buildDetailRow(Icons.image, 'Images', 
+                  repairDetails['images'] is List ? 
+                  repairDetails['images'].join(', ') : 
+                  repairDetails['images'] ?? 'No images available'),
+                
+                const SizedBox(height: 20),
+
+                // Fields for updating repair details
+                _buildInputField(
+                  Icons.monetization_on,
+                  'Enter New Cost',
+                  TextInputType.number,
+                  (value) {
+                    // Handle cost input
+                  },
+                ),
+                const SizedBox(height: 10),
+                
+                _buildInputField(
+                  Icons.comment,
+                  'Comments/Recommendations',
+                  TextInputType.multiline,
+                  (value) {
+                    // Handle comments input
+                  },
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 10),
+                
+                // Date picker for next repair date
+                GestureDetector(
+                  onTap: () {
+                    _selectDate(context, nextRepairDateController);
+                  },
+                  child: AbsorbPointer(
+                    child: _buildInputField(
+                      Icons.calendar_today,
+                      'Next Repair Date (Optional)',
+                      TextInputType.none,
+                      (value) {
+                        // No callback needed here
+                      },
+                      controller: nextRepairDateController,
+                    ),
+                  ),
+                ),
+                
+                const SizedBox(height: 20),
+                
+                const Text(
+                  'Repair Steps:',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                
+                // Dynamic repair steps (if available)
+                ..._buildRepairDetailsWithStatus(repairDetails['details']),
+
+                const SizedBox(height: 20),
+
+                // Image upload section (if applicable)
+                _buildImageUploadField(),
+
+                const SizedBox(height: 20),
+
+                // Action buttons (Submit and Close)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      style: ButtonStyle(
+                        backgroundColor: MaterialStateProperty.all(Colors.deepPurple),
+                        padding: MaterialStateProperty.all(const EdgeInsets.symmetric(horizontal: 20, vertical: 10)),
+                      ),
+                      child: const Text('Submit'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      style: ButtonStyle(
+                        backgroundColor: MaterialStateProperty.all(Colors.grey[300]),
+                        foregroundColor: MaterialStateProperty.all(Colors.black),
+                        padding: MaterialStateProperty.all(const EdgeInsets.symmetric(horizontal: 20, vertical: 10)),
+                      ),
+                      child: const Text('Close'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+
+
+
+// Utility function to check if a string is Base64 encoded
+bool _isBase64(String str) {
+  final base64RegExp = RegExp(r'^[A-Za-z0-9+/=]+$');
+  return base64RegExp.hasMatch(str);
+}
+
+
+
+
+
 
 Widget _buildStatsRow() {
   return Row(
