@@ -819,9 +819,9 @@ class __AdditionalCostsDialogState extends State<_AdditionalCostsDialog> {
 
             // Table header
             const SizedBox(height: 20),
-            Row(
+            const Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: const [
+              children: [
                 Expanded(child: Text('Cost Name', textAlign: TextAlign.center)),
                 Expanded(child: Text('Company', textAlign: TextAlign.center)),
                 Expanded(child: Text('Cost', textAlign: TextAlign.center)),
@@ -977,11 +977,13 @@ class _RepairsPageState extends State<RepairsPage>
   final TextEditingController _detailsController = TextEditingController();
   final ImagePicker _picker = ImagePicker();
   List<XFile>? _imageFiles; // Define a list to hold the selected images
-
+String? _selectedCar;
+List<String> _carOptions = [];
   @override
   void initState() {
     super.initState();
     _fetchRepairsHistory();
+    _fetchCarOptions(); // Fetch car options when the widget is initialized
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
@@ -995,68 +997,143 @@ class _RepairsPageState extends State<RepairsPage>
     super.dispose();
   }
 
+
+Future<void> _fetchCarOptions() async {
+  try {
+    // Retrieve the token from SharedPreferences
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token');
+    print('Retrieved JWT Token: $token'); // Debugging: Print the token
+
+    // Check if the token is null
+    if (token == null) {
+      print('Token is null. User might not be authenticated.');
+      return;
+    }
+
+    // Make the HTTP GET request to the Flask backend
+    final response = await http.get(
+      Uri.parse('https://expertstrials.xyz/Garifix_app/api/cars'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    // Print the response status code
+    print('HTTP Response Status Code: ${response.statusCode}');
+    // Print the response body for inspection
+    print('HTTP Response Body: ${response.body}');
+
+    // Handle the response
+    if (response.statusCode == 200) {
+      // Parse the response body
+      final Map<String, dynamic> responseData = json.decode(response.body);
+      print('Parsed Response Data: $responseData'); // Debugging: Print parsed data
+
+      if (responseData['success'] == true && responseData['cars'] != null) {
+        final List<dynamic> carData = responseData['cars'];
+        print('Car Data List: $carData'); // Debugging: Print car data list
+
+        setState(() {
+          // Assuming you only need the car names for the dropdown options
+          _carOptions = carData.map<String>((car) => car['car_name'] as String).toList();
+        });
+        print('Populated Car Options: $_carOptions'); // Debugging: Print car options
+      } else {
+        // Handle unsuccessful response
+        print('Failed to fetch car options: Invalid response structure.');
+        if (responseData.containsKey('message')) {
+          print('Error Message from Server: ${responseData['message']}'); // Optional error message
+        }
+      }
+    } else {
+      // Handle error response
+      print('Failed to fetch car options: ${response.statusCode}');
+      print('Response Body (Error): ${response.body}'); // Additional debug for non-200 responses
+    }
+  } catch (e) {
+    // Handle exceptions
+    print('Error fetching car options: $e');
+  }
+}
+
 Future<void> _submitForm() async {
   if (!_formKey.currentState!.validate()) {
     return;
   }
 
+  // Save form state and print for debugging
   _formKey.currentState!.save();
+  print('Form saved successfully. Problem Type: $_problemType, Urgency Level: ${_urgencyLevel.value}, Details: ${_detailsController.text}, Selected Car: $_selectedCar');
 
   var uri = Uri.parse('https://expertstrials.xyz/Garifix_app/submit_report');
   var request = http.MultipartRequest('POST', uri);
 
-  // Add fields
-  request.fields['problemType'] = _problemType!;
+  // Add form fields
+  request.fields['problemType'] = _problemType ?? '';
   request.fields['urgencyLevel'] = _urgencyLevel.value.toString();
   request.fields['details'] = _detailsController.text;
-  
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  String? email = prefs.getString('userEmail'); // This can be null
 
-  // Check if email is not null before adding it to request
-  if (email != null) {
-    request.fields['email'] = email; // Safe to use email since we checked for null
+  // Check and add the selected car
+  if (_selectedCar != null) {
+    request.fields['car'] = _selectedCar!; // Adding selected car to the request
+    print('Selected Car: $_selectedCar added to request.');
   } else {
-    // Handle the case when email is null, maybe set a default or skip adding it
-    // request.fields['email'] = 'default@example.com'; // Example of setting a default
+    print('No car selected.');
+  }
+
+  // Retrieve and print email from preferences
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? email = prefs.getString('userEmail');
+  if (email != null) {
+    request.fields['email'] = email;
+    print('Email added to request: $email');
+  } else {
     print('No email found in preferences');
   }
 
-  // Add image files if any
-  if (_imageFiles != null) {
+  // Adding image files
+  if (_imageFiles != null && _imageFiles!.isNotEmpty) {
     for (var image in _imageFiles!) {
-      request.files.add(await http.MultipartFile.fromPath('images', image.path));
+      try {
+        request.files.add(await http.MultipartFile.fromPath('images', image.path));
+        print('Added image: ${image.path}');
+      } catch (e) {
+        print('Error adding image: $e');
+      }
     }
+  } else {
+    print('No images to upload.');
   }
 
-  // Send the request
+  // Send request
   var response = await request.send();
 
+  // Handle response
   if (response.statusCode == 201) {
-    // Handle success
     var responseData = await response.stream.bytesToString();
-    print('Response: $responseData');
+    print('Form submitted successfully. Response: $responseData');
 
-    // Close the modal first
-    Navigator.of(context).pop(); // Close the modal before showing the dialog
-    // Show success message dialog
+    Navigator.of(context).pop(); // Close the modal
     _showSuccessDialog();
     _fetchRepairsHistory();
 
-    // Clear the form inputs
+    // Reset form and state
     _formKey.currentState!.reset();
     setState(() {
-      _problemType = null; // Reset problem type
-      _imageFiles = null; // Reset image files
-      _detailsController.clear(); // Clear details controller
+      _problemType = null;
+      _selectedCar = null; // Reset selected car
+      _imageFiles = null;
+      _detailsController.clear();
     });
   } else {
-    // Handle error
     print('Error: ${response.statusCode}');
     var responseData = await response.stream.bytesToString();
     print('Error details: $responseData');
   }
 }
+
 
 
 
@@ -1170,154 +1247,174 @@ void _showSuccessDialog() {
     );
   }
 
-  // Building the form
-  Widget _buildProblemForm() {
-    return Form(
-      key: _formKey, // Add the key to the Form widget
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Dropdown for problem type
-          DropdownButtonFormField<String>(
-            decoration: const InputDecoration(
-              labelText: 'Problem Type',
-              border: OutlineInputBorder(),
-            ),
-            items: const [
-              DropdownMenuItem(value: 'Engine', child: Text('Engine Problem')),
-              DropdownMenuItem(value: 'Brakes', child: Text('Brake Issue')),
-              DropdownMenuItem(value: 'Tire', child: Text('Tire Problem')),
-              DropdownMenuItem(
-                  value: 'Electrical', child: Text('Electrical Issue')),
-              DropdownMenuItem(value: 'Other', child: Text('Other')),
-            ],
-            onChanged: (value) {
-              setState(() {
-                _problemType = value; // Store the selected value
-              });
-            },
-            validator: (value) => value == null
-                ? 'Please select a problem type'
-                : null, // Validator
+Widget _buildProblemForm() {
+  return Form(
+    key: _formKey, // Add the key to the Form widget
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Dropdown for selecting car
+        // Dropdown for selecting car
+DropdownButtonFormField<String>(
+  decoration: const InputDecoration(
+    labelText: 'Select Car',
+    border: OutlineInputBorder(),
+  ),
+  items: _carOptions.map<DropdownMenuItem<String>>((String value) {
+    return DropdownMenuItem<String>(
+      value: value,
+      child: Text(value),
+    );
+  }).toList(),
+  onChanged: (value) {
+    setState(() {
+      _selectedCar = value;
+    });
+  },
+  validator: (value) => value == null ? 'Please select a car' : null,
+),
+
+        const SizedBox(height: 20),
+
+        // Dropdown for problem type
+        DropdownButtonFormField<String>(
+          decoration: const InputDecoration(
+            labelText: 'Problem Type',
+            border: OutlineInputBorder(),
           ),
-          const SizedBox(height: 20),
+          items: const [
+            DropdownMenuItem(value: 'Engine', child: Text('Engine Problem')),
+            DropdownMenuItem(value: 'Brakes', child: Text('Brake Issue')),
+            DropdownMenuItem(value: 'Tire', child: Text('Tire Problem')),
+            DropdownMenuItem(value: 'Electrical', child: Text('Electrical Issue')),
+            DropdownMenuItem(value: 'Other', child: Text('Other')),
+          ],
+          onChanged: (value) {
+            setState(() {
+              _problemType = value; // Store the selected value
+            });
+          },
+          validator: (value) => value == null
+              ? 'Please select a problem type'
+              : null, // Validator
+        ),
+        const SizedBox(height: 20),
 
-          // Urgency level slider
-          const Text(
-            'Urgency Level',
-            style: TextStyle(fontWeight: FontWeight.bold),
+        // Urgency level slider
+        const Text(
+          'Urgency Level',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        ValueListenableBuilder<double>(
+          valueListenable: _urgencyLevel,
+          builder: (context, value, child) {
+            return Column(
+              children: [
+                Slider(
+                  value: value,
+                  min: 1,
+                  max: 5,
+                  divisions: 4,
+                  label: _getUrgencyLabel(value),
+                  onChanged: (newValue) {
+                    _urgencyLevel.value = newValue; // Update urgency level
+                  },
+                ),
+                const SizedBox(height: 20),
+              ],
+            );
+          },
+        ),
+
+        // Text field for additional details
+        TextFormField(
+          controller: _detailsController, // Add the controller
+          decoration: const InputDecoration(
+            labelText: 'Additional Details',
+            hintText: 'Describe the problem in detail...',
+            border: OutlineInputBorder(),
           ),
-          ValueListenableBuilder<double>(
-            valueListenable: _urgencyLevel,
-            builder: (context, value, child) {
-              return Column(
-                children: [
-                  Slider(
-                    value: value,
-                    min: 1,
-                    max: 5,
-                    divisions: 4,
-                    label: _getUrgencyLabel(value),
-                    onChanged: (newValue) {
-                      _urgencyLevel.value = newValue; // Update urgency level
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                ],
-              );
-            },
+          maxLines: 3,
+          validator: (value) => value!.isEmpty
+              ? 'Please provide additional details'
+              : null, // Validator
+        ),
+        const SizedBox(height: 20),
+
+        // Upload image button
+        ElevatedButton.icon(
+          onPressed: () async {
+            // Pick multiple images using the camera
+            final List<XFile> selectedImages = await _picker.pickMultiImage();
+
+            // Add the images to the list
+            setState(() {
+              _imageFiles = selectedImages;
+            });
+          },
+          icon: const Icon(Icons.camera_alt, color: Colors.white),
+          label: const Text(
+            'Upload Images of the Problem',
+            style: TextStyle(color: Colors.white),
           ),
-
-          // Text field for additional details
-          TextFormField(
-            controller: _detailsController, // Add the controller
-            decoration: const InputDecoration(
-              labelText: 'Additional Details',
-              hintText: 'Describe the problem in detail...',
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 3,
-            validator: (value) => value!.isEmpty
-                ? 'Please provide additional details'
-                : null, // Validator
-          ),
-          const SizedBox(height: 20),
-
-          // Upload image button
-          ElevatedButton.icon(
-            onPressed: () async {
-              // Pick multiple images using the camera
-              final List<XFile> selectedImages = await _picker.pickMultiImage();
-
-              // Add the images to the list
-              setState(() {
-                _imageFiles = selectedImages;
-              });
-            },
-            icon: const Icon(Icons.camera_alt, color: Colors.white),
-            label: const Text(
-              'Upload Images of the Problem',
-              style: TextStyle(color: Colors.white),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepPurple,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              padding:
-                  const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
-              elevation: 5,
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Display the selected images (if any)
-          if (_imageFiles != null)
-            Wrap(
-              spacing: 8.0,
-              children: _imageFiles!.map((file) {
-                return Image.file(
-                  File(file.path),
-                  width: 100,
-                  height: 100,
-                );
-              }).toList(),
-            ),
-
-          // Submit button with gradient background
-          Container(
-            width: double.infinity,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Colors.deepPurple, Colors.purpleAccent],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.deepPurple,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
-            child: ElevatedButton.icon(
-              onPressed: _submitForm,
-              icon: const Icon(Icons.send, color: Colors.white),
-              label: const Text(
-                'Submit Problem Report',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                padding: const EdgeInsets.symmetric(vertical: 16.0),
-                shadowColor: Colors.transparent,
-              ),
+            padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 20.0),
+            elevation: 5,
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Display the selected images (if any)
+        if (_imageFiles != null)
+          Wrap(
+            spacing: 8.0,
+            children: _imageFiles!.map((file) {
+              return Image.file(
+                File(file.path),
+                width: 100,
+                height: 100,
+              );
+            }).toList(),
+          ),
+
+        // Submit button with gradient background
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Colors.deepPurple, Colors.purpleAccent],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: ElevatedButton.icon(
+            onPressed: _submitForm,
+            icon: const Icon(Icons.send, color: Colors.white),
+            label: const Text(
+              'Submit Problem Report',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              padding: const EdgeInsets.symmetric(vertical: 16.0),
+              shadowColor: Colors.transparent,
             ),
           ),
-          const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
+        ),
+        const SizedBox(height: 20),
+      ],
+    ),
+  );
+}
 
   String _getUrgencyLabel(double value) {
     switch (value.toInt()) {
@@ -1613,7 +1710,7 @@ Row(
         },
       ),
     ),
-    SizedBox(width: 8), // Space between the button and the input field
+    const SizedBox(width: 8), // Space between the button and the input field
     Flexible(
       child: ElevatedButton(
         onPressed: () {
@@ -1626,9 +1723,9 @@ Row(
           elevation: 8,
           shadowColor: Colors.deepPurpleAccent,
         ),
-        child: Row(
+        child: const Row(
           mainAxisSize: MainAxisSize.min,
-          children: const [
+          children: [
             Icon(Icons.add_circle, color: Colors.white, size: 20),
             SizedBox(width: 8),
             Text(
@@ -1709,9 +1806,9 @@ Row(
         shadowColor: Colors.deepPurpleAccent, // Shadow color for the button
         elevation: 8, // Elevation to give it a floating effect
       ),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
-        children: const [
+        children: [
           Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
           SizedBox(width: 8),
           Text(
@@ -1739,9 +1836,9 @@ Row(
         shadowColor: Colors.orange, // Shadow color for the button
         elevation: 8, // Elevation for a floating effect
       ),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
-        children: const [
+        children: [
           Icon(Icons.cancel, color: Colors.white, size: 20),
           SizedBox(width: 8),
           Text(
@@ -1841,9 +1938,9 @@ void _showQRCodeDialog(int repairId) {
                   Navigator.of(context).pop();
                 },
                 style: ButtonStyle(
-                  backgroundColor: MaterialStateProperty.all(Colors.deepPurple), // Background color
-                  padding: MaterialStateProperty.all(const EdgeInsets.symmetric(horizontal: 30, vertical: 12)),
-                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                  backgroundColor: WidgetStateProperty.all(Colors.deepPurple), // Background color
+                  padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 30, vertical: 12)),
+                  shape: WidgetStateProperty.all<RoundedRectangleBorder>(
                     RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8.0),
                     ),
@@ -1879,8 +1976,8 @@ void _showQRCodeDialog(int repairId) {
   }
 
 Future<void> _pickImages() async {
-  final ImagePicker _picker = ImagePicker();
-  final List<XFile> selectedImages = await _picker.pickMultiImage() ?? [];
+  final ImagePicker picker = ImagePicker();
+  final List<XFile> selectedImages = await picker.pickMultiImage() ?? [];
 
   print("Selected Images: $selectedImages");
 
@@ -1903,7 +2000,7 @@ Widget _buildImageUploadField() {
       ElevatedButton(
         onPressed: _pickImages, // Handle image upload here
         style: ButtonStyle(
-          backgroundColor: MaterialStateProperty.all(Colors.blue),
+          backgroundColor: WidgetStateProperty.all(Colors.blue),
         ),
         child: const Text('Choose Images'),
       ),

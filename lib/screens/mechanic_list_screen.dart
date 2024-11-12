@@ -962,12 +962,12 @@ Future<void> _showMechanicDialog(BuildContext context) async {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
+              const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.build_circle_outlined, color: Colors.deepPurple, size: 30),
-                  const SizedBox(width: 10),
-                  const Text('Repair ID', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                  SizedBox(width: 10),
+                  Text('Repair ID', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
                 ],
               ),
               const SizedBox(height: 20),
@@ -978,11 +978,11 @@ Future<void> _showMechanicDialog(BuildContext context) async {
                 keyboardType: TextInputType.text,
                 decoration: InputDecoration(
                   labelText: 'Enter Repair ID',
-                  labelStyle: TextStyle(color: Colors.deepPurple),
+                  labelStyle: const TextStyle(color: Colors.deepPurple),
                   hintText: 'e.g. A123B456',
                   hintStyle: TextStyle(color: Colors.deepPurple.shade100),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide(color: Colors.deepPurple.shade200)),
-                  prefixIcon: Icon(Icons.directions_car, color: Colors.deepPurple),
+                  prefixIcon: const Icon(Icons.directions_car, color: Colors.deepPurple),
                 ),
               ),
               const SizedBox(height: 20),
@@ -1002,22 +1002,22 @@ Future<void> _showMechanicDialog(BuildContext context) async {
                           _showDetailsDialog(repairDetails, context); // Show Repair Details Dialog
                         }
                       } else {
-                        throw FormatException('Invalid Base64 format.');
+                        throw const FormatException('Invalid Base64 format.');
                       }
                     } catch (e) {
                       print('Error decoding Repair ID: $e');
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Invalid Repair ID format.')));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Invalid Repair ID format.')));
                     }
                   } else {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Please enter a valid Repair ID.')));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please enter a valid Repair ID.')));
                   }
                 },
                 icon: const Icon(Icons.send, color: Colors.white),
                 label: const Text('Submit', style: TextStyle(fontSize: 16, color: Colors.white)),
                 style: ButtonStyle(
-                  backgroundColor: MaterialStateProperty.all(Colors.deepPurple),
-                  padding: MaterialStateProperty.all(const EdgeInsets.symmetric(horizontal: 35, vertical: 12)),
-                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                  backgroundColor: WidgetStateProperty.all(Colors.deepPurple),
+                  padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 35, vertical: 12)),
+                  shape: WidgetStateProperty.all<RoundedRectangleBorder>(
                     RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                 ),
@@ -1031,7 +1031,17 @@ Future<void> _showMechanicDialog(BuildContext context) async {
 }
 
 void _showDetailsDialog(Map<String, dynamic> repairDetails, BuildContext context) {
-  print('Repair Details: $repairDetails'); // Add this line to check the values
+  print('Repair Details: $repairDetails'); // Log to check values
+
+  // Ensure `images` is always treated as a List
+  var images = repairDetails['images'];
+  if (images is String) {
+    // Convert a single image string to a list containing that image
+    images = images.isNotEmpty ? [images] : [];
+  } else if (images == null) {
+    // Default to an empty list if null
+    images = [];
+  }
 
   showDialog(
     context: context,
@@ -1051,11 +1061,11 @@ void _showDetailsDialog(Map<String, dynamic> repairDetails, BuildContext context
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Repair Details for ${repairDetails['problem_type'] ?? "Unknown"}', 
+                      'Repair Details for ${repairDetails['problem_type'] ?? "Unknown"}',
                       style: const TextStyle(
-                        fontSize: 18, 
-                        fontWeight: FontWeight.bold, 
-                        color: Colors.deepPurple
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepPurple,
                       ),
                     ),
                     IconButton(
@@ -1068,21 +1078,21 @@ void _showDetailsDialog(Map<String, dynamic> repairDetails, BuildContext context
                 ),
                 const SizedBox(height: 16),
                 
-                // Displaying repair details
                 _buildDetailRow(Icons.calendar_today, 'Date', repairDetails['created_at'] ?? "Not available"),
                 _buildDetailRow(Icons.description, 'Description', repairDetails['details'] ?? "No details provided"),
                 _buildDetailRow(Icons.priority_high, 'Urgency Level', repairDetails['urgency_text'] ?? "No urgency level"),
                 _buildDetailRow(Icons.monetization_on, 'Cost', '\$${repairDetails['cost']?.toString() ?? "N/A"}'),
-                
-                // Handling images field
-                _buildDetailRow(Icons.image, 'Images', 
-                  repairDetails['images'] is List ? 
-                  repairDetails['images'].join(', ') : 
-                  repairDetails['images'] ?? 'No images available'),
-                
+
+                // Display the `images` as a comma-separated string if it's a non-empty list
+                _buildDetailRow(
+                  Icons.image,
+                  'Images',
+                  images.isNotEmpty ? images.join(', ') : 'No images available',
+                ),
+
                 const SizedBox(height: 20),
 
-                // Fields for updating repair details
+                // Additional input fields for updates
                 _buildInputField(
                   Icons.monetization_on,
                   'Enter New Cost',
@@ -1092,7 +1102,7 @@ void _showDetailsDialog(Map<String, dynamic> repairDetails, BuildContext context
                   },
                 ),
                 const SizedBox(height: 10),
-                
+
                 _buildInputField(
                   Icons.comment,
                   'Comments/Recommendations',
@@ -1103,8 +1113,7 @@ void _showDetailsDialog(Map<String, dynamic> repairDetails, BuildContext context
                   maxLines: 3,
                 ),
                 const SizedBox(height: 10),
-                
-                // Date picker for next repair date
+
                 GestureDetector(
                   onTap: () {
                     _selectDate(context, nextRepairDateController);
@@ -1123,54 +1132,7 @@ void _showDetailsDialog(Map<String, dynamic> repairDetails, BuildContext context
                 ),
                 
                 const SizedBox(height: 20),
-                
-                const Text(
-                  'Repair Steps:',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                
-                // Dynamic repair steps (if available)
-                ..._buildRepairDetailsWithStatus(repairDetails['details']),
-
-                const SizedBox(height: 20),
-
-                // Image upload section (if applicable)
-                _buildImageUploadField(),
-
-                const SizedBox(height: 20),
-
-                // Action buttons (Submit and Close)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      style: ButtonStyle(
-                        backgroundColor: MaterialStateProperty.all(Colors.deepPurple),
-                        padding: MaterialStateProperty.all(const EdgeInsets.symmetric(horizontal: 20, vertical: 10)),
-                      ),
-                      child: const Text('Submit'),
-                    ),
-                    ElevatedButton(
-                      onPressed: () {
-                        Navigator.of(context).pop();
-                      },
-                      style: ButtonStyle(
-                        backgroundColor: MaterialStateProperty.all(Colors.grey[300]),
-                        foregroundColor: MaterialStateProperty.all(Colors.black),
-                        padding: MaterialStateProperty.all(const EdgeInsets.symmetric(horizontal: 20, vertical: 10)),
-                      ),
-                      child: const Text('Close'),
-                    ),
-                  ],
-                ),
+                const Text('Repair Steps...'),
               ],
             ),
           ),
