@@ -765,10 +765,10 @@ if (response.statusCode == 200) {
   print('Repair details submitted successfully!');
   
   // Add a delay to ensure the dialog has time to show after the response
-  Future.delayed(Duration(milliseconds: 500), () {
+  Future.delayed(const Duration(milliseconds: 500), () {
     showDialog(
       context: context,
-      builder: (context) => SuccessPopup(message: 'Repair details submitted successfully!'),
+      builder: (context) => const SuccessPopup(message: 'Repair details submitted successfully!'),
     );
   });
 
@@ -1166,7 +1166,9 @@ void _showDetailsDialog(Map<String, dynamic> repairDetails, BuildContext context
   var images = repairDetails['images'];
   if (images is String) {
     images = images.isNotEmpty ? [images] : [];
-  } else images ??= [];
+  } else {
+    images ??= [];
+  }
 
   showDialog(
     context: context,

@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 class SuccessPopup extends StatefulWidget {
   final String message; // The message to display in the popup
 
-  const SuccessPopup({Key? key, required this.message}) : super(key: key);
+  const SuccessPopup({super.key, required this.message});
 
   @override
   _SuccessPopupState createState() => _SuccessPopupState();

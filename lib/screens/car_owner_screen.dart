@@ -14,6 +14,8 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'dart:async';
 import 'package:lottie/lottie.dart'; // Ensure you have this package in your pubspec.yaml
+import 'package:flutter_rating_bar/flutter_rating_bar.dart'; // Add flutter_rating_bar package for star rating bar
+import 'success_popup.dart'; // Import the newly created file
 
 class SocketService {
   late IO.Socket socket;
@@ -1605,27 +1607,46 @@ DropdownButtonFormField<String>(
     }
   }
 
-  Future<void> _showRepairDetails(int repairId) async {
-    final response = await http.get(Uri.parse(
-        'https://expertstrials.xyz/Garifix_app/api/repair_details/$repairId'));
+Future<void> _showRepairDetails(int repairId) async {
+  final response = await http.get(Uri.parse(
+      'https://expertstrials.xyz/Garifix_app/api/get_repair_details/$repairId'));
 
-    if (response.statusCode == 200) {
-      var repairDetails = json.decode(response.body);
+  if (response.statusCode == 200) {
+    var repairDetails = json.decode(response.body);
 
-      // Convert urgency level to text
-      double urgencyLevel =
-          double.tryParse(repairDetails['urgency_level'].toString()) ?? 0.0;
-      repairDetails['urgency_text'] = urgencyLevelToText(
-          urgencyLevel); // Add urgency text to repair details
+    // Convert urgency level to text
+    double urgencyLevel =
+        double.tryParse(repairDetails['urgency_level'].toString()) ?? 0.0;
+    repairDetails['urgency_text'] = urgencyLevelToText(
+        urgencyLevel); // Add urgency text to repair details
 
-      _showDetailsDialog(repairDetails);
-    } else {
-      print('Failed to load repair details: ${response.statusCode}');
-    }
+    _showDetailsDialog(repairDetails);
+  } else {
+    print('Failed to load repair details: ${response.statusCode}');
   }
+}
 
+
+// Assuming 'repair_status' is a string representation of a list, we need to parse it into a List<bool>.
+List<bool> _parseRepairStatus(String repairStatusString) {
+  // Parse the repairStatus string into a List<bool>.
+  // If repairStatus is like '[True, False, True]', we can convert it to a list of booleans.
+  return (repairStatusString
+          .replaceAll(RegExp(r'\[|\]'), '')  // Remove square brackets
+          .split(',')  // Split by commas
+          .map((e) => e.trim() == 'True')  // Convert 'True' to true and 'False' to false
+          .toList()) ??
+      [];
+}
 void _showDetailsDialog(Map<String, dynamic> repairDetails) {
   TextEditingController nextRepairDateController = TextEditingController();
+
+  // Check if repair details have comments, labor cost, and next repair date
+  bool hasRepairData = repairDetails.containsKey('comments') &&
+      repairDetails.containsKey('labor_cost') &&
+      repairDetails.containsKey('next_repair_date') &&
+      repairDetails.containsKey('created_at') &&
+      repairDetails.containsKey('user_full_name');
 
   showDialog(
     context: context,
@@ -1697,166 +1718,500 @@ void _showDetailsDialog(Map<String, dynamic> repairDetails) {
                 ),
                 const SizedBox(height: 20),
 
-                // Additional form fields
-Row(
-  children: [
-    Flexible(
-      child: _buildInputField(
-        Icons.monetization_on,
-        'Enter Labor Cost',
-        TextInputType.number,
-        (value) {
-          // Handle cost input
-        },
+                // Display additional fields if available or prompt to add them
+// Display additional fields if available or prompt to add them
+if (hasRepairData) ...[
+  // Container to wrap all details with crazy styling
+// Updated Container with "Rate Me" button
+Container(
+  margin: const EdgeInsets.symmetric(vertical: 10),
+  padding: const EdgeInsets.all(12),
+  decoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(12),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.deepPurple.withOpacity(0.4),
+        spreadRadius: 4,
+        blurRadius: 10,
+        offset: const Offset(2, 6), // Shadow position
       ),
+      BoxShadow(
+        color: Colors.deepPurpleAccent.withOpacity(0.2),
+        spreadRadius: -4,
+        blurRadius: 10,
+        offset: const Offset(-4, -4),
+      ),
+    ],
+    gradient: const LinearGradient(
+      colors: [Colors.purpleAccent, Colors.deepPurple],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
     ),
-    const SizedBox(width: 8), // Space between the button and the input field
-    Flexible(
-      child: ElevatedButton(
-        onPressed: () {
-          _showAdditionalCostsDialog(context);
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.deepPurple,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 8,
-          shadowColor: Colors.deepPurpleAccent,
+  ),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      // Existing code for displaying repair date
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Text(
+          'Repair Done on Date: ${repairDetails['created_at']}', // Date information
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
+      ),
+      const SizedBox(height: 5),
+      Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Text(
+          'Repair for: ${repairDetails['selected_car']}', // Heading that displays the selected car
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+        ),
+      ),
+
+      // Comments field
+      _buildDetailRow(
+        Icons.comment,
+        'Comments/Recommendations',
+        repairDetails['comments'] ?? 'No comments provided',
+      ),
+
+      // Next repair date field
+      _buildDetailRow(
+        Icons.calendar_today,
+        'Next Repair Date',
+        repairDetails['next_repair_date'] ?? 'No date set',
+      ),
+
+      // User who did the repair and "Rate Me" button
+      Row(
+        children: [
+          // Existing repair done by text
+          Expanded(
+            child: _buildDetailRow(
+              Icons.person,
+              'Repair Done By',
+              repairDetails['user_full_name'],
+            ),
+          ),
+          // "Rate Me" button
+          ElevatedButton.icon(
+            onPressed: () {
+              // Define the action for rating
+              _rateRepair(context, repairDetails['user_full_name']);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurpleAccent,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              elevation: 6,
+              shadowColor: Colors.deepPurpleAccent.withOpacity(0.5),
+            ),
+            icon: const Icon(
+              Icons.star_rate,
+              color: Colors.white,
+              size: 20,
+            ),
+            label: const Text(
+              'Rate Me',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+
+      // Additional existing fields
+      if (repairDetails.containsKey('labor_cost')) ...[
+        // If labor cost exists, show "Add Additional Costs" beside it
+        Row(
           children: [
-            Icon(Icons.add_circle, color: Colors.white, size: 20),
-            SizedBox(width: 8),
-            Text(
-              'Add Additional Costs',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+            Flexible(
+              child: _buildDetailRow(
+                Icons.monetization_on,
+                'Labor Cost',
+                '\$${repairDetails['labor_cost'].toString()}',
+              ),
+            ),
+            const SizedBox(width: 8), // Space between the button and the input field
+            Flexible(
+              child: ElevatedButton(
+                onPressed: () {
+                  _showAdditionalCostsDialog(context);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  elevation: 8,
+                  shadowColor: Colors.deepPurpleAccent,
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_circle, color: Colors.white, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Add Additional Costs',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
+      ],
+      const SizedBox(height: 10),
+    ],
+  ),
+),
+
+] else ...[
+  // Input fields to add missing details
+  _buildInputField(
+    Icons.comment,
+    'Comments/Recommendations',
+    TextInputType.multiline,
+    (value) {
+      // Handle comments input
+    },
+    maxLines: 3,
+  ),
+const SizedBox(height: 10),
+
+  GestureDetector(
+    onTap: () {
+      _selectDate(context, nextRepairDateController);
+    },
+    child: AbsorbPointer(
+      child: _buildInputField(
+        Icons.calendar_today,
+        'Next Repair Date (Optional)',
+        TextInputType.none,
+        (value) {
+          // No callback needed here
+        },
+        controller: nextRepairDateController,
       ),
     ),
+  ),
+],
+const SizedBox(height: 10),
 
+// Only show labor cost input if it's not already available
+if (!repairDetails.containsKey('labor_cost')) ...[
+  Row(
+    children: [
+      Flexible(
+        child: _buildInputField(
+          Icons.monetization_on,
+          'Enter Labor Cost',
+          TextInputType.number,
+          (value) {
+            // Handle labor cost input
+          },
+        ),
+      ),
+      const SizedBox(width: 8), // Space between the input field and the button
+      Flexible(
+        child: ElevatedButton(
+          onPressed: () {
+            _showAdditionalCostsDialog(context);
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.deepPurple,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            elevation: 8,
+            shadowColor: Colors.deepPurpleAccent,
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.add_circle, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text(
+                'Add Additional Costs',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ],
+  ),
+  const SizedBox(height: 10),
+],
+                // Add Additional Costs button beside the Labor Cost
+                const SizedBox(height: 10),
+
+
+                // Image upload and submit buttons
+Column(
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    const Text(
+      'Repairs Done:',
+      style: TextStyle(
+        fontSize: 18,
+        fontWeight: FontWeight.bold,
+        color: Colors.deepPurple,
+      ),
+    ),
+    const SizedBox(height: 10),
+
+    // Determine the appropriate function to call based on repair_status
+    ...(
+      repairDetails['repair_status'] == null 
+        ? _buildRepairDetailsWithStatusNoStyling(repairDetails['details'] ?? '')
+        : _buildRepairDetailsWithStatus(
+            repairDetails['details'] ?? '',
+            _parseRepairStatus(repairDetails['repair_status']),
+          )
+    ),
+    
+    const SizedBox(height: 20),
   ],
 ),
 
-                const SizedBox(height: 10),
-
-                _buildInputField(
-                  Icons.comment,
-                  'Comments/Recommendations',
-                  TextInputType.multiline,
-                  (value) {
-                    // Handle comments input
-                  },
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 10),
-
-                GestureDetector(
-                  onTap: () {
-                    _selectDate(context, nextRepairDateController);
-                  },
-                  child: AbsorbPointer(
-                    child: _buildInputField(
-                      Icons.calendar_today,
-                      'Next Repair Date (Optional)',
-                      TextInputType.none,
-                      (value) {
-                        // No callback needed here
-                      },
-                      controller: nextRepairDateController,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-
-                // Steps and image upload
-                const Text(
-                  'Repairs Done:',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                ..._buildRepairDetailsWithStatus(repairDetails['details']),
-                const SizedBox(height: 20),
 
                 _buildImageUploadField(),
 
-
-
-
                 // Buttons row
-Row(
-  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-  children: [
-    ElevatedButton(
-      onPressed: () {
-        Navigator.of(context).pop();
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.deepPurple, // Button background color
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30), // Rounded corners
-        ),
-        shadowColor: Colors.deepPurpleAccent, // Shadow color for the button
-        elevation: 8, // Elevation to give it a floating effect
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
-          SizedBox(width: 8),
-          Text(
-            'Submit',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    ),
-    ElevatedButton(
-      onPressed: () {
-        Navigator.of(context).pop();
-      },
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.orangeAccent, // Button background color
-        foregroundColor: Colors.black,
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(30), // Rounded corners
-        ),
-        shadowColor: Colors.orange, // Shadow color for the button
-        elevation: 8, // Elevation for a floating effect
-      ),
-      child: const Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.cancel, color: Colors.white, size: 20),
-          SizedBox(width: 8),
-          Text(
-            'Close',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    ),
-  ],
-),
-
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple, // Button background color
+                        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30), // Rounded corners
+                        ),
+                        shadowColor: Colors.deepPurpleAccent, // Shadow color for the button
+                        elevation: 8, // Elevation to give it a floating effect
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Submit',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orangeAccent, // Button background color
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 5),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30), // Rounded corners
+                        ),
+                        shadowColor: Colors.orange, // Shadow color for the button
+                        elevation: 8, // Elevation for a floating effect
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.cancel, color: Colors.white, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Close',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ],
             ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+
+
+void _rateRepair(BuildContext context, String userFullName) {
+  double _rating = 0.0; // Initial rating value
+  TextEditingController _messageController = TextEditingController();
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20.0)),
+        elevation: 10,
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Rate Me',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurple,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(height: 16),
+              RatingBar.builder(
+                initialRating: _rating,
+                minRating: 1,
+                direction: Axis.horizontal,
+                allowHalfRating: true,
+                glowColor: Colors.purpleAccent.withOpacity(0.4),
+                itemCount: 5,
+                itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                itemBuilder: (context, _) => Icon(
+                  Icons.star,
+                  color: Colors.deepPurpleAccent,
+                ),
+                onRatingUpdate: (rating) {
+                  _rating = rating;
+                },
+                unratedColor: Colors.grey.shade300,
+              ),
+              const SizedBox(height: 20),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                child: TextField(
+                  controller: _messageController,
+                  decoration: InputDecoration(
+                    hintText: 'Add a message (optional)',
+                    hintStyle: TextStyle(color: Colors.grey.shade600),
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none,
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: Colors.deepPurpleAccent, width: 1.5),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+onPressed: () async {
+  String message = _messageController.text;
+  Navigator.of(context).pop(); // Close the dialog
+
+  // Retrieve the token
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final String? token = prefs.getString('jwt_token');
+
+  // Check if token is available
+  if (token == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: Token not found')),
+    );
+    return;
+  }
+
+  // Send data to Flask backend
+  const String url = 'https://expertstrials.xyz/Garifix_app/rate_mechanic'; // Replace with your actual Flask endpoint
+  try {
+    final response = await http.post(
+      Uri.parse(url),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token', // Include token in headers
+      },
+      body: jsonEncode(<String, dynamic>{
+        'user_full_name': userFullName,
+        'rating': _rating,
+        'message': message,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      // Successfully sent data
+      print('Response: ${response.body}');
+      
+      // Delay the popup display for a smoother transition
+      Future.delayed(const Duration(milliseconds: 500), () {
+        // Ensure the widget is still mounted
+        if (mounted) {
+          // Use a more stable context like the one from Scaffold or other parent widget
+
+          // Show the dialog using the context
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return const SuccessPopup(message: 'Thank you! Your rating has been successfully submitted.');
+            },
+          );
+        }
+      });
+    } else {
+      // Failed to send data
+      print('Failed to submit rating. Error: ${response.statusCode}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to submit rating')),
+      );
+    }
+  } catch (e) {
+    print('Error: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('An error occurred while submitting the rating')),
+    );
+  }
+},
+
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  backgroundColor: Colors.deepPurpleAccent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                  shadowColor: Colors.deepPurple.withOpacity(0.5),
+                  elevation: 8,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.send, color: Colors.white, size: 20),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Submit',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -2054,39 +2409,86 @@ Widget _buildImageUploadField() {
 
 
 // Function to build repair details with radio buttons for completion status
-  List<Widget> _buildRepairDetailsWithStatus(String details) {
-    // Split the details into paragraphs
-    List<String> paragraphs = details.split('\n');
+// Function to build repair details without any styling when repairStatus is null
+List<Widget> _buildRepairDetailsWithStatusNoStyling(String details) {
+  // Split the details into paragraphs
+  List<String> paragraphs = details.split('\n');
 
-    return paragraphs.map((paragraph) {
-      return Row(
+  // Generate a list of widgets with tick and cross buttons only
+  return paragraphs.map((paragraph) {
+    return Row(
+      children: [
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4.0),
+            child: Text(paragraph),
+          ),
+        ),
+        Row(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.check, color: Colors.green),
+              onPressed: () {
+                // Handle completion status for this step
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.red),
+              onPressed: () {
+                // Handle non-completion status for this step
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }).toList();
+}
+// Function to build repair details with simplified styling based on repairStatus
+List<Widget> _buildRepairDetailsWithStatus(String? details, List<bool>? repairStatus) {
+  if (details == null || details.isEmpty) {
+    return [
+      const Text(
+        'No repair details available.',
+        style: TextStyle(color: Colors.grey),
+      ),
+    ];
+  }
+
+  // Split the details into paragraphs
+  List<String> paragraphs = details.split('\n');
+
+  // Generate a list of widgets based on the status
+  return List.generate(paragraphs.length, (index) {
+    bool status = (repairStatus != null && index < repairStatus.length) ? repairStatus[index] : false;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+      margin: const EdgeInsets.only(bottom: 8.0),
+      child: Row(
         children: [
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 4.0),
-              child: Text(paragraph),
+              child: Text(
+                paragraphs[index],
+                style: const TextStyle(color: Colors.black87), // Dark text for better readability
+              ),
             ),
           ),
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(Icons.check, color: Colors.green),
-                onPressed: () {
-                  // Handle completion status for this step
-                },
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.red),
-                onPressed: () {
-                  // Handle non-completion status for this step
-                },
-              ),
-            ],
+          // Show a single icon based on the status
+          Icon(
+            status ? Icons.check_circle : Icons.cancel, // Icon based on status
+            color: status ? Colors.green : Colors.red,  // Color based on status
+            size: 24.0, // Icon size for better visibility
           ),
         ],
-      );
-    }).toList();
-  }
+      ),
+    );
+  });
+}
+
+
 
 // Function to build detail row with icon and paragraph handling
   Widget _buildDetailRow(IconData icon, String title, String value) {
