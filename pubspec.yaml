@@ -30,6 +30,7 @@ dependencies:
   intl: ^0.17.0
   lottie: ^1.2.2
   encrypt: ^5.0.0
+  path: ^1.8.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -9,7 +9,16 @@ import 'package:image_picker/image_picker.dart'; // For image selection
 import 'dart:io';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart'; // Import FontAwesome
 import 'package:mobile_scanner/mobile_scanner.dart'; // Make sure to import the MobileScanner package
+import 'package:path/path.dart' as path; // Import the path package
+import 'success_popup.dart'; // Import the newly created file
 
+// Import shared_preferences
+import 'post.dart'; // Make sure to import the Post model
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'dart:async';
+import 'package:lottie/lottie.dart'; // Ensure you have this package in your pubspec.yaml
 class MechanicListScreen extends StatefulWidget {
   const MechanicListScreen({super.key});
 
@@ -168,51 +177,55 @@ title: const Row(
 
 
 static final List<Widget> _bottomNavPages = <Widget>[
-  const MechanicHomePage(), // Correct replacement
-  const JobsPage(),
-  const MessagesPage(),
-  const ProfilePage(),
+  const MechanicHomePage(), // Home tab
+  const JobsPage(),         // Jobs tab
+  const MessagesPage(),     // Messages tab
+  const ExplorePage(),      // Explore tab (added here)
+  const ProfilePage(),      // Profile tab
 ];
 
+void _onItemTapped(int index) {
+  setState(() {
+    _selectedIndex = index;
+  });
+}
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: _bottomNavPages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.build),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.work),
-            label: 'Jobs',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.message),
-            label: 'Messages',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.deepPurple,
-        unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-      ),
-    );
-  }
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: _bottomNavPages[_selectedIndex], // Update this to reflect the changes
+    bottomNavigationBar: BottomNavigationBar(
+      items: const <BottomNavigationBarItem>[
+        BottomNavigationBarItem(
+          icon: Icon(Icons.build),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.work),
+          label: 'Jobs',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.message),
+          label: 'Messages',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.explore), // Icon for the Explore tab
+          label: 'Explore',          // Label for the Explore tab
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.person),
+          label: 'Profile',
+        ),
+      ],
+      currentIndex: _selectedIndex,
+      selectedItemColor: Colors.deepPurple,
+      unselectedItemColor: Colors.grey,
+      onTap: _onItemTapped,
+      backgroundColor: Colors.white,
+      type: BottomNavigationBarType.fixed,
+    ),
+  );
+}
 }
 
 class MechanicHomePage extends StatefulWidget {
@@ -661,6 +674,116 @@ class _JobsPageState extends State<JobsPage> {
   bool isScanning = false; // QR code scanning state
   String qrData = '';
   TextEditingController nextRepairDateController = TextEditingController();
+ final TextEditingController commentsController = TextEditingController();
+  final TextEditingController laborCostController = TextEditingController();
+  List<String> uploadedImages = [];
+  List<bool> repairStatus = [];
+  String repairId = "Unknown ID"; // Default value
+
+
+  // Function to update the uploaded images list when new images are selected
+  // Function to update the uploaded images list when new images are selected
+
+// Function to update the uploaded images list when new images are selected
+void _handleUploadedImages(List<File> images) {
+  setState(() {
+    // Use path.basename() to get the file name from the file path
+    uploadedImages = images.map((file) {
+      print("Full path: ${file.path}"); // Debugging: print full path
+      return path.basename(file.path); // Extract file name
+    }).toList();
+  });
+
+  print('Uploaded images in parent class: $uploadedImages');
+}
+
+
+  // Function to handle repair status updates
+
+  // Function to handle repair status updates
+  void _handleRepairStatusUpdate(List<bool> updatedStatus) {
+    setState(() {
+      repairStatus = updatedStatus;
+    });
+    print('Updated repair status: $repairStatus');
+  }
+Future<void> _submitData() async {
+  // Retrieve the token from SharedPreferences
+  SharedPreferences prefs = await SharedPreferences.getInstance();
+  String? token = prefs.getString('jwt_token'); // Retrieve the token
+  
+  // Check if token is retrieved correctly
+  if (token == null) {
+    print('Error: JWT token is missing.');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Error: JWT token is missing.')),
+    );
+    return;
+  }
+  print('JWT token retrieved successfully: $token');
+  
+  // Prepare the data to be sent
+  print('Uploaded images before submitting: $uploadedImages');
+  final repairData = {
+    'repair_id': repairId,  // Accessing repairId from the class level
+    'comments': commentsController.text,
+    'labor_cost': laborCostController.text,
+    'next_repair_date': nextRepairDateController.text,
+    'images': uploadedImages,
+    'repair_status': repairStatus,
+  };
+
+  // Print the repair data to the console before sending
+  print('Repair Data:');
+  print('Repair ID: ${repairData['repair_id']}');
+  print('Comments: ${repairData['comments']}');
+  print('Labor Cost: ${repairData['labor_cost']}');
+  print('Next Repair Date: ${repairData['next_repair_date']}');
+  print('Images: ${repairData['images']}');
+  print('Repair Status: ${repairData['repair_status']}');
+
+  // Convert the data to JSON format
+  final jsonData = json.encode(repairData);
+  print('Sending the following data to backend: $jsonData');
+
+  // Send the data to Flask backend
+  final response = await http.post(
+    Uri.parse('https://expertstrials.xyz/Garifix_app/api/repair_update'), // Replace with your Flask backend URL
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token', // Add the token here
+    },
+    body: jsonData,
+  );
+
+  // Print response status and body for debugging
+  print('Response status code: ${response.statusCode}');
+  print('Response body: ${response.body}');
+
+if (response.statusCode == 200) {
+  // Successfully sent data
+  print('Repair details submitted successfully!');
+  
+  // Add a delay to ensure the dialog has time to show after the response
+  Future.delayed(Duration(milliseconds: 500), () {
+    showDialog(
+      context: context,
+      builder: (context) => SuccessPopup(message: 'Repair details submitted successfully!'),
+    );
+  });
+
+  Navigator.of(context).pop(); // Close the dialog
+} else {
+  // Error occurred
+  print('Failed to submit repair details. Error: ${response.body}');
+  ScaffoldMessenger.of(context).showSnackBar(
+    const SnackBar(content: Text('Failed to submit repair details.')),
+  );
+}
+
+}
+
+
 
   // Dummy job data for static job history
   final List<Map<String, dynamic>> jobs = [
@@ -1031,17 +1154,19 @@ Future<void> _showMechanicDialog(BuildContext context) async {
 }
 
 void _showDetailsDialog(Map<String, dynamic> repairDetails, BuildContext context) {
-  print('Repair Details: $repairDetails'); // Log to check values
+  // Accessing 'repair_id' from repairDetails
+  var repairIdValue = repairDetails['id']; // Get the ID from the details
 
-  // Ensure `images` is always treated as a List
+  // If it's an integer, convert it to a string
+  repairId = repairIdValue != null ? repairIdValue.toString() : "Unknown ID"; // Default to "Unknown ID" if not found
+
+  // Now you can use repairId in your dialog
+  print('Repair ID in dialog: $repairId');
+
   var images = repairDetails['images'];
   if (images is String) {
-    // Convert a single image string to a list containing that image
     images = images.isNotEmpty ? [images] : [];
-  } else if (images == null) {
-    // Default to an empty list if null
-    images = [];
-  }
+  } else images ??= [];
 
   showDialog(
     context: context,
@@ -1051,89 +1176,183 @@ void _showDetailsDialog(Map<String, dynamic> repairDetails, BuildContext context
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
         elevation: 0,
         backgroundColor: Colors.white,
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.95, // 95% of screen width
+          height: MediaQuery.of(context).size.height * 0.9, // 90% of screen height
           child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Repair Details for ${repairDetails['problem_type'] ?? "Unknown"}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.deepPurple,
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Repair Details - ${repairDetails['problem_type'] ?? "Unknown"}',
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepPurple,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.qr_code, color: Colors.deepPurple),
-                      onPressed: () {
-                        _showQRCodeDialog(repairDetails['id']);
-                      },
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                _buildDetailRow(Icons.calendar_today, 'Date', repairDetails['created_at'] ?? "Not available"),
-                _buildDetailRow(Icons.description, 'Description', repairDetails['details'] ?? "No details provided"),
-                _buildDetailRow(Icons.priority_high, 'Urgency Level', repairDetails['urgency_text'] ?? "No urgency level"),
-                _buildDetailRow(Icons.monetization_on, 'Cost', '\$${repairDetails['cost']?.toString() ?? "N/A"}'),
+                      IconButton(
+                        icon: const Icon(Icons.qr_code, color: Colors.deepPurple),
+                        onPressed: () {
+                          _showQRCodeDialog(repairId); // Using the repairId here
+                        },
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildDetailRow(
+                    Icons.person,
+                    'Car Owner',
+                    repairDetails['user_full_name'] ?? "No owner details",
+                  ),
+                  _buildDetailRow(
+                    Icons.directions_car,
+                    'Selected Car',
+                    repairDetails['selected_car'] ?? "Not specified",
+                  ),
+                  _buildDetailRow(
+                    Icons.calendar_today,
+                    'Date',
+                    repairDetails['created_at'] ?? "Not available",
+                  ),
+                  _buildDetailRow(
+                    Icons.description,
+                    'Description',
+                    repairDetails['details'] ?? "No details provided",
+                  ),
+                  _buildDetailRow(
+                    Icons.priority_high,
+                    'Urgency Level',
+                    repairDetails['urgency_level']?.toString() ?? "No urgency level",
+                  ),
+                  _buildDetailRow(
+                    Icons.image,
+                    'Images',
+                    images.isNotEmpty ? images.join(', ') : 'No images available',
+                  ),
+                  const SizedBox(height: 20),
+        _buildInputField(
+          Icons.comment,
+          'Comments/Recommendations',
+          TextInputType.multiline,
+          (value) {},
+          maxLines: 3,
+          controller: commentsController,  // Use commentsController for the comment field
+        ),
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: () {
+            _selectDate(context, nextRepairDateController);
+          },
+          child: AbsorbPointer(
+            child: _buildInputField(
+              Icons.calendar_today,
+              'Next Repair Date (Optional)',
+              TextInputType.none,
+              (value) {},
+              controller: nextRepairDateController,  // Use nextRepairDateController
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        _buildInputField(
+          Icons.monetization_on,
+          'Labor Cost',
+          TextInputType.number,
+          (value) {},
+          controller: laborCostController,  // Use laborCostController
+        ),
+        const SizedBox(height: 10),
+ImageUploadField(
+  icon: Icons.image,
+  label: 'Upload Repair Images',
+  onUpload: (List<File> imageFiles) {
+    print('Uploaded image files: $imageFiles');
+    
+    // Convert the List<File> to List<String> by extracting only the filename (not the full path)
+    List<String> imageNames = imageFiles.map((file) {
+      // Extract the filename (without path) using path.basename()
+      String fileName = path.basename(file.path);
+      print('Extracted filename: $fileName'); // Debugging: print the extracted filename
+      return fileName; // Return just the file name
+    }).toList();
+    
+    print('Uploaded image filenames: $imageNames');
+    
+    // Update the state with the filenames (not full paths)
+    setState(() {
+      uploadedImages = imageNames;
+    });
+  },
+),
 
-                // Display the `images` as a comma-separated string if it's a non-empty list
-                _buildDetailRow(
-                  Icons.image,
-                  'Images',
-                  images.isNotEmpty ? images.join(', ') : 'No images available',
-                ),
-
-                const SizedBox(height: 20),
-
-                // Additional input fields for updates
-                _buildInputField(
-                  Icons.monetization_on,
-                  'Enter New Cost',
-                  TextInputType.number,
-                  (value) {
-                    // Handle cost input
-                  },
-                ),
-                const SizedBox(height: 10),
-
-                _buildInputField(
-                  Icons.comment,
-                  'Comments/Recommendations',
-                  TextInputType.multiline,
-                  (value) {
-                    // Handle comments input
-                  },
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 10),
-
-                GestureDetector(
-                  onTap: () {
-                    _selectDate(context, nextRepairDateController);
-                  },
-                  child: AbsorbPointer(
-                    child: _buildInputField(
-                      Icons.calendar_today,
-                      'Next Repair Date (Optional)',
-                      TextInputType.none,
-                      (value) {
-                        // No callback needed here
-                      },
-                      controller: nextRepairDateController,
+    const SizedBox(height: 20),
+                  const Text(
+                    'Repairs Done:',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
                     ),
                   ),
-                ),
-                
-                const SizedBox(height: 20),
-                const Text('Repair Steps...'),
-              ],
+                  const SizedBox(height: 10),
+                  RepairStatus(details: repairDetails['details']!, onStatusChanged: _handleRepairStatusUpdate),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                        },
+                        icon: const Icon(Icons.cancel, color: Colors.white),
+                        label: const Text(
+                          'Cancel',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.red, width: 2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                          backgroundColor: Colors.redAccent,
+                          elevation: 8,
+                        ).copyWith(
+                          side: WidgetStateProperty.all(
+                            const BorderSide(color: Colors.redAccent, width: 2),
+                          ),
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                      onPressed: _submitData, // Submit data
+                                              icon: const Icon(Icons.check, color: Colors.white),
+                        label: const Text(
+                          'Submit',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.greenAccent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                          elevation: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -1143,6 +1362,43 @@ void _showDetailsDialog(Map<String, dynamic> repairDetails, BuildContext context
 }
 
 
+
+
+
+// Function to build repair details with radio buttons for completion status
+  List<Widget> _buildRepairDetailsWithStatus(String details) {
+    // Split the details into paragraphs
+    List<String> paragraphs = details.split('\n');
+
+    return paragraphs.map((paragraph) {
+      return Row(
+        children: [
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4.0),
+              child: Text(paragraph),
+            ),
+          ),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.check, color: Colors.green),
+                onPressed: () {
+                  // Handle completion status for this step
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.red),
+                onPressed: () {
+                  // Handle non-completion status for this step
+                },
+              ),
+            ],
+          ),
+        ],
+      );
+    }).toList();
+  }
 
 
 // Utility function to check if a string is Base64 encoded
@@ -1333,35 +1589,7 @@ Widget _buildStarRating(double rating) {
     );
   }
 
-  // Build a list of repair steps with status
-  List<Widget> _buildRepairDetailsWithStatus(List<dynamic> details) {
-    return details.map((detail) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5.0),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(detail['name']),
-            Text(detail['status']),
-          ],
-        ),
-      );
-    }).toList();
-  }
 
-  // Function to build the image upload field
-  Widget _buildImageUploadField() {
-    return ElevatedButton(
-      onPressed: () {
-        // Handle image upload
-      },
-      style: ButtonStyle(
-        backgroundColor: WidgetStateProperty.all(Colors.deepPurple),
-        padding: WidgetStateProperty.all(const EdgeInsets.symmetric(horizontal: 20, vertical: 10)),
-      ),
-      child: const Text('Upload Image'),
-    );
-  }
 
   // Function to show QR code dialog
   void _showQRCodeDialog(String repairId) {
@@ -1385,7 +1613,193 @@ Widget _buildStarRating(double rating) {
   }
 }
 
+class ImageUploadField extends StatefulWidget {
+  final IconData icon;
+  final String label;
+  final Function(List<File>) onUpload;  // Pass List<File> instead of List<String> if needed
 
+  const ImageUploadField({super.key, 
+    required this.icon,
+    required this.label,
+    required this.onUpload,
+  });
+
+  @override
+  _ImageUploadFieldState createState() => _ImageUploadFieldState();
+}
+
+class _ImageUploadFieldState extends State<ImageUploadField> {
+  final ImagePicker _picker = ImagePicker();
+  List<File> _imageFiles = []; // To store selected images
+
+  // Function to pick multiple images
+  Future<void> _pickImages() async {
+    // Pick multiple images using the ImagePicker
+    final pickedFiles = await _picker.pickMultiImage();
+
+    setState(() {
+      _imageFiles = pickedFiles.map((e) => File(e.path)).toList();
+    });
+
+    // Send the selected images to the parent widget
+    widget.onUpload(_imageFiles); // Pass the File list directly
+    }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.label,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.deepPurple, // Bold label color
+          ),
+        ),
+        const SizedBox(height: 8),
+        ElevatedButton.icon(
+          onPressed: _pickImages,
+          icon: Icon(
+            widget.icon,
+            color: Colors.white, // Icon color for better contrast
+          ),
+          label: const Text(
+            'Upload Repair Images',
+            style: TextStyle(
+              color: Colors.white, // Text color to match the icon for a clean look
+            ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFF4CAF50), // A vibrant green background for visibility
+            foregroundColor: Colors.white, // Corrected parameter for text and icon color
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12), // Slightly rounded corners for a modern look
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16), // Padding to make the button bigger and more clickable
+          ),
+        ),
+        const SizedBox(height: 16),
+        // Show selected images as previews
+        if (_imageFiles.isNotEmpty) 
+          Wrap(
+            spacing: 8,
+            children: _imageFiles.map((image) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.file(
+                  image,
+                  width: 100,
+                  height: 100,
+                  fit: BoxFit.cover,
+                ),
+              );
+            }).toList(),
+          ),
+        if (_imageFiles.isEmpty) 
+          const Text(
+            'No images selected',
+            style: TextStyle(fontSize: 14, color: Colors.grey),
+          ),
+      ],
+    );
+  }
+}
+
+class RepairStatus extends StatefulWidget {
+  final String details;
+  final Function(List<bool>) onStatusChanged;  // Callback to send the status back
+
+  const RepairStatus({super.key, required this.details, required this.onStatusChanged});
+
+  @override
+  _RepairStatusState createState() => _RepairStatusState();
+}
+
+class _RepairStatusState extends State<RepairStatus> {
+  List<bool> _repairStatus = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize all repair steps to false (not completed)
+    _repairStatus = List.filled(widget.details.split('\n').length, false);
+  }
+
+  void _updateRepairStatus(int index, bool status) {
+    setState(() {
+      _repairStatus[index] = status;
+    });
+    // Notify the parent with the updated status list
+    widget.onStatusChanged(_repairStatus);
+  }
+
+  List<Widget> _buildRepairDetailsWithStatus(String details) {
+    List<String> paragraphs = details.split('\n');
+
+    return paragraphs.asMap().map((index, paragraph) {
+      return MapEntry(
+        index,
+        Row(
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4.0),
+                child: Text(paragraph),
+              ),
+            ),
+            Row(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    _updateRepairStatus(index, true);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: _repairStatus[index] ? Colors.green : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.check,
+                      color: _repairStatus[index] ? Colors.white : Colors.green,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () {
+                    _updateRepairStatus(index, false);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: !_repairStatus[index] ? Colors.red : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      Icons.close,
+                      color: !_repairStatus[index] ? Colors.white : Colors.red,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }).values.toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: _buildRepairDetailsWithStatus(widget.details),
+    );
+  }
+}
 
 
 // Page for Mechanic's Messages
@@ -1400,7 +1814,1623 @@ class MessagesPage extends StatelessWidget {
   }
 }
 
+class ExplorePage extends StatefulWidget {
+  const ExplorePage({super.key});
 
+  @override
+  _ExplorePageState createState() => _ExplorePageState();
+}
+
+class _ExplorePageState extends State<ExplorePage> {
+  int _selectedNavIndex = 0;
+
+  // List of widgets for different sections
+  final List<Widget> _navPages = [
+    const HomeSection(),
+    const ProductScreen(),
+    const MessagesSection(),
+    const ExploreSection(),
+  ];
+
+  void _onNavItemTapped(int index) {
+    setState(() {
+      _selectedNavIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false, // Removes the back arrow
+        backgroundColor: Colors.deepPurple,
+        elevation: 10, // Adds shadow for a more dynamic look
+        title: Row(
+          mainAxisAlignment:
+              MainAxisAlignment.start, // Aligns content to the far left
+          children: [
+            // Logo with a subtle glow effect
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.7),
+                    blurRadius: 10,
+                    spreadRadius: 3,
+                  ),
+                ],
+              ),
+              child: Image.asset(
+                'assets/logo/app_logo.png', // Path to the Mecar logo
+                height: 50,
+                width: 50,
+              ),
+            ),
+            const SizedBox(width: 15), // Space between logo and name
+            // Gradient text for the company name
+            ShaderMask(
+              shaderCallback: (Rect bounds) {
+                return const LinearGradient(
+                  colors: [Color.fromARGB(255, 255, 171, 64), Colors.yellow],
+                  tileMode: TileMode.mirror,
+                ).createShader(bounds);
+              },
+              child: const Text(
+                'Mecar',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1.5,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(2.0, 2.0),
+                      blurRadius: 3.0,
+                      color: Colors.black26,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          // Animated search icon on the far right
+          IconButton(
+            icon: const Icon(Icons.search),
+            iconSize: 28,
+            color: Colors.white,
+            splashRadius: 25,
+            onPressed: () {
+              // Implement search functionality here
+            },
+            tooltip: 'Search', // Tooltip on hover for better UX
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(
+              60.0), // Set height for the bottom navigation
+          child: BottomNavigationBar(
+            items: const <BottomNavigationBarItem>[
+              BottomNavigationBarItem(
+                icon: Icon(Icons.home),
+                label: 'Home',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.store),
+                label: 'Products',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.message),
+                label: 'Messages',
+              ),
+              BottomNavigationBarItem(
+                icon: Icon(Icons.explore),
+                label: 'Explore',
+              ),
+            ],
+            currentIndex: _selectedNavIndex,
+            selectedItemColor:
+                const Color.fromARGB(255, 255, 171, 64), // Single color
+            unselectedItemColor: Colors.grey,
+            onTap: _onNavItemTapped,
+            type: BottomNavigationBarType.fixed,
+          ),
+        ),
+      ),
+      body: IndexedStack(
+        index: _selectedNavIndex, // Show the selected page
+        children: _navPages,
+      ),
+    );
+  }
+}
+
+class HomeSection extends StatefulWidget {
+  const HomeSection({super.key});
+
+  @override
+  _HomeSectionState createState() => _HomeSectionState();
+}
+
+class _HomeSectionState extends State<HomeSection> {
+  List<Post> posts = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchPosts();
+  }
+
+  List<Post> removeDuplicatesById(List<Post> posts) {
+    final seenIds = <int>{};
+    return posts.where((post) => seenIds.add(post.id)).toList();
+  }
+
+  Future<void> fetchPosts() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token');
+    const String url = 'https://expertstrials.xyz/Garifix_app/api/posts';
+
+    try {
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> jsonData = json.decode(response.body);
+        List<Post> fetchedPosts =
+            jsonData.map((json) => Post.fromJson(json)).toList();
+        fetchedPosts = removeDuplicatesById(fetchedPosts);
+
+        setState(() {
+          posts = fetchedPosts;
+          isLoading = false;
+        });
+      } else {
+        print('Failed to load posts: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error occurred: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              color: Colors.grey[200],
+            ),
+            Expanded(
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                      onRefresh: fetchPosts,
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(16.0),
+                        itemCount: posts.length,
+                        itemBuilder: (context, index) {
+                          final post = posts[index];
+
+                          return FutureBuilder<String>(
+                            future: _getAddressFromLatLng(
+                                post.latitude!, post.longitude!),
+                            builder: (context, snapshot) {
+                              String locationText = 'Location not available';
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                locationText = 'Fetching location...';
+                              } else if (snapshot.hasData) {
+                                locationText = snapshot.data!;
+                              } else if (snapshot.hasError) {
+                                locationText = 'Error fetching location';
+                              }
+
+                              return _buildExplorePost(
+                                mechanicName: post.fullName,
+                                description: post.description,
+                                datePosted: post.createdAt.toString(),
+                                imagePath:
+                                    'https://expertstrials.xyz/Garifix_app/${post.imagePath}',
+                                userProfilePic:
+                                    'https://expertstrials.xyz/Garifix_app/${post.profileImage}' ??
+                                        'assets/default_user.png',
+                                location: locationText,
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+            ),
+          ],
+        ),
+        Positioned(
+          right: 16,
+          bottom: MediaQuery.of(context).size.height / 8,
+          child: FloatingActionButton(
+            onPressed: () {
+              _showPostDialog(context);
+            },
+            backgroundColor: Colors.deepPurple,
+            child: const Icon(Icons.add),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<String> _getAddressFromLatLng(
+      double latitude, double longitude) async {
+    try {
+      List<Placemark> placemarks =
+          await placemarkFromCoordinates(latitude, longitude);
+      Placemark place = placemarks[0];
+      return '${place.street}, ${place.locality}, ${place.country}';
+    } catch (e) {
+      print(e);
+      return 'Location not available';
+    }
+  }
+
+  void _showPostDialog(BuildContext context) {
+    final TextEditingController descriptionController = TextEditingController();
+    String? imagePath;
+    final ImagePicker picker = ImagePicker();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Create a New Post',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.deepPurple,
+              fontSize: 24,
+            ),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+          content: SingleChildScrollView(
+            child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter setState) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    GestureDetector(
+                      onTap: () async {
+                        final XFile? pickedFile =
+                            await picker.pickImage(source: ImageSource.gallery);
+                        if (pickedFile != null) {
+                          setState(() {
+                            imagePath = pickedFile.path;
+                          });
+                        }
+                      },
+                      child: Container(
+                        height: 150,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(15),
+                          image: imagePath != null
+                              ? DecorationImage(
+                                  image: FileImage(File(imagePath!)),
+                                  fit: BoxFit.cover,
+                                )
+                              : null,
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 8,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        alignment: Alignment.center,
+                        child: imagePath == null
+                            ? const Icon(Icons.add_a_photo,
+                                size: 40, color: Colors.grey)
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                    TextField(
+                      controller: descriptionController,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: 'Enter post description...',
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(15)),
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        contentPadding: const EdgeInsets.all(10),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                );
+              },
+            ),
+          ),
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                  },
+                  icon: const Icon(Icons.cancel, color: Colors.white),
+                  label: const Text('Cancel',
+                      style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.redAccent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    elevation: 8,
+                    shadowColor: Colors.red.withOpacity(0.5),
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    // Check if fields are filled
+                    if (descriptionController.text.isNotEmpty &&
+                        imagePath != null) {
+                      // Call the function to create the post
+                      await _createPost(
+                          descriptionController.text, imagePath, context);
+                      Navigator.of(context).pop(); // Close the dialog
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Please fill in all fields!')));
+                    }
+                  },
+                  icon: const Icon(Icons.post_add, color: Colors.white),
+                  label:
+                      const Text('Post', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurpleAccent,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 10),
+                    elevation: 8,
+                    shadowColor: Colors.deepPurple.withOpacity(0.5),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _createPost(
+      String description, String? imagePath, BuildContext context) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token'); // Get the JWT token
+
+    // Define the URL for your Flask backend
+    const String url =
+        'https://expertstrials.xyz/Garifix_app/api/posts'; // Adjust the endpoint accordingly
+
+    // Prepare the request
+    final request = http.MultipartRequest('POST', Uri.parse(url))
+      ..fields['description'] = description
+      ..headers['Authorization'] =
+          'Bearer $token'; // Add the JWT token in the headers
+
+    if (imagePath != null) {
+      // Attach the image file if it exists
+      final imageFile = await http.MultipartFile.fromPath('image', imagePath);
+      request.files.add(imageFile);
+    }
+
+    // Send the request
+    try {
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        print('Post created successfully');
+        // Show success dialog or SnackBar
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Post created successfully!')),
+        );
+      } else {
+        print('Failed to create post: ${response.statusCode}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to create post!')),
+        );
+      }
+    } catch (e) {
+      print('Error occurred: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('An error occurred while creating the post!')),
+      );
+    }
+  }
+
+  Widget _buildExplorePost({
+    required String mechanicName,
+    required String description,
+    required String datePosted,
+    required String imagePath,
+    required String userProfilePic,
+    required String location,
+  }) {
+    int likeCount = 0;
+    bool isLiked = false;
+    bool isSaved = false;
+
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          elevation: 4,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(15),
+                  topRight: Radius.circular(15),
+                ),
+                child: Image.network(
+                  imagePath,
+                  height: 180,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Center(
+                      child: CircularProgressIndicator(
+                        value: loadingProgress.expectedTotalBytes != null
+                            ? loadingProgress.cumulativeBytesLoaded /
+                                (loadingProgress.expectedTotalBytes ?? 1)
+                            : null,
+                      ),
+                    );
+                  },
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(child: Icon(Icons.error));
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundImage: NetworkImage(
+                            userProfilePic.isNotEmpty
+                                ? userProfilePic
+                                : 'https://example.com/default_user.png', // Default image URL if needed
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              mechanicName,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Colors.deepPurple,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              location,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(description, style: const TextStyle(fontSize: 14)),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(datePosted,
+                            style: const TextStyle(color: Colors.grey)),
+                        Row(
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                isLiked
+                                    ? Icons.favorite
+                                    : Icons.favorite_border,
+                                color: isLiked ? Colors.red : Colors.deepPurple,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  isLiked = !isLiked;
+                                  likeCount += isLiked ? 1 : -1;
+                                });
+                              },
+                            ),
+                            Text(likeCount.toString()),
+                            IconButton(
+                              icon: Icon(
+                                isSaved
+                                    ? Icons.bookmark
+                                    : Icons.bookmark_border,
+                                color: Colors.deepPurple,
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  isSaved = !isSaved;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class ProductScreen extends StatefulWidget {
+  const ProductScreen({super.key});
+
+  @override
+  _ProductScreenState createState() => _ProductScreenState();
+}
+
+class _ProductScreenState extends State<ProductScreen> {
+  List<dynamic> filteredProducts = [];
+  bool isLoading = true; // Loading indicator
+  bool isSearchVisible = false;
+  String errorMessage = ""; // Store error messages
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeProducts(); // Call the data initializer
+  }
+
+  Future<void> _initializeProducts() async {
+    print("Initializing products...");
+    try {
+      await fetchProducts();
+    } catch (e) {
+      print("Error initializing products: $e");
+      setState(() {
+        errorMessage = "Failed to load products. Please try again.";
+        isLoading = false;
+      });
+    }
+  }
+
+  Future<void> fetchProducts() async {
+    setState(() {
+      isLoading = true; // Start loading state
+      errorMessage = ""; // Clear previous errors
+    });
+
+    print("fetchProducts called");
+
+    try {
+      print("Making API request...");
+      final response = await http
+          .get(Uri.parse('https://expertstrials.xyz/Garifix_app/api/products'));
+
+      print('Response status code: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final List<dynamic> productList = json.decode(response.body);
+
+        // Print the entire response data for debugging
+        print("Response body: $productList");
+
+        // Log and update the state with the fetched products
+        print("Products fetched successfully, count: ${productList.length}");
+
+        // Convert location coordinates to addresses
+        for (var product in productList) {
+          if (product['location'] != 'Location unavailable') {
+            var coordinates = product['location'].split(',');
+            double latitude = double.parse(coordinates[0].trim());
+            double longitude = double.parse(coordinates[1].trim());
+            List<Placemark> placemarks =
+                await placemarkFromCoordinates(latitude, longitude);
+            String address = placemarks.isNotEmpty
+                ? placemarks.first.street ?? 'Address not found'
+                : 'Address not found';
+            product['location'] = address;
+          }
+        }
+
+        setState(() {
+          filteredProducts = productList;
+          isLoading = false;
+        });
+      } else {
+        print("Failed to load products with status: ${response.statusCode}");
+        throw Exception('Failed to load products');
+      }
+    } catch (e) {
+      print("Error fetching products: $e");
+      setState(() {
+        isLoading = false;
+        errorMessage = "Error fetching products.";
+      });
+    }
+  }
+
+  void filterProducts(String query) {
+    final filtered = filteredProducts.where((product) {
+      final titleLower = product['title'].toLowerCase();
+      final companyNameLower = product['companyName'].toLowerCase();
+      return titleLower.contains(query.toLowerCase()) ||
+          companyNameLower.contains(query.toLowerCase());
+    }).toList();
+
+    setState(() {
+      filteredProducts = filtered;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      floatingActionButton: Stack(
+        children: [
+          Positioned(
+            right: 16,
+            bottom: MediaQuery.of(context).size.height / 8 +
+                1, // Increase the value to move it lower
+            child: FloatingActionButton(
+              onPressed: () {
+                setState(() {
+                  isSearchVisible = !isSearchVisible;
+                });
+              },
+              backgroundColor: Colors.blueAccent,
+              child: const Icon(Icons.search),
+            ),
+          ),
+        ],
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          children: [
+            if (isSearchVisible)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: TextField(
+                  onChanged: filterProducts,
+                  decoration: InputDecoration(
+                    hintText: 'Search by company or product name',
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none,
+                    ),
+                    prefixIcon:
+                        const Icon(Icons.search, color: Colors.deepPurple),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: isLoading
+                  ? const Center(child: CircularProgressIndicator())
+                  : errorMessage.isNotEmpty
+                      ? Center(child: Text(errorMessage))
+                      : filteredProducts.isEmpty
+                          ? const Center(child: Text("No products found"))
+                          : ListView.builder(
+                              itemCount: filteredProducts.length,
+                              itemBuilder: (context, index) {
+                                final product = filteredProducts[index];
+                                return ProductCard(
+                                  imageUrl: product['imageUrl'] ?? '',
+                                  title: product['title'] ?? 'No Title',
+                                  price: product['price'] ?? '\$0.00',
+                                  description: product['description'] ??
+                                      'No Description',
+                                  companyName: product['companyName'] ??
+                                      'Unknown Company',
+                                  location:
+                                      product['location'] ?? 'Unknown Location',
+                                );
+                              },
+                            ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ProductCard extends StatelessWidget {
+  final String imageUrl;
+  final String title;
+  final String price;
+  final String description;
+  final String companyName;
+  final String location;
+
+  const ProductCard({
+    required this.imageUrl,
+    required this.title,
+    required this.price,
+    required this.description,
+    required this.companyName,
+    required this.location,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      elevation: 5,
+      margin: const EdgeInsets.only(bottom: 12.0),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundImage: NetworkImage(imageUrl),
+                  onBackgroundImageError: (error, stackTrace) =>
+                      const Icon(Icons.error),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        companyName,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        location,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Colors.black26,
+                    blurRadius: 10,
+                    offset: Offset(0, 3),
+                  ),
+                ],
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                children: [
+                  Image.network(
+                    imageUrl,
+                    height: 200,
+                    width: double.infinity,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => const Center(
+                      child: Icon(
+                        Icons.error,
+                        size: 80,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Colors.black54, Colors.transparent],
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepPurple,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              description,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              price,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepOrange,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    // Implement buy functionality
+                  },
+                  icon: const Icon(Icons.shopping_cart, color: Colors.white),
+                  label: const Text(
+                    'Buy Now',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 12, horizontal: 16),
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.message, color: Colors.deepPurple),
+                  onPressed: () {
+                    // Implement message functionality
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.bookmark_border,
+                      color: Colors.deepPurple),
+                  onPressed: () {
+                    // Implement wishlist functionality
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+
+class MessagesSection extends StatefulWidget {
+  const MessagesSection({super.key});
+
+  @override
+  _MessagesSectionState createState() => _MessagesSectionState();
+}
+
+class _MessagesSectionState extends State<MessagesSection> {
+  List<Map<String, dynamic>> messages = [];
+  String? selectedSender;
+  final List<Map<String, dynamic>> conversation = [];
+  String newMessage = '';
+  String? authToken;
+  String? selectedSenderName;    // Holds the receiver's name for the selected conversation
+  String? selectedProfileImage;  // Holds the receiver's profile image URL for the selected conversation
+
+ Timer? _messageFetchTimer;  // Timer to call fetchMessages periodically
+Timer? _fetchMessagesTimer;
+  @override
+  void initState() {
+    super.initState();
+
+    // Start the timer to fetch messages every 500ms (0.5 seconds)
+    _messageFetchTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      _fetchMessages();
+    });
+  }
+
+  Future<void> _fetchMessages() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    authToken = prefs.getString('jwt_token') ?? '';
+
+    print('Auth Token: $authToken');
+
+    final response = await http.get(
+      Uri.parse('https://expertstrials.xyz/Garifix_app/messages'),
+      headers: {
+        'Authorization': 'Bearer $authToken',
+      },
+    );
+
+    print('Response Status Code: ${response.statusCode}');
+    print('Response Body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
+      print('Decoded Response: $data');
+
+      if (data.containsKey('conversations') && data['conversations'] is List) {
+        final List<dynamic> conversations = data['conversations'];
+
+        // Map to store the latest message for each conversation, with unread count
+        final Map<int, Map<String, dynamic>> latestMessages = {};
+
+        for (var conversation in conversations) {
+          if (conversation['messages'] is List) {
+            for (var msg in conversation['messages']) {
+              // Null check for 'msg' and then safely accessing keys
+              final receiverId = msg?['receiver_id'];
+
+              if (receiverId != null) {
+                // Update to keep only the latest message per receiver
+                latestMessages[receiverId] = msg;
+
+                // Add a new key for unread count
+                final unreadCount = conversation['messages']
+                    .where((message) => message?['is_read'] == false)
+                    .length;
+
+                latestMessages[receiverId]?['unread_count'] = unreadCount;
+              }
+            }
+          }
+        }
+
+        setState(() {
+          messages = latestMessages.values.map((msg) {
+            return {
+              'id': msg['id'] ?? 0, // Provide default if null
+              'message': msg['message'] ?? '', // Default empty string
+              'receiver_id': msg['receiver_id'] ?? 0, // Default 0 if null
+              'receiver_name': msg['receiver_name'] ?? '', // Default empty string
+              'receiver_profile_image': msg['sender_profile_image'] != null
+                  ? 'https://expertstrials.xyz/Garifix_app/${msg['sender_profile_image']}'
+                  : 'https://expertstrials.xyz/Garifix_app/default_image.png',
+              'sender_id': msg['sender_id'] ?? 0, // Default 0 if null
+              'timestamp': msg['timestamp'] ?? '', // Default empty string
+              'read': msg['is_read'] ?? false, // Default to false
+              'unread_count': msg['unread_count'] ?? 0, // Unread count, default to 0
+            };
+          }).toList();
+        });
+      } else {
+        print('Conversations key not found or is not a list.');
+      }
+    } else {
+      print('Failed to load messages: ${response.body}');
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+
+    // Cancel the timer when the widget is disposed
+    _messageFetchTimer?.cancel();
+  }
+
+
+
+  void sendMessage() {  
+    if (newMessage.isNotEmpty) {
+      // Create a method to send the message to your backend
+      _sendMessage(newMessage, selectedSender);
+    }
+  }
+
+  Future<void> _sendMessage(String messageText, String? receiverId) async {
+    if (receiverId != null && messageText.isNotEmpty) {
+      final response = await http.post(
+        Uri.parse('https://expertstrials.xyz/Garifix_app/send'), // Update with your API URL
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+        body: json.encode({
+          'id': receiverId,
+          'message': messageText,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          conversation.add({
+            'avatar': 'https://via.placeholder.com/50', // Placeholder for the current user
+            'sender': 'You',
+            'text': messageText,
+            'time': TimeOfDay.now().format(context),
+            'read': true,
+          });
+          newMessage = ''; // Clear the input field after sending
+        });
+      } else {
+        // Handle error appropriately
+        print('Failed to send message: ${response.body}');
+      }
+    }
+  }
+
+void toggleConversation(String receiverId, String receiverName, String profileImage) {
+  if (selectedSender == receiverId) {
+    setState(() {
+      selectedSender = null;           // Hide the conversation if the same sender is clicked
+      selectedSenderName = null;       // Reset selected name
+      selectedProfileImage = null;     // Reset profile image
+      conversation.clear();            // Clear conversation history
+    });
+
+    // Cancel the timer when closing the conversation
+    _fetchMessagesTimer?.cancel();
+  } else {
+    setState(() {
+      selectedSender = receiverId;     // Set selected sender by ID
+      selectedSenderName = receiverName;  // Set selected sender's name
+      selectedProfileImage = profileImage; // Set selected profile image
+      conversation.clear();            // Clear previous messages
+    });
+
+    _fetchConversation(receiverId);    // Fetch conversation based on ID
+
+    // Start periodic fetching of the conversation
+    _startPeriodicFetch(receiverId);
+  }
+}
+
+// Start a periodic timer to fetch messages every half second
+void _startPeriodicFetch(String receiverId) {
+  _fetchMessagesTimer?.cancel();  // Cancel any existing timer before starting a new one
+
+  _fetchMessagesTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+    _fetchConversation(receiverId);  // Fetch the conversation every 500ms
+  });
+}
+
+Future<void> _fetchConversation(String sender) async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final authToken = prefs.getString('jwt_token') ?? '';
+
+  print("Auth Token: $authToken");
+
+  final response = await http.get(
+    Uri.parse('https://expertstrials.xyz/Garifix_app/get_messages/$sender'),
+    headers: {
+      'Authorization': 'Bearer $authToken',
+    },
+  );
+
+  print("Response Status Code: ${response.statusCode}");
+  print("Response Body: ${response.body}");
+
+  if (response.statusCode == 200) {
+    try {
+      final Map<String, dynamic> data = json.decode(response.body);
+      print("Response Data: $data");
+
+      if (data.containsKey('conversations') && data['conversations'] is List) {
+        final List<dynamic> conversations = data['conversations'];
+
+        setState(() {
+          conversation.clear(); // Clear existing messages before adding new ones.
+
+          for (var conv in conversations) {
+            if (conv.containsKey('messages') && conv['messages'] is List) {
+              final List<dynamic> fetchedMessages = conv['messages'];
+
+              conversation.addAll(fetchedMessages.map((msg) {
+                return {
+                  'id': msg['id'] ?? 0,
+                  'message': msg['message'] ?? '',
+                  'receiver_id': msg['receiver_id'] ?? 0,
+                  'receiver_name': msg['receiver_name'] ?? '',
+                  'receiver_profile_image': msg['sender_profile_image'] != null
+                      ? 'https://expertstrials.xyz/Garifix_app/${msg['sender_profile_image']}'
+                      : 'https://expertstrials.xyz/Garifix_app/default_image.png',
+                  'sender_id': msg['sender_id'] ?? 0,
+                  'timestamp': msg['timestamp'] ?? '',
+                  'read': msg['is_read'] ?? false,
+                };
+              }).toList());
+            }
+          }
+        });
+      } else {
+        print("Conversations key not found or it's not a list.");
+      }
+    } catch (e) {
+      print("Error decoding response: $e");
+    }
+  } else {
+    print('Failed to load conversation for $sender. Status Code: ${response.statusCode}');
+  }
+}
+
+
+
+
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+appBar: selectedSender != null
+    ? AppBar(
+        backgroundColor: Colors.deepPurpleAccent,
+        elevation: 4,
+        title: Row(
+          children: [
+            // Profile image of the selected receiver
+            CircleAvatar(
+              backgroundImage: NetworkImage(
+                selectedProfileImage ?? 'default_image.png', // Default image if profile is not set
+              ),
+              radius: 20,
+            ),
+            const SizedBox(width: 10), // Spacing between image and text
+
+            // Column to show receiver's name and last seen information
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    selectedSenderName ?? 'Unknown', // Display receiver's name or fallback to 'Unknown'
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Last seen: 10:32 AM', // Static text for now; replace with dynamic last seen data if available
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Optional Icon button for additional options
+            IconButton(
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              onPressed: () {
+                // Additional functionality can be added here
+              },
+            ),
+          ],
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () {
+            setState(() {
+              selectedSender = null;           // Clear selected sender
+              selectedSenderName = null;       // Clear selected name
+              selectedProfileImage = null;     // Clear selected profile image
+              conversation.clear();            // Clear conversation history
+            });
+          },
+        ),
+      )
+    : null,
+
+    body: Padding(
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        children: [
+          Expanded(
+            child: selectedSender == null
+                ? ListView.builder(
+                    itemCount: messages.length,
+                    itemBuilder: (context, index) {
+                      final message = messages[index];
+                      return GestureDetector(
+      onTap: () {
+        // Pass receiver_id, receiver_name, and receiver_profile_image
+        toggleConversation(
+          message['receiver_id'].toString(),
+          message['receiver_name'] ?? 'Unknown',
+          message['receiver_profile_image'] ?? 'default_image.png',
+        );
+      },
+                        child: MessageCard(
+                          avatar: message['receiver_profile_image'] ?? 'default_image.png', // Display receiver's profile image
+                          sender: message['receiver_name'] ?? 'Unknown', // Display receiver's name
+                          text: message['message'] ?? '', // Use empty string as default for message text
+                          time: message['timestamp'] ?? '', // Use empty string as default for timestamp
+                          isRead: message['read'] ?? false, // Default to false
+                          unreadCount: message['unread_count'], // Display unread count for the conversation
+                        ),
+                      );
+                    },
+                  )
+                : _buildDMConversation(), // Show direct messages if selectedSender is set
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+
+Widget _buildDMConversation() {
+  return Column(
+    children: [
+      Expanded(
+        child: ListView.builder(
+          itemCount: conversation.length,
+          itemBuilder: (context, index) {
+            final message = conversation[index];
+            return MessageCard(
+              avatar: message['receiver_profile_image'] ?? 'default_image.png',
+              sender: 'you', // Set the sender to the word "you"
+              text: message['message'] ?? '',
+              time: message['timestamp'] ?? '',
+              isRead: message['read'] ?? false,
+              unreadCount: 0, // No unread count in DM
+            );
+          },
+        ),
+      ),
+      _buildMessageInput(), // Message input at the bottom
+    ],
+  );
+}
+
+
+
+  Widget _buildMessageInput() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            onChanged: (value) {
+              setState(() {
+                newMessage = value;
+              });
+            },
+            decoration: InputDecoration(
+              hintText: 'Type a message...',
+              filled: true,
+              fillColor: Colors.grey[200],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30),
+                borderSide: BorderSide.none,
+              ),
+              prefixIcon: const Icon(Icons.message, color: Colors.deepPurple),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.send, color: Colors.deepPurple),
+          onPressed: sendMessage,
+        ),
+      ],
+    );
+  }
+
+  int _getUnreadCount() {
+    return messages.where((msg) => !msg['is_read']).length;
+  }
+}
+
+class MessageCard extends StatelessWidget {
+  final String avatar;
+  final String sender;
+  final String text;
+  final String time;
+  final bool isRead;
+  final int unreadCount;
+
+  const MessageCard({
+    super.key,
+    required this.avatar,
+    required this.sender,
+    required this.text,
+    required this.time,
+    required this.isRead,
+    required this.unreadCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundImage: NetworkImage(avatar),
+            radius: 25,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isRead ? Colors.white : Colors.lightBlueAccent.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.3),
+                    blurRadius: 5,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        sender,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isRead ? Colors.deepPurple : Colors.blue,
+                        ),
+                      ),
+                      if (unreadCount > 0)
+                        CircleAvatar(
+                          backgroundColor: Colors.red,
+                          radius: 12,
+                          child: Text(
+                            '$unreadCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(text),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: Text(
+                      time,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class ExploreSection extends StatelessWidget {
+  const ExploreSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Stack(
+        children: [
+          // Background gradient
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.deepPurple, Colors.pinkAccent],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          // Decorative shapes
+          Positioned(
+            top: -100,
+            left: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.1),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -150,
+            right: -150,
+            child: Container(
+              width: 400,
+              height: 400,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.1),
+              ),
+            ),
+          ),
+          // Main content
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const AnimatedText(),
+                const SizedBox(height: 20),
+                const Text(
+                  'We are working on something amazing!',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Stay tuned for updates!',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.white70,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 30),
+                // Optional: Add a button or link
+                ElevatedButton(
+                  onPressed: () {
+                    // Add your functionality here (e.g., subscribe, back to home)
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber, // Primary button color
+                    foregroundColor: Colors.black, // Text color
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 20, vertical: 12),
+                    textStyle: const TextStyle(fontSize: 18),
+                  ),
+                  child: const Text('Notify Me'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class AnimatedText extends StatefulWidget {
+  const AnimatedText({super.key});
+
+  @override
+  _AnimatedTextState createState() => _AnimatedTextState();
+}
+
+class _AnimatedTextState extends State<AnimatedText>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(seconds: 2),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _animation = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: _animation,
+      child: const Text(
+        'Coming Soon!',
+        style: TextStyle(
+          fontSize: 48,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+          shadows: [
+            Shadow(
+              color: Colors.black54,
+              offset: Offset(2, 2),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
