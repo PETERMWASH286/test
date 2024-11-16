@@ -14,11 +14,8 @@ import 'success_popup.dart'; // Import the newly created file
 
 // Import shared_preferences
 import 'post.dart'; // Make sure to import the Post model
-import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_svg/flutter_svg.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'dart:async';
-import 'package:lottie/lottie.dart'; // Ensure you have this package in your pubspec.yaml
+// Ensure you have this package in your pubspec.yaml
 class MechanicListScreen extends StatefulWidget {
   const MechanicListScreen({super.key});
 
@@ -242,6 +239,8 @@ class _MechanicHomePageState extends State<MechanicHomePage> {
   void initState() {
     super.initState();
     _getUserLocation();
+    fetchStats(); // Fetch data when the widget is initialized
+
   }
 
   Future<void> _getUserLocation() async {
@@ -295,17 +294,17 @@ class _MechanicHomePageState extends State<MechanicHomePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildMechanicInfo(context), // Pass the context here
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
             _buildStatsRow(), // Statistics section
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
             _buildRecentReviews(), // Recent reviews section
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
             _buildDailySchedule(), // Mechanic's daily schedule
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
             _buildToolsInventory(), // Tools inventory status
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
             _buildWorkshopStatus(), // Current workshop workload
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
             _buildNotifications(), // Notifications and alerts for urgent jobs
           ],
         ),
@@ -371,6 +370,70 @@ Widget _buildMechanicInfo(BuildContext context) {
   );
 }
 
+List<Map<String, dynamic>> jobs = [];
+int workCount = 0;
+double rating = 0.0;
+int peopleCount = 0;
+bool isLoading = true;
+
+// Function to fetch data from the backend
+Future<void> fetchStats() async {
+  const String apiUrl = 'https://expertstrials.xyz/Garifix_app/api/stats'; // Replace with your backend URL
+
+  try {
+    // Retrieve the token from shared preferences
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token');
+
+    // Print the retrieved token for debugging
+    print('Token retrieved: $token');
+
+    // Add the token to the request headers
+    final response = await http.get(
+      Uri.parse(apiUrl),
+      headers: {
+        'Authorization': 'Bearer $token', // Include the token as a Bearer token
+        'Content-Type': 'application/json',
+      },
+    );
+
+    // Print the response status code for debugging
+    print('Response status code: ${response.statusCode}');
+    // Print the response body for debugging
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      // Parse the JSON response
+      final data = json.decode(response.body);
+      print('Data received: $data');
+
+      setState(() {
+        workCount = data['workCount'] ?? 0;
+        rating = (data['rating'] ?? 0.0).toDouble();
+        peopleCount = data['peopleCount'] ?? 0;
+        isLoading = false;
+
+        // Populate jobs list dynamically from API response
+        jobs = (data['jobs'] as List<dynamic>).map((job) {
+          return {
+            'title': job['problem_type'] ?? 'No title',
+            'description': job['details'] ?? 'No description',
+            'rating': job['rating'] ?? 0.0,
+            'date': job['created_at'] ?? 'No date',
+            'rater_name': job['rater_name'] ?? 'Anonymous',
+            'comment': job['comment'] ?? '',
+          };
+        }).toList();
+      });
+    } else {
+      // Handle error response
+      print('Failed to load data: ${response.statusCode} ${response.reasonPhrase}');
+    }
+  } catch (e) {
+    // Print the error message for debugging
+    print('Error fetching data: $e');
+  }
+}
 
 // Build the Stats Row
 Widget _buildStatsRow() {
@@ -379,20 +442,20 @@ Widget _buildStatsRow() {
     children: [
       _buildStatCard(
         icon: Icons.work,
-        value: '120', // Replace with dynamic data if available
+        value: '$workCount', // Use dynamic data for Jobs
         title: 'Jobs', // Title for the Jobs card
         height: 80, // Increased height for the Jobs card
       ),
       _buildStatCard(
         icon: Icons.star,
-        rating: 4.5, // Pass the rating value as a double
+        rating: rating, // Use dynamic rating value
         width: 120,  // Custom width for the star rating card
         height: 80, // Increased height for the Ratings card
         title: 'Ratings', // Title for the Ratings card
       ),
       _buildStatCard(
         icon: Icons.people,
-        value: '300', // Replace with dynamic data if available
+        value: '$peopleCount', // Use dynamic data for Customers
         title: 'Customers', // Title for the Customers card
         height: 80, // Increased height for the Customers card
       ),
@@ -483,48 +546,126 @@ Widget _buildStarRating(double rating) {
   );
 }
 
-  // Recent Reviews Section
-  Widget _buildRecentReviews() {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
+// Recent Reviews Section
+Widget _buildRecentReviews() {
+  return Padding(
+    padding: const EdgeInsets.all(16),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Recent Reviews',
+          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        // Check if there are any jobs to display
+        jobs.isEmpty
+            ? _buildNoReviewsWidget() // Display this if no reviews are available
+            : Column(
+                children: jobs.map((job) {
+                  return _buildReview(
+                    job['rater_name'] ?? 'Anonymous', // Default name if not provided
+                    job['comment'] ?? 'No comment provided', // Default comment
+                    job['rating'].toDouble(), // Convert rating to double
+                  );
+                }).toList(),
+              ),
+      ],
+    ),
+  );
+}
+
+// Widget to display if no reviews are available
+Widget _buildNoReviewsWidget() {
+  return Container(
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: Colors.deepPurple.shade50, // Soft background color
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.deepPurple.shade100, width: 1),
+    ),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          Icons.reviews,
+          size: 20,
+          color: Colors.deepPurple.shade300,
+        ),
+        const SizedBox(height: 10),
+        Text(
+          'No Reviews Yet',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: Colors.deepPurple.shade700,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+
+// Review Widget
+Widget _buildReview(String customerName, String feedback, double rating) {
+  return Card(
+    child: ListTile(
+      leading: CircleAvatar(
+        backgroundColor: Colors.deepPurple, // Display first letter of the customer's name
+        foregroundColor: Colors.white,
+        child: Text(customerName.isNotEmpty ? customerName[0] : 'A'),
+      ),
+      title: Text(customerName),
+      subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Recent Reviews',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          _buildReview('Alice Johnson', 'Great service! Highly recommend!', 5),
-          _buildReview('Bob Smith', 'Very knowledgeable and quick.', 4),
-          _buildReview('Charlie Brown', 'Satisfactory work, could improve communication.', 3),
+          Text(feedback),
+          // Use the dynamic star rating method
+          _buildJobRating(rating),
         ],
       ),
-    );
+    ),
+  );
+}
+// Method to build star rating with value
+Widget _buildJobRating(double rating) {
+  List<Widget> stars = [];
+  int fullStars = rating.floor(); // Number of full stars
+  double fractionalPart = rating - fullStars; // Fractional part of the rating
+  double starSize = 12.0; // Size of each star
+
+  // Create full stars
+  for (int i = 0; i < fullStars; i++) {
+    stars.add(Icon(Icons.star, size: starSize, color: Colors.yellow));
   }
 
-  // Review Widget
-  Widget _buildReview(String customerName, String feedback, int rating) {
-    return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.deepPurple, // Display first letter of the customer's name
-          foregroundColor: Colors.white,
-          child: Text(customerName[0]),
-        ),
-        title: Text(customerName),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(feedback),
-            Row(
-              children: List.generate(rating, (index) => const Icon(Icons.star, color: Colors.yellow)),
-            ),
-          ],
-        ),
-      ),
-    );
+  // Create half star if applicable
+  if (fractionalPart >= 0.25 && fractionalPart < 0.75) {
+    stars.add(Icon(Icons.star_half, size: starSize, color: Colors.yellow));
+  } else if (fractionalPart >= 0.75) {
+    stars.add(Icon(Icons.star, size: starSize, color: Colors.yellow));
   }
+
+  // Fill the remaining stars with empty stars
+  for (int i = fullStars + (fractionalPart >= 0.75 ? 1 : 0); i < 5; i++) {
+    stars.add(Icon(Icons.star_border, size: starSize, color: Colors.yellow));
+  }
+
+  // Add the rating value next to the stars
+  return Row(
+    children: [
+      Row(
+        children: stars,
+      ),
+      const SizedBox(width: 4), // Space between stars and rating text
+      Text(
+        rating.toStringAsFixed(1), // Format rating to one decimal place
+        style: const TextStyle(fontSize: 16, color: Colors.deepPurple, fontWeight: FontWeight.bold),
+      ),
+    ],
+  );
+}
   // Daily Schedule Section
   Widget _buildDailySchedule() {
     return Padding(
@@ -785,27 +926,6 @@ if (response.statusCode == 200) {
 
 
 
-  // Dummy job data for static job history
-  final List<Map<String, dynamic>> jobs = [
-    {
-      'title': 'Fix Car Engine',
-      'description': 'Repair the engine of a Toyota Corolla.',
-      'rating': 4.5,
-      'date': '2024-09-21'
-    },
-    {
-      'title': 'Replace Brakes',
-      'description': 'Replace brake pads for a Ford Mustang.',
-      'rating': 3.8,
-      'date': '2024-08-14'
-    },
-    {
-      'title': 'Oil Change',
-      'description': 'Change oil for Honda Civic.',
-      'rating': 4.2,
-      'date': '2024-07-10'
-    },
-  ];
 
 // QR Code scan function
 void _onQRCodeScanned(String qrData) async {
@@ -1413,105 +1533,218 @@ bool _isBase64(String str) {
 
 
 
+  List<Map<String, dynamic>> jobs = [];
+  int workCount = 0;
+  double rating = 0.0;
+  int peopleCount = 0;
+  bool isLoading = true;
 
-Widget _buildStatsRow() {
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-    children: [
-      _buildStatCard(
-        icon: Icons.work,
-        value: '120', // Replace with dynamic data if available
-      ),
-      _buildStatCard(
-        icon: Icons.star,
-        rating: 4.5, // Pass the rating value as a double
-        width: 120,  // Custom width for the star rating card
-        height: 55, // Custom height for the star rating card
-      ),
-      _buildStatCard(
-        icon: Icons.people,
-        value: '300', // Replace with dynamic data if available
-      ),
-    ],
-  );
-}
+  // Function to fetch data from the backend
+  Future<void> fetchStats() async {
+    const String apiUrl = 'https://expertstrials.xyz/Garifix_app/api/stats'; // Replace with your backend URL
 
-Widget _buildStatCard({
-  required IconData icon,
-  String? value,
-  double? rating,
-  double width = 80,
-  double height = 60, // Default height value
-}) {
-  return Card(
-    elevation: 4,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-    child: Container(
-      padding: const EdgeInsets.all(4), // Adjusted padding for a better fit
-      width: width, // Use the passed width parameter
-      height: height, // Use the passed height parameter
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center, // Center the content vertically
-        children: [
-          Icon(icon, size: 20, color: Colors.deepPurple),
-          const SizedBox(height: 0), // Set to 0 to eliminate space
-          if (rating != null) ...[
-            _buildStarRating(rating), // Display stars if rating is provided
-          ] else if (value != null) ...[
-            Text(
-              value,
-              style: const TextStyle(fontSize: 14, color: Colors.deepPurple, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
+    try {
+      // Retrieve the token from shared preferences
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('jwt_token');
+
+      // Print the retrieved token for debugging
+      print('Token retrieved: $token');
+
+      // Add the token to the request headers
+      final response = await http.get(
+        Uri.parse(apiUrl),
+        headers: {
+          'Authorization': 'Bearer $token', // Include the token as a Bearer token
+          'Content-Type': 'application/json',
+        },
+      );
+
+      // Print the response status code for debugging
+      print('Response status code: ${response.statusCode}');
+      // Print the response body for debugging
+      print('Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        // Parse the JSON response
+        final data = json.decode(response.body);
+        print('Data received: $data');
+
+        setState(() {
+          workCount = data['workCount'] ?? 0;
+          rating = (data['rating'] ?? 0.0).toDouble();
+          peopleCount = data['peopleCount'] ?? 0;
+          isLoading = false;
+
+          // Populate jobs list dynamically from API response
+          jobs = (data['jobs'] as List<dynamic>).map((job) {
+            return {
+              'title': job['problem_type'] ?? 'No title',
+              'description': job['details'] ?? 'No description',
+              'rating': job['rating'] ?? 0.0,
+              'date': job['created_at'] ?? 'No date',
+            };
+          }).toList();
+        });
+      } else {
+        // Handle error response
+        print('Failed to load data: ${response.statusCode} ${response.reasonPhrase}');
+      }
+    } catch (e) {
+      // Print the error message for debugging
+      print('Error fetching data: $e');
+    }
+  }
+
+
+
+  @override
+  void initState() {
+    super.initState();
+    fetchStats(); // Fetch data when the widget is initialized
+  }
+
+
+
+  Widget _buildStatsRow() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _buildStatCard(
+          icon: Icons.work,
+          value: workCount.toString(), // Dynamic value
+        ),
+        _buildStatCard(
+          icon: Icons.star,
+          rating: rating, // Dynamic rating
+          width: 120,
+          height: 55,
+        ),
+        _buildStatCard(
+          icon: Icons.people,
+          value: peopleCount.toString(), // Dynamic value
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    String? value,
+    double? rating,
+    double width = 80,
+    double height = 60,
+  }) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Container(
+        padding: const EdgeInsets.all(4),
+        width: width,
+        height: height,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20, color: Colors.deepPurple),
+            const SizedBox(height: 0),
+            if (rating != null) ...[
+              _buildStarRating(rating),
+            ] else if (value != null) ...[
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.deepPurple,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
           ],
-        ],
+        ),
       ),
-    ),
-  );
-}
-
-// Method to build star rating with value
-Widget _buildStarRating(double rating) {
-  List<Widget> stars = [];
-  int fullStars = rating.floor(); // Number of full stars
-  double fractionalPart = rating - fullStars; // Fractional part of the rating
-  double starSize = 10.0; // Size of each star
-
-  // Create full stars
-  for (int i = 0; i < fullStars; i++) {
-    stars.add(Icon(Icons.star, size: starSize, color: Colors.yellow));
+    );
   }
 
-  // Create half star if applicable
-  if (fractionalPart >= 0.25 && fractionalPart < 0.75) {
-    stars.add(Icon(Icons.star_half, size: starSize, color: Colors.yellow));
-  } else if (fractionalPart >= 0.75) {
-    stars.add(Icon(Icons.star, size: starSize, color: Colors.yellow));
+  // Method to build star rating with value
+  Widget _buildStarRating(double rating) {
+    List<Widget> stars = [];
+    int fullStars = rating.floor();
+    double fractionalPart = rating - fullStars;
+    double starSize = 10.0;
+
+    for (int i = 0; i < fullStars; i++) {
+      stars.add(Icon(Icons.star, size: starSize, color: Colors.yellow));
+    }
+
+    if (fractionalPart >= 0.25 && fractionalPart < 0.75) {
+      stars.add(Icon(Icons.star_half, size: starSize, color: Colors.yellow));
+    } else if (fractionalPart >= 0.75) {
+      stars.add(Icon(Icons.star, size: starSize, color: Colors.yellow));
+    }
+
+    for (int i = fullStars + (fractionalPart >= 0.75 ? 1 : 0); i < 5; i++) {
+      stars.add(Icon(Icons.star_border, size: starSize, color: Colors.yellow));
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Row(
+          children: stars,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          rating.toStringAsFixed(1),
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.deepPurple,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
   }
 
-  // Fill the remaining stars with empty stars
-  for (int i = fullStars + (fractionalPart >= 0.75 ? 1 : 0); i < 5; i++) {
-    stars.add(Icon(Icons.star_border, size: starSize, color: Colors.yellow));
+  // Method to build star rating with value
+  Widget _buildJobRating(double rating) {
+    List<Widget> stars = [];
+    int fullStars = rating.floor();
+    double fractionalPart = rating - fullStars;
+    double starSize = 10.0;
+
+    for (int i = 0; i < fullStars; i++) {
+      stars.add(Icon(Icons.star, size: starSize, color: Colors.yellow));
+    }
+
+    if (fractionalPart >= 0.25 && fractionalPart < 0.75) {
+      stars.add(Icon(Icons.star_half, size: starSize, color: Colors.yellow));
+    } else if (fractionalPart >= 0.75) {
+      stars.add(Icon(Icons.star, size: starSize, color: Colors.yellow));
+    }
+
+    for (int i = fullStars + (fractionalPart >= 0.75 ? 1 : 0); i < 5; i++) {
+      stars.add(Icon(Icons.star_border, size: starSize, color: Colors.yellow));
+    }
+
+    return Row(
+      children: [
+        Row(
+          children: stars,
+        ),
+        const SizedBox(width: 4),
+        Text(
+          rating.toStringAsFixed(1),
+          style: const TextStyle(
+            fontSize: 14,
+            color: Colors.deepPurple,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
   }
-
-  // Add the rating value next to the stars
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      Row(
-        children: stars,
-      ),
-      const SizedBox(width: 4), // Space between stars and rating text
-      Text(
-        rating.toStringAsFixed(1), // Format rating to one decimal place
-        style: const TextStyle(fontSize: 14, color: Colors.deepPurple, fontWeight: FontWeight.bold),
-      ),
-    ],
-  );
-}
-
-
 
 
   // Job card widget with rating and details
@@ -1537,12 +1770,7 @@ Widget _buildStarRating(double rating) {
               style: const TextStyle(fontSize: 14, color: Colors.grey),
             ),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber),
-                Text('${job['rating']}'),
-              ],
-            ),
+            _buildJobRating(job['rating']),
             const SizedBox(height: 8),
             Text(
               'Date: ${job['date']}',

@@ -4,7 +4,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'fingerprint_setup_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:animated_text_kit/animated_text_kit.dart';  // For text animation
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';  // For beautiful icons
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
 
@@ -32,28 +33,74 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
-  Future<void> _signup() async {
-    final response = await http.post(
-      Uri.parse('https://expertstrials.xyz/Garifix_app/signup'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(<String, String>{
-        'full_name': _fullNameController.text,
-        'email': _emailController.text,
-        'phone': _phoneController.text,
-      }),
+  // For beautiful icons
+
+Future<void> _signup() async {
+  final response = await http.post(
+    Uri.parse('https://expertstrials.xyz/Garifix_app/signup'),
+    headers: <String, String>{
+      'Content-Type': 'application/json; charset=UTF-8',
+    },
+    body: jsonEncode(<String, String>{
+      'full_name': _fullNameController.text,
+      'email': _emailController.text,
+      'phone': _phoneController.text,
+    }),
+  );
+
+  if (response.statusCode == 201) {
+    // Show success message with a beautiful custom SnackBar
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 3),
+        content: Row(
+          children: [
+            FaIcon(
+              FontAwesomeIcons.checkCircle,  // A success check icon
+              color: Colors.greenAccent,
+              size: 32.0,
+            ),
+            const SizedBox(width: 10),
+            AnimatedTextKit(
+              animatedTexts: [
+                TyperAnimatedText(
+                  'Signup Successful!',
+                  textStyle: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.white,
+                  ),
+                  speed: const Duration(milliseconds: 100),
+                ),
+              ],
+              totalRepeatCount: 1,
+            ),
+          ],
+        ),
+        backgroundColor: Colors.green[600],  // Green background for success
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.all(16),
+      ),
     );
 
-    if (response.statusCode == 201) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Signup successful!")),
-      );
+    // Parse the response body to extract token
+    final responseData = jsonDecode(response.body);
+    String? token = responseData['token']; // Assuming 'token' is in the response JSON
 
+    if (token != null) {
+      // Save the token in SharedPreferences
       SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString('jwt_token', token);
+      print('Token stored: $token'); // You can log it for debugging
+
+      // Save additional user info if needed
       await prefs.setBool('isSignedUp', true);
       await prefs.setString('userEmail', _emailController.text);
 
+      // Redirect to the Fingerprint Setup screen
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -61,11 +108,46 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Signup failed: ${response.body}")),
-      );
+      print('Error: No token in the response.');
     }
+  } else {
+    // Show error message
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            FaIcon(
+              FontAwesomeIcons.timesCircle,  // Error icon
+              color: Colors.redAccent,
+              size: 32.0,
+            ),
+            const SizedBox(width: 10),
+            AnimatedTextKit(
+              animatedTexts: [
+                TyperAnimatedText(
+                  'Signup Failed: ${response.body}',
+                  textStyle: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.white,
+                  ),
+                  speed: const Duration(milliseconds: 100),
+                ),
+              ],
+              totalRepeatCount: 1,
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red[600],  // Red background for error
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.all(16),
+      ),
+    );
   }
+}
 
   @override
   Widget build(BuildContext context) {

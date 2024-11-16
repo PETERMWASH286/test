@@ -15,6 +15,7 @@ import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'dart:async';
 import 'package:lottie/lottie.dart'; // Ensure you have this package in your pubspec.yaml
 import 'package:flutter_rating_bar/flutter_rating_bar.dart'; // Add flutter_rating_bar package for star rating bar
+// Import the newly created file
 import 'success_popup.dart'; // Import the newly created file
 
 class SocketService {
@@ -399,6 +400,371 @@ void startLongPolling(Function(List<Map<String, dynamic>>) onMessageReceived) as
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
+
+
+Future<Map<String, dynamic>> fetchMaintenanceData() async {
+  try {
+    final maintenanceData = await fetchMaintenanceCosts();
+    final userCars = await fetchUserCars();
+    final recentServices = await fetchRecentServices();
+    return {
+      "maintenanceData": maintenanceData ?? {},
+      "userCars": userCars ?? [],
+      "recentServices": recentServices ?? []
+    };
+  } catch (e) {
+    print("Error fetching data: $e");
+    return {
+      "maintenanceData": {},
+      "userCars": [],
+      "recentServices": []
+    };
+  }
+}
+
+
+Future<List<dynamic>> fetchUserCars() async {
+  try {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token');
+
+    if (token == null) {
+      throw Exception('Token is missing!');
+    }
+
+    final response = await http.get(
+      Uri.parse('https://expertstrials.xyz/Garifix_app/api/user_cars'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      // Debugging: Print the raw response body
+      print('Response body: ${response.body}');
+      
+      // Decode the response and access the 'cars' key
+      final Map<String, dynamic> responseData = json.decode(response.body);
+
+      // Debugging: Print the decoded response data
+      print('Decoded response data: $responseData');
+       
+      final List<dynamic> cars = responseData['cars']; // Access the 'cars' list
+
+      // Debugging: Print the list of cars
+      print('Cars data: $cars');
+      
+      return cars;
+    } else {
+      print('Failed to load user cars: ${response.statusCode} - ${response.body}');
+      throw Exception('Failed to load user cars: ${response.body}');
+    }
+  } catch (e) {
+    print('Error fetching user cars: $e');
+    return [];
+  }
+}
+Future<List<dynamic>> fetchRecentServices() async {
+  try {
+    // Get token from shared preferences
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token');
+
+    // Check if token is available
+    if (token == null) {
+      throw Exception('Token is missing!');
+    }
+
+    // Make API request
+    final response = await http.get(
+      Uri.parse('https://expertstrials.xyz/Garifix_app/api/recent_services'), 
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    // Handle response
+    if (response.statusCode == 200) {
+      // Debugging: Print the raw response body
+      print('Response body: ${response.body}');
+      
+      final Map<String, dynamic> responseData = json.decode(response.body);
+
+      // Debugging: Print the decoded response data
+      print('Decoded response data: $responseData/ta');
+      
+      final List<dynamic> services = responseData['recent_services']; // Access the 'recent_services' list
+
+      // Debugging: Print the list of services
+      print('Services data: $services');
+      
+      return services;
+    } else {
+      throw Exception('Failed to load recent services: ${response.body}');
+    }
+  } catch (e) {
+    print('Error fetching recent services: $e');
+    return [];
+  }
+}
+
+
+Future<Map<String, dynamic>> fetchMaintenanceCosts() async {
+  try {
+    // Fetch token from shared preferences
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Authentication token is missing or invalid.');
+    }
+
+    // API request
+    final response = await http.get(
+      Uri.parse('https://expertstrials.xyz/Garifix_app/api/maintenance_costs'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    // Check for response status
+    if (response.statusCode == 200) {
+      // Parse JSON response
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+      // Debugging print statement
+      print('Maintenance Costs Data: $data');
+
+      return data;
+    } else {
+      // Log error details for non-200 responses
+      print('Failed to load maintenance costs: ${response.statusCode} - ${response.body}');
+      throw Exception('Failed to load maintenance costs. HTTP status: ${response.statusCode}');
+    }
+  } catch (e) {
+    // Catch any errors during the request or JSON parsing
+    print('Error fetching maintenance costs: $e');
+    return {'error': e.toString()};
+  }
+}
+
+void _showHelpDialog(BuildContext context) async {
+  String selectedProblem = 'App Crashing'; // Default or selected problem
+  TextEditingController messageController = TextEditingController();
+
+Future<void> _submitHelpRequest() async {
+  try {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token');
+    if (token == null) {
+      // Handle token not found scenario
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User not authenticated')),
+      );
+      return;
+    }
+
+    // Prepare data
+    Map<String, dynamic> requestData = {
+      "problem": selectedProblem,
+      "message": messageController.text,
+    };
+
+    // Make POST request
+    final response = await http.post(
+      Uri.parse('https://expertstrials.xyz/Garifix_app/api/help-request'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(requestData),
+    );
+
+    if (response.statusCode == 201) { // Check for the 201 status code
+      // Hide the dialog and clear inputs
+      Navigator.of(context).pop(); // Close the help dialog
+      messageController.clear(); // Clear the input field
+
+      // Request successful, show the success popup
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return SuccessPopup(
+        message: 'Our support team will review your request and get back to you as soon as possible. Thank you for reaching out to us!',          );
+        },
+      );
+    } else {
+      // Handle error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to submit request: ${response.body}')),
+      );
+    }
+  } catch (e) {
+    // Handle exceptions
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: $e')),
+    );
+  }
+}
+
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 16,
+        child: SingleChildScrollView(
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            width: 350,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              gradient: LinearGradient(
+                colors: [Colors.indigo.shade700, Colors.purple.shade300],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.3),
+                  blurRadius: 10,
+                  offset: const Offset(0, 5),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Heading with Icon
+                const Row(
+                  children: [
+                    Icon(Icons.help_outline, color: Colors.amberAccent, size: 30),
+                    SizedBox(width: 10),
+                    Text(
+                      'Need Help?',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Problem Type Dropdown
+                const Text(
+                  'Select a Problem:',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                DropdownButtonFormField<String>(
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'Select an issue...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                  value: selectedProblem,
+                  items: [
+                    'App Crashing',
+                    'Slow Performance',
+                    'Login Issues',
+                    'Payment Problems',
+                    'Other'
+                  ]
+                      .map((problem) => DropdownMenuItem<String>(
+                            value: problem,
+                            child: Text(problem),
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    selectedProblem = value ?? selectedProblem;
+                  },
+                ),
+                const SizedBox(height: 20),
+
+                // Optional Message TextField
+                const Text(
+                  'Additional Message (Optional):',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                TextField(
+                  controller: messageController,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'Describe your issue...',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.all(12),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Chat and Submit Buttons
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        // Open chat functionality
+                      },
+                      icon: const Icon(Icons.chat_bubble, size: 18, color: Colors.cyan),
+                      label: const Text('Chat with Support'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.deepPurple,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        shadowColor: Colors.cyan.withOpacity(0.5),
+                        elevation: 8,
+                      ),
+                    ),
+                    ElevatedButton.icon(
+                      onPressed: () => _submitHelpRequest(),
+                      icon: const Icon(Icons.send, size: 18, color: Colors.redAccent),
+                      label: const Text('Submit'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.deepPurple,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        shadowColor: Colors.redAccent.withOpacity(0.5),
+                        elevation: 8,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -458,123 +824,182 @@ class HomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-// Welcome Message Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: fetchMaintenanceData(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text("Error: ${snapshot.error}"));
+          } else if (!snapshot.hasData) {
+            return const Center(child: Text("No data available"));
+          }
+
+          final maintenanceData = snapshot.data!['maintenanceData'];
+          final userCars = snapshot.data!['userCars'];
+          final recentServices = snapshot.data!['recentServices'];
+
+          return SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Welcome Back!',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.deepPurple,
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      // Define action for seeking support
-                      // For example, navigate to support page or open a dialog
-                    },
-                    icon: const Icon(Icons.support_agent,
-                        size: 20), // Icon for support
-                    label: const Text('Seek Support'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          Colors.deepPurple, // Updated button color
-                      foregroundColor: Colors.white, // Updated text color
-                      shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(10), // Rounded corners
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Welcome Back!',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.deepPurple,
+                        ),
                       ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 8), // Padding for the button
-                    ),
+    ElevatedButton.icon(
+      onPressed: () {
+        // Show pop-up when the button is pressed
+        _showHelpDialog(context);
+      },
+      icon: const Icon(Icons.support_agent, size: 20),
+      label: const Text('Seek Support'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      ),
+    ),
+  
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-// Maintenance Costs Summary Section
-              const Text(
-                'Maintenance Costs Summary:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              const Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  SummaryCard(
-                    label: 'Total Cost',
-                    amount: 8000,
-                    icon: Icons.attach_money, // Money icon for total cost
-                  ),
-                  SummaryCard(
-                    label: "This Month's Cost",
-                    amount: 1500,
-                    icon:
-                        Icons.calendar_today, // Calendar icon for monthly cost
-                  ),
-                ],
-              ),
+                  // Maintenance Costs Summary Section
+const Text(
+  'Maintenance Costs Summary:',
+  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+),
+const SizedBox(height: 10),
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    SummaryCard(
+      label: 'Total Cost',
+      amount: maintenanceData['total_cost'] ?? 0,  // Default to 0 if null or missing
+      icon: Icons.attach_money,
+    ),
+    SummaryCard(
+      label: "This Month's Cost",
+      amount: maintenanceData['monthly_cost'] ?? 0,  // Default to 0 if null or missing
+      icon: Icons.calendar_today,
+    ),
+  ],
+),
+const SizedBox(height: 20),
 
-              const SizedBox(height: 20),
 
-              const Text(
-                'Your Cars:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                height: 200,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: const [
-                    CarCard(
-                        carModel: 'Toyota Corolla',
-                        totalCost: 3000,
-                        repairDetails: 'Brake Pad Replacement',
-                        imageUrl:
-                            'https://haynes.com/en-gb/sites/default/files/styles/unaltered_webp/public/carphoto-location_0.jpg?itok=ctj5rnvC&timestamp=1476269366'),
-                    CarCard(
-                        carModel: 'Honda Civic',
-                        totalCost: 1500,
-                        repairDetails: 'Oil Change',
-                        imageUrl:
-                            'https://media.istockphoto.com/id/501282196/photo/laferrari.jpg?s=612x612&w=0&k=20&c=yJH3oUuhYSmta_BYdwoUOktqWps5zC86guy5hQ29608='),
-                    CarCard(
-                        carModel: 'Ford Focus',
-                        totalCost: 2500,
-                        repairDetails: 'Tire Rotation',
-                        imageUrl:
-                            'https://hips.hearstapps.com/hmg-prod/images/2026-bugatti-tourbillon-104-66709d54aa287.jpg?crop=0.819xw:0.692xh;0.0994xw,0.185xh&resize=2048:*'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
+const Text(
+  'Your Cars:',
+  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+),
+const SizedBox(height: 10),
 
-              const Text(
-                'Recent Services:',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              const ServiceCard(
-                serviceName: 'Engine Check',
-                date: 'Oct 23, 2024',
-                cost: 150.00,
-              ),
-              const ServiceCard(
-                serviceName: 'Tire Replacement',
-                date: 'Oct 18, 2024',
-                cost: 400.00,
-              ),
-              const SizedBox(height: 20),
+// Check if userCars list is empty
+if (userCars.isEmpty) 
+  // Display a beautiful message when there are no cars
+  Container(
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(12),
+      gradient: LinearGradient(
+        colors: [Colors.purple.shade200, Colors.deepPurple.shade400],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black26,
+          offset: Offset(2, 2),
+          blurRadius: 4,
+        ),
+      ],
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.directions_car, color: Colors.white, size: 30),
+        const SizedBox(width: 10),
+        const Expanded(
+          child: Text(
+            'You currently have no cars added. Add a car to track maintenance costs and details!',
+            style: TextStyle(color: Colors.white, fontSize: 16),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      ],
+    ),
+  )
+else 
+  // Display the list of cars when available
+  SizedBox(
+    height: 200,
+    child: ListView.builder(
+      scrollDirection: Axis.horizontal,
+      itemCount: userCars.length,  // Length of the userCars list
+      itemBuilder: (context, index) {
+        final car = userCars[index];
+        final imageUrl = car['image_path'] != null 
+            ? 'https://expertstrials.xyz/Garifix_app/${car['image_path']}'  // Prepend the base URL to the image path
+            : '';  // Default to empty string if image path is null
+            
+        return CarCard(
+          carModel: car['car_name'] ?? 'Unknown Car',  // Provide default if null
+          totalCost: (car['total_cost'] != null) ? double.tryParse(car['total_cost'].toString()) ?? 0.0 : 0.0,
+          imageUrl: imageUrl,  // Use the updated image URL
+          year: car['year'] ?? 'Unknown Year',  // Added year
+          mileage: car['mileage'] ?? 0.0,  // Added mileage
+          color: car['color'] ?? 'Unknown Color',  // Added color
+        );
+      },
+    ),
+  ),
+const SizedBox(height: 20),
+
+
+
+          // Recent Services Section
+// Recent Services Section
+const Text(
+  'Recent Services:',
+  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+),
+const SizedBox(height: 10),
+recentServices.isEmpty
+    ? const Padding(
+        padding: EdgeInsets.all(8.0),
+        child: Text(
+          'No recent services available.',
+          style: TextStyle(fontSize: 14, color: Colors.grey),
+        ),
+      )
+    : ListView.builder(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: recentServices.length,
+        itemBuilder: (context, index) {
+          final service = recentServices[index];
+          return ServiceCard(
+            serviceName: service['service_name'], // service_name now contains "service_name - selected_car"
+            date: service['date'],
+            cost: (service['cost'] != null) ? double.tryParse(service['cost'].toString()) ?? 0.0 : 0.0,
+          );
+        },
+      ),
+const SizedBox(height: 20),
+
 
               const Text(
                 'News & Tips:',
@@ -589,9 +1014,11 @@ class HomePage extends StatelessWidget {
                 title: 'How to Save on Car Repairs',
                 icon: Icons.money_off,
               ),
-            ],
-          ),
-        ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -644,7 +1071,7 @@ class SummaryCard extends StatelessWidget {
               ),
             ),
             Text(
-              '\$${amount.toStringAsFixed(2)}',
+              'Ksh ${amount.toStringAsFixed(2)}',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -658,7 +1085,6 @@ class SummaryCard extends StatelessWidget {
   }
 }
 
-// Service Card Widget
 class ServiceCard extends StatelessWidget {
   final String serviceName;
   final String date;
@@ -675,12 +1101,13 @@ class ServiceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       leading: const Icon(Icons.build, color: Colors.deepPurple),
-      title: Text(serviceName),
+      title: Text(serviceName), // This will now display "service_name - selected_car"
       subtitle: Text(date),
-      trailing: Text('\$$cost'),
+      trailing: Text('Ksh $cost'),
     );
   }
 }
+
 
 // News Card Widget
 class NewsCard extends StatelessWidget {
@@ -702,19 +1129,22 @@ class NewsCard extends StatelessWidget {
   }
 }
 
-// Car Card Widget
 class CarCard extends StatelessWidget {
   final String carModel;
   final double totalCost;
-  final String repairDetails;
   final String imageUrl;
+  final String year;  // Added year
+  final double mileage;  // Added mileage
+  final String color;  // Added color
 
   const CarCard({
     super.key,
     required this.carModel,
     required this.totalCost,
-    required this.repairDetails,
     required this.imageUrl,
+    required this.year,  // Required year
+    required this.mileage,  // Required mileage
+    required this.color,  // Required color
   });
 
   @override
@@ -745,14 +1175,23 @@ class CarCard extends StatelessWidget {
             ),
             const SizedBox(height: 5),
             Text(
-              'Total Cost: \$${totalCost.toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 14, color: Colors.white70),
+              'Year: $year',
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+            Text(
+              'Color: $color',
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
+            ),
+            Text(
+              'Mileage: ${mileage.toStringAsFixed(2)} km',
+              style: const TextStyle(fontSize: 12, color: Colors.white70),
             ),
             const SizedBox(height: 5),
             Text(
-              'Last Repair: $repairDetails',
+              'Total Cost: \$${totalCost.toStringAsFixed(2)}',
               style: const TextStyle(fontSize: 14, color: Colors.white70),
             ),
+
           ],
         ),
       ),
@@ -760,13 +1199,18 @@ class CarCard extends StatelessWidget {
   }
 }
 
+
+
 class _AdditionalCostsDialog extends StatefulWidget {
+  final int repairId;
+
+  const _AdditionalCostsDialog({required this.repairId});
+
   @override
   __AdditionalCostsDialogState createState() => __AdditionalCostsDialogState();
 }
 
 class __AdditionalCostsDialogState extends State<_AdditionalCostsDialog> {
-  // A list to store the controllers for each row
   List<Map<String, TextEditingController>> costRows = [
     {
       'costName': TextEditingController(),
@@ -777,7 +1221,6 @@ class __AdditionalCostsDialogState extends State<_AdditionalCostsDialog> {
 
   @override
   void dispose() {
-    // Dispose controllers when the dialog is closed
     for (var row in costRows) {
       row['costName']?.dispose();
       row['company']?.dispose();
@@ -785,6 +1228,117 @@ class __AdditionalCostsDialogState extends State<_AdditionalCostsDialog> {
     }
     super.dispose();
   }
+
+
+void showSuccessPopup(BuildContext context) {
+  showDialog(
+    context: context,
+    barrierDismissible: false,  // Make the dialog non-dismissable
+    builder: (context) => Dialog(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+      ),
+      elevation: 10,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        height: 290,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            // Animated success icon (Lottie animation)
+            Lottie.asset(
+              'assets/lotti/Animation - 1730958529727.json', // Add your Lottie success animation file here
+              width: 100,
+              height: 100,
+            ),
+            const SizedBox(height: 15),
+            // Success Text
+            const Text(
+              'Success!',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Message
+            Text(
+              'Additional costs saved successfully!',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[700],
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            // Close button
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();  // Close the dialog
+                Navigator.of(context).pop();  // Close the dialog
+
+              },
+              style: ElevatedButton.styleFrom(
+
+              ),
+              child: const Text('Okay'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Future<void> _sendDataToFlask(BuildContext context) async {
+  // Collect the cost data
+  List<Map<String, String>> costs = costRows.map((row) {
+    return {
+      'costName': row['costName']?.text ?? '',
+      'company': row['company']?.text ?? '',
+      'cost': row['cost']?.text ?? '',
+    };
+  }).toList();
+
+  // Prepare the request body
+  final Map<String, dynamic> requestBody = {
+    'repairId': widget.repairId,  // Send repairId along with costs
+    'costs': costs,
+  };
+
+  // Get the JWT token from SharedPreferences
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final String? token = prefs.getString('jwt_token');
+
+  if (token == null) {
+    print("No token found");
+    return;
+  }
+
+  // Make the POST request to the Flask backend
+  final response = await http.post(
+    Uri.parse('https://expertstrials.xyz/Garifix_app/additional-costs'), // Your Flask API endpoint
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+    body: json.encode(requestBody),
+  );
+
+  if (response.statusCode == 200) {
+    // Success
+    print("Data sent successfully: ${response.body}");
+
+    // Ensure the widget is still mounted before showing the dialog
+    if (mounted) {
+      showSuccessPopup(context);  // Show success popup
+    }
+  } else {
+    // Error
+    print("Failed to send data: ${response.statusCode}");
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -795,168 +1349,170 @@ class __AdditionalCostsDialogState extends State<_AdditionalCostsDialog> {
       insetPadding: const EdgeInsets.all(16),
       child: Padding(
         padding: const EdgeInsets.all(20.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Title Text
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Add Additional Costs',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.deepPurple,
+        child: SingleChildScrollView(  // Added to make the dialog scrollable
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Title Text
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Add Additional Costs',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.deepPurple),
-                  onPressed: () => Navigator.of(context).pop(), // Close dialog
-                ),
-              ],
-            ),
-            const Divider(color: Colors.deepPurple, thickness: 1),
-
-            // Table header
-            const SizedBox(height: 20),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(child: Text('Cost Name', textAlign: TextAlign.center)),
-                Expanded(child: Text('Company', textAlign: TextAlign.center)),
-                Expanded(child: Text('Cost', textAlign: TextAlign.center)),
-              ],
-            ),
-            const Divider(),
-
-            // Dynamic rows for cost entries
-            Column(
-              children: List.generate(costRows.length, (index) {
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 10.0),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: costRows[index]['costName'],
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.grey[100],
-                            labelText: 'Cost Name',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 15),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: costRows[index]['company'],
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.grey[100],
-                            labelText: 'Company',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 15),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: costRows[index]['cost'],
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Colors.grey[100],
-                            labelText: 'Cost',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 15),
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle, color: Colors.red),
-                        onPressed: () {
-                          if (costRows.length > 1) {
-                            setState(() {
-                              costRows.removeAt(index); // Remove this row
-                            });
-                          }
-                        },
-                      ),
-                    ],
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.deepPurple),
+                    onPressed: () => Navigator.of(context).pop(), // Close dialog
                   ),
-                );
-              }),
-            ),
+                ],
+              ),
+              const Divider(color: Colors.deepPurple, thickness: 1),
 
-            const SizedBox(height: 20),
+              // Table header
+              const SizedBox(height: 20),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(child: Text('Cost Name', textAlign: TextAlign.center)),
+                  Expanded(child: Text('Company', textAlign: TextAlign.center)),
+                  Expanded(child: Text('Cost', textAlign: TextAlign.center)),
+                ],
+              ),
+              const Divider(),
 
-            // Add Row button with icon
-            Align(
-              alignment: Alignment.centerRight,
-              child: IconButton(
-                icon: const Icon(Icons.add_circle, color: Colors.deepPurple, size: 30),
-                onPressed: () {
-                  setState(() {
-                    costRows.add({
-                      'costName': TextEditingController(),
-                      'company': TextEditingController(),
-                      'cost': TextEditingController(),
+              // Dynamic rows for cost entries
+              Column(
+                children: List.generate(costRows.length, (index) {
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 10.0),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: costRows[index]['costName'],
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.grey[100],
+                              labelText: 'Cost Name',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(15),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 15),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: costRows[index]['company'],
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.grey[100],
+                              labelText: 'Company',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(15),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 15),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: costRows[index]['cost'],
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Colors.grey[100],
+                              labelText: 'Cost',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(15),
+                                borderSide: BorderSide.none,
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 15),
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.remove_circle, color: Colors.red),
+                          onPressed: () {
+                            if (costRows.length > 1) {
+                              setState(() {
+                                costRows.removeAt(index); // Remove this row
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Add Row button with icon
+              Align(
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  icon: const Icon(Icons.add_circle, color: Colors.deepPurple, size: 30),
+                  onPressed: () {
+                    setState(() {
+                      costRows.add({
+                        'costName': TextEditingController(),
+                        'company': TextEditingController(),
+                        'cost': TextEditingController(),
+                      });
                     });
-                  });
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Add cost button with gradient
+              ElevatedButton(
+                onPressed: () {
+                  _sendDataToFlask(context); // Send data to Flask
                 },
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // Add cost button with gradient
-            ElevatedButton(
-              onPressed: () {
-                // Handle adding the additional costs
-                print('Additional Costs Added');
-                Navigator.of(context).pop(); // Close the dialog
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple, // Background color
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30), // Rounded corners
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple, // Background color
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30), // Rounded corners
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 15,
+                  ),
+                  shadowColor: Colors.deepPurpleAccent,
+                  elevation: 10,
                 ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 30,
-                  vertical: 15,
-                ),
-                shadowColor: Colors.deepPurpleAccent,
-                elevation: 10,
-              ),
-              child: const Text(
-                'Add Costs',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+                child: const Text(
+                  'Add Costs',
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 }
+
+
 
 
 class RepairsPage extends StatefulWidget {
@@ -1541,7 +2097,7 @@ DropdownButtonFormField<String>(
                   return _buildRepairCard(
                     date: repair['date'],
                     description: repair['description'],
-                    cost: '\$${repair['cost'].toString()}',
+                    cost: 'Ksh ${repair['cost'].toString()}',
                     // Add ID to the repair object for internal use
                     repairId: repair['id'], // Store ID internally if needed
                   );
@@ -1713,8 +2269,8 @@ void _showDetailsDialog(Map<String, dynamic> repairDetails) {
                 ),
                 _buildDetailRow(
                   Icons.monetization_on,
-                  'Cost',
-                  '\$${repairDetails['cost'].toString()}',
+                  'Total Cost',
+                  'Ksh ${repairDetails['cost'].toString()}',
                 ),
                 const SizedBox(height: 20),
 
@@ -1798,7 +2354,7 @@ Container(
           ElevatedButton.icon(
             onPressed: () {
               // Define the action for rating
-              _rateRepair(context, repairDetails['user_full_name']);
+_rateRepair(context, repairDetails['user_full_name'], repairDetails['repair_id']);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.deepPurpleAccent,
@@ -1835,14 +2391,14 @@ Container(
               child: _buildDetailRow(
                 Icons.monetization_on,
                 'Labor Cost',
-                '\$${repairDetails['labor_cost'].toString()}',
+                'Ksh ${repairDetails['labor_cost'].toString()}',
               ),
             ),
             const SizedBox(width: 8), // Space between the button and the input field
             Flexible(
               child: ElevatedButton(
                 onPressed: () {
-                  _showAdditionalCostsDialog(context);
+                  _showAdditionalCostsDialog(context, repairDetails['id']);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
@@ -1922,7 +2478,7 @@ if (!repairDetails.containsKey('labor_cost')) ...[
       Flexible(
         child: ElevatedButton(
           onPressed: () {
-            _showAdditionalCostsDialog(context);
+                  _showAdditionalCostsDialog(context, repairDetails['id']);
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.deepPurple,
@@ -2059,9 +2615,9 @@ Column(
 
 
 
-void _rateRepair(BuildContext context, String userFullName) {
-  double _rating = 0.0; // Initial rating value
-  TextEditingController _messageController = TextEditingController();
+void _rateRepair(BuildContext context, String userFullName, int repairId) {
+  double rating = 0.0; // Initial rating value
+  TextEditingController messageController = TextEditingController();
 
   showDialog(
     context: context,
@@ -2075,7 +2631,7 @@ void _rateRepair(BuildContext context, String userFullName) {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
+              const Text(
                 'Rate Me',
                 style: TextStyle(
                   fontSize: 20,
@@ -2086,20 +2642,23 @@ void _rateRepair(BuildContext context, String userFullName) {
               ),
               const SizedBox(height: 16),
               RatingBar.builder(
-                initialRating: _rating,
+                initialRating: rating,
                 minRating: 1,
                 direction: Axis.horizontal,
                 allowHalfRating: true,
                 glowColor: Colors.purpleAccent.withOpacity(0.4),
                 itemCount: 5,
                 itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                itemBuilder: (context, _) => Icon(
+                itemBuilder: (context, _) => const Icon(
                   Icons.star,
                   color: Colors.deepPurpleAccent,
                 ),
-                onRatingUpdate: (rating) {
-                  _rating = rating;
-                },
+onRatingUpdate: (newRating) {
+  setState(() {
+    rating = newRating;
+  });
+},
+
                 unratedColor: Colors.grey.shade300,
               ),
               const SizedBox(height: 20),
@@ -2107,7 +2666,7 @@ void _rateRepair(BuildContext context, String userFullName) {
                 duration: const Duration(milliseconds: 300),
                 curve: Curves.easeInOut,
                 child: TextField(
-                  controller: _messageController,
+                  controller: messageController,
                   decoration: InputDecoration(
                     hintText: 'Add a message (optional)',
                     hintStyle: TextStyle(color: Colors.grey.shade600),
@@ -2119,7 +2678,7 @@ void _rateRepair(BuildContext context, String userFullName) {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide(color: Colors.deepPurpleAccent, width: 1.5),
+                      borderSide: const BorderSide(color: Colors.deepPurpleAccent, width: 1.5),
                     ),
                   ),
                 ),
@@ -2127,70 +2686,124 @@ void _rateRepair(BuildContext context, String userFullName) {
               const SizedBox(height: 20),
               ElevatedButton(
 onPressed: () async {
-  String message = _messageController.text;
-  Navigator.of(context).pop(); // Close the dialog
+  // Capture the current context safely at this point
+  String message = messageController.text;
+  print('Message to send: $message');
 
-  // Retrieve the token
+  // Retrieve token from shared preferences
   final SharedPreferences prefs = await SharedPreferences.getInstance();
   final String? token = prefs.getString('jwt_token');
+  print('Retrieved token: $token');
 
-  // Check if token is available
   if (token == null) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: Token not found')),
+      const SnackBar(content: Text('Error: Token not found')),
     );
+    print('Error: Token not found');
     return;
   }
 
-  // Send data to Flask backend
-  const String url = 'https://expertstrials.xyz/Garifix_app/rate_mechanic'; // Replace with your actual Flask endpoint
+  // Prepare headers and body
+  const String url = 'https://expertstrials.xyz/Garifix_app/rate_mechanic';
+  final Map<String, String> headers = {
+    'Content-Type': 'application/json; charset=UTF-8',
+    'Authorization': 'Bearer $token',
+  };
+  final Map<String, dynamic> body = {
+    'user_full_name': userFullName,
+    'rating': rating,
+    'repair_id': repairId, // Include repair ID
+    'message': message,
+  };
+  print('Request headers: $headers');
+  print('Request body: $body');
+
   try {
     final response = await http.post(
       Uri.parse(url),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Authorization': 'Bearer $token', // Include token in headers
-      },
-      body: jsonEncode(<String, dynamic>{
-        'user_full_name': userFullName,
-        'rating': _rating,
-        'message': message,
-      }),
+      headers: headers,
+      body: jsonEncode(body),
     );
+
+    print('Response status code: ${response.statusCode}');
+    print('Response body: ${response.body}');
 
     if (response.statusCode == 200) {
-      // Successfully sent data
-      print('Response: ${response.body}');
-      
-      // Delay the popup display for a smoother transition
-      Future.delayed(const Duration(milliseconds: 500), () {
-        // Ensure the widget is still mounted
-        if (mounted) {
-          // Use a more stable context like the one from Scaffold or other parent widget
+      // Display a success dialog
+      if (context.mounted) { // Ensure context is still valid
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return Dialog(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Lottie.asset(
+                      'assets/lotti/Animation - 1730958529727.json', // Add your Lottie animation file
+                      width: 100,
+                      height: 100,
+                      repeat: false,
+                    ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Success!',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Your rating was successfully submitted.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 16),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(context).pop(); // Close the success dialog
+                        Navigator.of(context).pop(); // Close the rateRepair dialog
+                        setState(() {
+                          rating = 0.0; // Reset the rating
+                        });
+                        messageController.clear(); // Clear the text field input
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'OK',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    )
 
-          // Show the dialog using the context
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return const SuccessPopup(message: 'Thank you! Your rating has been successfully submitted.');
-            },
-          );
-        }
-      });
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      }
     } else {
-      // Failed to send data
-      print('Failed to submit rating. Error: ${response.statusCode}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to submit rating')),
-      );
+      print('Failed to submit rating. HTTP Error: ${response.statusCode}');
+      // Extract the error message from backend response
+      final backendMessage = response.body.isNotEmpty ? jsonDecode(response.body)['message'] : 'Unknown error occurred';
+      _showErrorDialog(context, backendMessage);
     }
   } catch (e) {
-    print('Error: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('An error occurred while submitting the rating')),
-    );
+    print('Error occurred while submitting rating: $e');
+    _showErrorDialog(context, 'An error occurred while submitting the rating');
   }
 },
+
 
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -2199,11 +2812,11 @@ onPressed: () async {
                   shadowColor: Colors.deepPurple.withOpacity(0.5),
                   elevation: 8,
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.send, color: Colors.white, size: 20),
-                    const SizedBox(width: 8),
+                    Icon(Icons.send, color: Colors.white, size: 20),
+                    SizedBox(width: 8),
                     Text(
                       'Submit',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
@@ -2218,17 +2831,69 @@ onPressed: () async {
     },
   );
 }
-
-void _showAdditionalCostsDialog(BuildContext context) {
-  // Use StatefulWidget to manage the rows dynamically
+// Function to show a custom error dialog with Lottie animation and styling
+void _showErrorDialog(BuildContext context, String errorMessage) {
   showDialog(
     context: context,
+    barrierDismissible: false,
     builder: (BuildContext context) {
-      return _AdditionalCostsDialog();
+      return Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Lottie.asset(
+                'assets/lotti/Animation - 1731569705908.json', // Path to error animation file
+                width: 100,
+                height: 100,
+                repeat: false,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                errorMessage,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close the error dialog
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Close',
+                  style: TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
     },
   );
 }
 
+
+void _showAdditionalCostsDialog(BuildContext context, int repairId) {
+  // Use StatefulWidget to manage the rows dynamically
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return _AdditionalCostsDialog(repairId: repairId); // Pass the repairId here
+    },
+  );
+}
 
 
 
@@ -3184,6 +3849,45 @@ void _showMessageBottomSheet(
     );
   }
 
+// Method to build star rating with value
+Widget _buildStarRating(double rating) {
+  List<Widget> stars = [];
+  int fullStars = rating.floor(); // Number of full stars
+  double fractionalPart = rating - fullStars; // Fractional part of the rating
+  double starSize = 12.0; // Size of each star
+
+  // Create full stars
+  for (int i = 0; i < fullStars; i++) {
+    stars.add(Icon(Icons.star, size: starSize, color: Colors.yellow));
+  }
+
+  // Create half star if applicable
+  if (fractionalPart >= 0.25 && fractionalPart < 0.75) {
+    stars.add(Icon(Icons.star_half, size: starSize, color: Colors.yellow));
+  } else if (fractionalPart >= 0.75) {
+    stars.add(Icon(Icons.star, size: starSize, color: Colors.yellow));
+  }
+
+  // Fill the remaining stars with empty stars
+  for (int i = fullStars + (fractionalPart >= 0.75 ? 1 : 0); i < 5; i++) {
+    stars.add(Icon(Icons.star_border, size: starSize, color: Colors.yellow));
+  }
+
+  // Add the rating value next to the stars
+  return Row(
+    children: [
+      Row(
+        children: stars,
+      ),
+      const SizedBox(width: 4), // Space between stars and rating text
+      Text(
+        rating.toStringAsFixed(1), // Format rating to one decimal place
+        style: const TextStyle(fontSize: 16, color: Colors.deepPurple, fontWeight: FontWeight.bold),
+      ),
+    ],
+  );
+}
+
 // Mechanic Card UI
 Widget _buildMechanicCard({
   required int id,  // Add mechanic ID here
@@ -3205,9 +3909,16 @@ Widget _buildMechanicCard({
         child: const Icon(Icons.person, color: Colors.white), // Fallback icon
       ),
       title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-      subtitle: Text(
-        'Rating: $rating ★\nDistance: $distance km away\nExpertise: $expertise',
-        style: TextStyle(color: Colors.grey[600]),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildStarRating(double.tryParse(rating) ?? 0), // Show the star rating
+          SizedBox(height: 4),  // Add some spacing
+          Text(
+            'Distance: $distance km away\nExpertise: $expertise',
+            style: TextStyle(color: Colors.grey[600]),
+          ),
+        ],
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -3241,6 +3952,7 @@ Widget _buildMechanicCard({
     ),
   );
 }
+
 
 
   // Simulating posting user location
@@ -3661,50 +4373,93 @@ class _HomeSectionState extends State<HomeSection> {
     );
   }
 
-  Future<void> _createPost(
-      String description, String? imagePath, BuildContext context) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? token = prefs.getString('jwt_token'); // Get the JWT token
-
-    // Define the URL for your Flask backend
-    const String url =
-        'https://expertstrials.xyz/Garifix_app/api/posts'; // Adjust the endpoint accordingly
-
-    // Prepare the request
-    final request = http.MultipartRequest('POST', Uri.parse(url))
-      ..fields['description'] = description
-      ..headers['Authorization'] =
-          'Bearer $token'; // Add the JWT token in the headers
-
-    if (imagePath != null) {
-      // Attach the image file if it exists
-      final imageFile = await http.MultipartFile.fromPath('image', imagePath);
-      request.files.add(imageFile);
-    }
-
-    // Send the request
-    try {
-      final response = await request.send();
-      if (response.statusCode == 200) {
-        print('Post created successfully');
-        // Show success dialog or SnackBar
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Post created successfully!')),
-        );
-      } else {
-        print('Failed to create post: ${response.statusCode}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to create post!')),
-        );
-      }
-    } catch (e) {
-      print('Error occurred: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('An error occurred while creating the post!')),
+Future<void> _createPost(
+  String description, String? imagePath, BuildContext context) async {
+  // Show loading indicator
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder: (BuildContext context) {
+      return Center(
+        child: CircularProgressIndicator(
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.deepPurple),
+        ),
       );
-    }
+    },
+  );
+
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final String? token = prefs.getString('jwt_token'); // Get the JWT token
+
+  // Define the URL for your Flask backend
+  const String url =
+      'https://expertstrials.xyz/Garifix_app/api/posts'; // Adjust the endpoint accordingly
+
+  // Prepare the request
+  final request = http.MultipartRequest('POST', Uri.parse(url))
+    ..fields['description'] = description
+    ..headers['Authorization'] = 'Bearer $token'; // Add the JWT token in the headers
+
+  if (imagePath != null) {
+    // Attach the image file if it exists
+    final imageFile = await http.MultipartFile.fromPath('image', imagePath);
+    request.files.add(imageFile);
   }
+
+  // Send the request
+  try {
+    final response = await request.send();
+    Navigator.of(context).pop(); // Dismiss loading indicator
+    if (response.statusCode == 200) {
+      print('Post created successfully');
+      _showCustomSnackBar(context, true, 'Post created successfully!');
+    } else {
+      print('Failed to create post: ${response.statusCode}');
+      _showCustomSnackBar(context, false, 'Failed to create post!');
+    }
+  } catch (e) {
+    Navigator.of(context).pop(); // Dismiss loading indicator on error
+    print('Error occurred: $e');
+    _showCustomSnackBar(context, false, 'An error occurred while creating the post!');
+  }
+}
+// Show success or error dialog or SnackBar with improved visuals
+void _showCustomSnackBar(BuildContext context, bool isSuccess, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Row(
+        children: [
+          Icon(
+            isSuccess ? Icons.check_circle : Icons.error,
+            color: isSuccess ? Colors.green : Colors.red,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+      backgroundColor: isSuccess ? Colors.green.shade100 : Colors.red.shade100,
+      behavior: SnackBarBehavior.floating,
+      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      elevation: 10,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      duration: const Duration(seconds: 3),
+      action: SnackBarAction(
+        label: 'DISMISS',
+        textColor: isSuccess ? Colors.green : Colors.red,
+        onPressed: () {
+          // Hide the SnackBar if user taps 'DISMISS'
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        },
+      ),
+    ),
+  );
+}
+
 
   Widget _buildExplorePost({
     required String mechanicName,
@@ -5497,33 +6252,94 @@ class _AccountPageState extends State<AccountPage> {
     );
   }
 
-// Function to show success dialog and call the add car form dialog
-  void _showSuccessDialog(BuildContext context, VoidCallback onSuccess) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Row(
+void _showSuccessDialog(BuildContext context, VoidCallback onSuccess) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20.0),
+        ),
+        elevation: 10,
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.check_circle, color: Colors.green),
-              SizedBox(width: 10),
-              Text('Success'),
+              // Animated success icon with transition effect
+              AnimatedOpacity(
+                opacity: 1.0,
+                duration: const Duration(milliseconds: 500),
+                child: Icon(
+                  Icons.check_circle,
+                  size: 80,
+                  color: Colors.green.shade700,
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Title with smooth animation
+              AnimatedDefaultTextStyle(
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.green.shade700,
+                ),
+                duration: const Duration(milliseconds: 500),
+                child: const Text('Success'),
+              ),
+              const SizedBox(height: 10),
+
+              // Content text with animation
+              AnimatedDefaultTextStyle(
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.black.withOpacity(0.7),
+                ),
+                duration: const Duration(milliseconds: 500),
+                child: const Text('The car has been added successfully!'),
+              ),
+
+              const SizedBox(height: 30),
+
+              // Beautiful and elevated "OK" button with animation
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    colors: [Colors.green.shade600, Colors.green.shade300],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Close the dialog
+                    onSuccess(); // Call the function to show the add car form dialog
+                  },
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: Text(
+                      'OK',
+                      style: TextStyle(
+                        fontSize: 18,
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
-          content: const Text('The car has been added successfully!'),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('OK'),
-              onPressed: () {
-                Navigator.of(context).pop(); // Close the dialog
-                onSuccess(); // Call the function to show the add car form dialog
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   void _showAddCarFormDialog(BuildContext context) {
     final carNameController = TextEditingController();
@@ -5555,76 +6371,87 @@ class _AccountPageState extends State<AccountPage> {
       }
     }
 
-    Future<void> addCar(BuildContext context) async {
-      // Get the JWT token
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      final String? token = prefs.getString('jwt_token');
+Future<void> addCar(BuildContext context) async {
+  // Get the JWT token
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final String? token = prefs.getString('jwt_token');
 
-      // Prepare the request data
-      final Map<String, dynamic> carData = {
-        'car_name': carNameController.text,
-        'license_plate': licensePlateController.text,
-        'color': colorController.text,
-        'year': yearController.text,
-        'mileage': mileageController.text,
-        'car_image':
-            carImagePreviewPath != null ? File(carImagePreviewPath!) : null,
-        'document_name': documentName,
-      };
+  // Prepare the request data
+  final Map<String, dynamic> carData = {
+    'car_name': carNameController.text,
+    'license_plate': licensePlateController.text,
+    'color': colorController.text,
+    'year': yearController.text,
+    'mileage': mileageController.text,
+    'car_image':
+        carImagePreviewPath != null ? File(carImagePreviewPath!) : null,
+    'document_name': documentName,
+  };
 
-      // Create multipart request
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse('https://expertstrials.xyz/Garifix_app/api/add-car'),
-      );
+  // Create multipart request
+  var request = http.MultipartRequest(
+    'POST',
+    Uri.parse('https://expertstrials.xyz/Garifix_app/api/add-car'),
+  );
 
-      // Add JWT token to headers
-      request.headers['Authorization'] = 'Bearer $token';
+  // Add JWT token to headers
+  request.headers['Authorization'] = 'Bearer $token';
 
-      // Add fields to the request
-      request.fields['car_name'] = carData['car_name'];
-      request.fields['license_plate'] = carData['license_plate'];
-      request.fields['color'] = carData['color'];
-      request.fields['year'] = carData['year'];
-      request.fields['mileage'] = carData['mileage'];
+  // Add fields to the request
+  request.fields['car_name'] = carData['car_name'];
+  request.fields['license_plate'] = carData['license_plate'];
+  request.fields['color'] = carData['color'];
+  request.fields['year'] = carData['year'];
+  request.fields['mileage'] = carData['mileage'];
 
-      // Add image file if selected
-      if (carImagePreviewPath != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'car_image',
-            carImagePreviewPath!,
-          ),
-        );
-      }
+  // Add image file if selected
+  if (carImagePreviewPath != null) {
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'car_image',
+        carImagePreviewPath!,
+      ),
+    );
+  }
 
-      // Add document file if selected
-      if (documentName != null) {
-        request.files.add(
-          await http.MultipartFile.fromPath(
-            'document',
-            documentName!,
-          ),
-        );
-      }
+  // Add document file if selected
+  if (documentName != null) {
+    request.files.add(
+      await http.MultipartFile.fromPath(
+        'document',
+        documentName!,
+      ),
+    );
+  }
 
-      try {
-        final response = await request.send();
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          // Handle success
-          print('Car added successfully');
-          _showSuccessDialog(context, () {
-            _showAddCarFormDialog(
-                context); // Call to show the add car form dialog
-          });
-        } else {
-          // Handle other status codes
-          print('Failed to add car: ${response.reasonPhrase}');
-        }
-      } catch (e) {
-        print('Error: $e');
-      }
+  try {
+    final response = await request.send();
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      // Handle success
+      print('Car added successfully');
+      
+      // Clear the input fields
+      carNameController.clear();
+      licensePlateController.clear();
+      colorController.clear();
+      yearController.clear();
+      mileageController.clear();
+      carImagePreviewPath = null; // Reset image
+      documentName = null; // Reset document
+
+      // Close the dialog and show success message
+      Navigator.of(context).pop(); // Close the dialog
+      _showSuccessDialog(context, () {
+        _showAddCarFormDialog(context); // Optionally, reopen the dialog
+      });
+    } else {
+      // Handle other status codes
+      print('Failed to add car: ${response.reasonPhrase}');
     }
+  } catch (e) {
+    print('Error: $e');
+  }
+}
 
     showDialog(
       context: context,

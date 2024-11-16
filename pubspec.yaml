@@ -32,6 +32,8 @@ dependencies:
   encrypt: ^5.0.0
   path: ^1.8.0
   flutter_rating_bar: ^4.0.0 # Add the latest version
+  animate_do: ^2.0.0 # or the latest version
+  animated_text_kit: ^4.2.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -50,6 +52,9 @@ flutter:
     - assets/logo/app_logo.png  # Added the app logo here
     - assets/logo/account.jpg
     - assets/lotti/Animation - 1730958529727.json
+    - assets/lotti/Animation - 1731569705908.json
+
+
 
 flutter_icons:
   android: true  # To generate an icon for Android

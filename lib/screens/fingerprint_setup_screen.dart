@@ -4,6 +4,8 @@ import 'package:local_auth/local_auth.dart'; // Import the local_auth package
 import 'dart:convert';
 import 'home_screen.dart';
 import 'package:flutter/services.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';  // For beautiful icons
+import 'package:animated_text_kit/animated_text_kit.dart';  // For text animation
 
 class FingerprintSetupScreen extends StatefulWidget {
   final String email;
@@ -396,11 +398,12 @@ class _ConfirmPinScreenState extends State<ConfirmPinScreen> {
     }
   }
 
+
 void _confirmPin() async {
   if (_confirmPinDigits.join('') == widget.pin) {
     // Save to database
     final response = await http.post(
-      Uri.parse('https://expertstrials.xyz/Garifix_app/save_pin'), // Use the IP address of your Flask server
+      Uri.parse('https://expertstrials.xyz/Garifix_app/save_pin'),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
       },
@@ -411,9 +414,41 @@ void _confirmPin() async {
     );
 
     if (response.statusCode == 200) {
-      // Show success message
+      // Show success message with a beautiful custom SnackBar
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("PIN saved successfully!")),
+        SnackBar(
+          duration: const Duration(seconds: 3),
+          content: Row(
+            children: [
+              FaIcon(
+                FontAwesomeIcons.checkCircle,  // Success icon
+                color: Colors.greenAccent,
+                size: 32.0,
+              ),
+              const SizedBox(width: 10),
+              AnimatedTextKit(
+                animatedTexts: [
+                  TyperAnimatedText(
+                    'PIN saved successfully!',
+                    textStyle: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.white,
+                    ),
+                    speed: const Duration(milliseconds: 100),
+                  ),
+                ],
+                totalRepeatCount: 1,
+              ),
+            ],
+          ),
+          backgroundColor: Colors.green[600],  // Green background for success
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.all(16),
+        ),
       );
 
       // Navigate to HomeScreen
@@ -422,16 +457,81 @@ void _confirmPin() async {
         MaterialPageRoute(builder: (context) => const HomeScreen()),
       );
     } else {
+      // Show error message
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Failed to save PIN: ${response.body}")),
+        SnackBar(
+          content: Row(
+            children: [
+              FaIcon(
+                FontAwesomeIcons.timesCircle,  // Error icon
+                color: Colors.redAccent,
+                size: 32.0,
+              ),
+              const SizedBox(width: 10),
+              AnimatedTextKit(
+                animatedTexts: [
+                  TyperAnimatedText(
+                    'Failed to save PIN: ${response.body}',
+                    textStyle: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.white,
+                    ),
+                    speed: const Duration(milliseconds: 100),
+                  ),
+                ],
+                totalRepeatCount: 1,
+              ),
+            ],
+          ),
+          backgroundColor: Colors.red[600],  // Red background for error
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+          behavior: SnackBarBehavior.floating,
+          margin: EdgeInsets.all(16),
+        ),
       );
     }
   } else {
+    // Show error message for mismatched PINs
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("PINs do not match!")),
+      SnackBar(
+        content: Row(
+          children: [
+            FaIcon(
+              FontAwesomeIcons.timesCircle,  // Error icon
+              color: Colors.redAccent,
+              size: 32.0,
+            ),
+            const SizedBox(width: 10),
+            AnimatedTextKit(
+              animatedTexts: [
+                TyperAnimatedText(
+                  'PINs do not match!',
+                  textStyle: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                    color: Colors.white,
+                  ),
+                  speed: const Duration(milliseconds: 100),
+                ),
+              ],
+              totalRepeatCount: 1,
+            ),
+          ],
+        ),
+        backgroundColor: Colors.red[600],  // Red background for error
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.all(16),
+      ),
     );
   }
 }
+
 
 
   Widget _buildConfirmPinDigitInput(int index) {

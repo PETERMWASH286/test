@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'mechanic_list_screen.dart';
-
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';  // For crazy icons
+import 'package:animated_text_kit/animated_text_kit.dart';  // For animated text
 class MechanicScreen extends StatelessWidget {
   const MechanicScreen({super.key});
 
