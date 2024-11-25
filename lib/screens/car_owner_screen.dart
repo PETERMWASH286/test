@@ -555,7 +555,7 @@ void _showHelpDialog(BuildContext context) async {
   String selectedProblem = 'App Crashing'; // Default or selected problem
   TextEditingController messageController = TextEditingController();
 
-Future<void> _submitHelpRequest() async {
+Future<void> submitHelpRequest() async {
   try {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? token = prefs.getString('jwt_token');
@@ -592,7 +592,7 @@ Future<void> _submitHelpRequest() async {
       showDialog(
         context: context,
         builder: (BuildContext context) {
-          return SuccessPopup(
+          return const SuccessPopup(
         message: 'Our support team will review your request and get back to you as soon as possible. Thank you for reaching out to us!',          );
         },
       );
@@ -740,7 +740,7 @@ Future<void> _submitHelpRequest() async {
                       ),
                     ),
                     ElevatedButton.icon(
-                      onPressed: () => _submitHelpRequest(),
+                      onPressed: () => submitHelpRequest(),
                       icon: const Icon(Icons.send, size: 18, color: Colors.redAccent),
                       label: const Text('Submit'),
                       style: ElevatedButton.styleFrom(
@@ -919,7 +919,7 @@ if (userCars.isEmpty)
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      boxShadow: [
+      boxShadow: const [
         BoxShadow(
           color: Colors.black26,
           offset: Offset(2, 2),
@@ -927,12 +927,12 @@ if (userCars.isEmpty)
         ),
       ],
     ),
-    child: Row(
+    child: const Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         Icon(Icons.directions_car, color: Colors.white, size: 30),
-        const SizedBox(width: 10),
-        const Expanded(
+        SizedBox(width: 10),
+        Expanded(
           child: Text(
             'You currently have no cars added. Add a car to track maintenance costs and details!',
             style: TextStyle(color: Colors.white, fontSize: 16),
@@ -3913,7 +3913,7 @@ Widget _buildMechanicCard({
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildStarRating(double.tryParse(rating) ?? 0), // Show the star rating
-          SizedBox(height: 4),  // Add some spacing
+          const SizedBox(height: 4),  // Add some spacing
           Text(
             'Distance: $distance km away\nExpertise: $expertise',
             style: TextStyle(color: Colors.grey[600]),
@@ -4380,7 +4380,7 @@ Future<void> _createPost(
     context: context,
     barrierDismissible: false,
     builder: (BuildContext context) {
-      return Center(
+      return const Center(
         child: CircularProgressIndicator(
           valueColor: AlwaysStoppedAnimation<Color>(Colors.deepPurple),
         ),

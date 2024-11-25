@@ -8,6 +8,9 @@ android {
     namespace = "com.example.flutter_application_1"
     compileSdk = 34 // Set your compile SDK version here
 
+    // Add the NDK version here
+    ndkVersion = "25.1.8937393"
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8

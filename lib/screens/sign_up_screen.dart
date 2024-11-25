@@ -55,7 +55,7 @@ Future<void> _signup() async {
         duration: const Duration(seconds: 3),
         content: Row(
           children: [
-            FaIcon(
+            const FaIcon(
               FontAwesomeIcons.checkCircle,  // A success check icon
               color: Colors.greenAccent,
               size: 32.0,
@@ -65,7 +65,7 @@ Future<void> _signup() async {
               animatedTexts: [
                 TyperAnimatedText(
                   'Signup Successful!',
-                  textStyle: TextStyle(
+                  textStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                     color: Colors.white,
@@ -82,7 +82,7 @@ Future<void> _signup() async {
           borderRadius: BorderRadius.circular(10),
         ),
         behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.all(16),
+        margin: const EdgeInsets.all(16),
       ),
     );
 
@@ -116,7 +116,7 @@ Future<void> _signup() async {
       SnackBar(
         content: Row(
           children: [
-            FaIcon(
+            const FaIcon(
               FontAwesomeIcons.timesCircle,  // Error icon
               color: Colors.redAccent,
               size: 32.0,
@@ -126,7 +126,7 @@ Future<void> _signup() async {
               animatedTexts: [
                 TyperAnimatedText(
                   'Signup Failed: ${response.body}',
-                  textStyle: TextStyle(
+                  textStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                     color: Colors.white,
@@ -143,7 +143,7 @@ Future<void> _signup() async {
           borderRadius: BorderRadius.circular(10),
         ),
         behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.all(16),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }

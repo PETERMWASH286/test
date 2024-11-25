@@ -420,7 +420,7 @@ void _confirmPin() async {
           duration: const Duration(seconds: 3),
           content: Row(
             children: [
-              FaIcon(
+              const FaIcon(
                 FontAwesomeIcons.checkCircle,  // Success icon
                 color: Colors.greenAccent,
                 size: 32.0,
@@ -430,7 +430,7 @@ void _confirmPin() async {
                 animatedTexts: [
                   TyperAnimatedText(
                     'PIN saved successfully!',
-                    textStyle: TextStyle(
+                    textStyle: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
                       color: Colors.white,
@@ -447,7 +447,7 @@ void _confirmPin() async {
             borderRadius: BorderRadius.circular(10),
           ),
           behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.all(16),
+          margin: const EdgeInsets.all(16),
         ),
       );
 
@@ -462,7 +462,7 @@ void _confirmPin() async {
         SnackBar(
           content: Row(
             children: [
-              FaIcon(
+              const FaIcon(
                 FontAwesomeIcons.timesCircle,  // Error icon
                 color: Colors.redAccent,
                 size: 32.0,
@@ -472,7 +472,7 @@ void _confirmPin() async {
                 animatedTexts: [
                   TyperAnimatedText(
                     'Failed to save PIN: ${response.body}',
-                    textStyle: TextStyle(
+                    textStyle: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
                       color: Colors.white,
@@ -489,7 +489,7 @@ void _confirmPin() async {
             borderRadius: BorderRadius.circular(10),
           ),
           behavior: SnackBarBehavior.floating,
-          margin: EdgeInsets.all(16),
+          margin: const EdgeInsets.all(16),
         ),
       );
     }
@@ -499,7 +499,7 @@ void _confirmPin() async {
       SnackBar(
         content: Row(
           children: [
-            FaIcon(
+            const FaIcon(
               FontAwesomeIcons.timesCircle,  // Error icon
               color: Colors.redAccent,
               size: 32.0,
@@ -509,7 +509,7 @@ void _confirmPin() async {
               animatedTexts: [
                 TyperAnimatedText(
                   'PINs do not match!',
-                  textStyle: TextStyle(
+                  textStyle: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
                     color: Colors.white,
@@ -526,7 +526,7 @@ void _confirmPin() async {
           borderRadius: BorderRadius.circular(10),
         ),
         behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.all(16),
+        margin: const EdgeInsets.all(16),
       ),
     );
   }

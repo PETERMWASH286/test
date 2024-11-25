@@ -1121,27 +1121,30 @@ Widget build(BuildContext context) {
     ),
     body: Stack(
       children: [
-        Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 0),
-              // New Section for Job Stats
-              _buildStatsRow(),
-              const SizedBox(height: 10),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: jobs.length,
-                  itemBuilder: (context, index) {
-                    final job = jobs[index];
-                    return _buildJobCard(job);
-                  },
-                ),
+// Your existing widget
+Padding(
+  padding: const EdgeInsets.all(16.0),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const SizedBox(height: 0),
+      // New Section for Job Stats
+      _buildStatsRow(),
+      const SizedBox(height: 10),
+      Expanded(
+        child: jobs.isEmpty
+            ? _buildEmptyJobListMessage()  // Display this widget when the job list is empty
+            : ListView.builder(
+                itemCount: jobs.length,
+                itemBuilder: (context, index) {
+                  final job = jobs[index];
+                  return _buildJobCard(job);
+                },
               ),
-            ],
-          ),
-        ),
+      ),
+    ],
+  ),
+),
         // QR Code Scanner Icon
         Positioned(
           right: 16,
@@ -1746,6 +1749,51 @@ bool _isBase64(String str) {
     );
   }
 
+
+// Widget to build a beautiful empty job list message
+Widget _buildEmptyJobListMessage() {
+  return Center(
+    child: Transform.translate(
+      offset: const Offset(0, -100),  // Move the widget up by 60px
+      child: Container(
+        padding: const EdgeInsets.all(16.0),
+        decoration: BoxDecoration(
+          color: Colors.blueAccent.withOpacity(0.1),  // Light blue background
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color.fromARGB(255, 153, 156, 160), width: 1.5),  // Accent border
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Beautiful icon
+            const FaIcon(
+              FontAwesomeIcons.solidSadTear,
+              color: Colors.blueAccent,
+              size: 50,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'Your job list is empty!',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueAccent,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'You have not done any job yet.',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
 
   // Job card widget with rating and details
   Widget _buildJobCard(Map<String, dynamic> job) {

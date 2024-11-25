@@ -3,8 +3,10 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'mechanic_list_screen.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';  // For crazy icons
-import 'package:animated_text_kit/animated_text_kit.dart';  // For animated text
+// For crazy icons
+// For animated text
+import 'package:lottie/lottie.dart'; // For animations
+
 class MechanicScreen extends StatelessWidget {
   const MechanicScreen({super.key});
 
@@ -270,7 +272,9 @@ class MechanicScreen extends StatelessWidget {
     );
   }
 
-Future<void> _submitPaymentData(String email, String amount, String subscriptionType, String phoneNumber, BuildContext context) async { 
+
+Future<void> _submitPaymentData(
+    String email, String amount, String subscriptionType, String phoneNumber, BuildContext context) async {
   const String url = 'https://expertstrials.xyz/Garifix_app/api/payment'; // Replace with your backend URL
 
   try {
@@ -305,17 +309,48 @@ Future<void> _submitPaymentData(String email, String amount, String subscription
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: const Text('Payment Successful'),
-              content: Text(responseData['message']),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+              backgroundColor: Colors.greenAccent.shade200,
+              title: const Text(
+                'Payment Successful!',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: Colors.white,
+                  letterSpacing: 2,
+                ),
+              ),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Lottie.asset(
+                    'assets/lotti/Animation - 1730958529727.json', // Add a cool Lottie success animation
+                    width: 100,
+                    height: 100,
+                    animate: true,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    responseData['message'],
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
               actions: [
                 TextButton(
                   onPressed: () {
                     Navigator.of(context).pop(); // Close the dialog
                     Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (context) => const MechanicListScreen()), // Ensure this points to the correct screen
+                      MaterialPageRoute(builder: (context) => const MechanicListScreen()),
                     );
                   },
-                  child: const Text('OK'),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+                  ),
                 ),
               ],
             );
@@ -333,5 +368,4 @@ Future<void> _submitPaymentData(String email, String amount, String subscription
     );
   }
 }
-
 }
