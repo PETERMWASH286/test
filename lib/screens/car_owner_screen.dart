@@ -22,6 +22,7 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:open_file/open_file.dart';
+import 'package:intl/intl.dart';
 
 class SocketService {
   late IO.Socket socket;
@@ -1626,33 +1627,28 @@ Future<void> _submitForm() async {
     return;
   }
 
-  // Save form state and print for debugging
   _formKey.currentState!.save();
   print('Form saved successfully. Problem Type: $_problemType, Urgency Level: ${_urgencyLevel.value}, Details: ${_detailsController.text}, Selected Car: $_selectedCar');
 
   var uri = Uri.parse('https://expertstrials.xyz/Garifix_app/submit_report');
   var request = http.MultipartRequest('POST', uri);
 
-  // Add form fields
   request.fields['problemType'] = _problemType ?? '';
   request.fields['urgencyLevel'] = _urgencyLevel.value.toString();
   request.fields['details'] = _detailsController.text;
 
-  // Check and add the selected car
   if (_selectedCar != null) {
-    request.fields['car'] = _selectedCar!; // Adding selected car to the request
+    request.fields['car'] = _selectedCar!;
     print('Selected Car: $_selectedCar added to request.');
   } else {
     print('No car selected.');
   }
 
-  // Retrieve and print email from preferences
   SharedPreferences prefs = await SharedPreferences.getInstance();
   String? email = prefs.getString('userEmail');
-  request.fields['email'] = email;
-  print('Email added to request: $email');
+  request.fields['email'] = email ?? ''; // Default to empty if null
+  print('Email added to request: ${request.fields['email']}');
 
-  // Adding image files
   if (_imageFiles != null && _imageFiles!.isNotEmpty) {
     for (var image in _imageFiles!) {
       try {
@@ -1666,23 +1662,20 @@ Future<void> _submitForm() async {
     print('No images to upload.');
   }
 
-  // Send request
   var response = await request.send();
 
-  // Handle response
   if (response.statusCode == 201) {
     var responseData = await response.stream.bytesToString();
     print('Form submitted successfully. Response: $responseData');
 
-    Navigator.of(context).pop(); // Close the modal
+    Navigator.of(context).pop();
     _showSuccessDialog();
     _fetchRepairsHistory();
 
-    // Reset form and state
     _formKey.currentState!.reset();
     setState(() {
       _problemType = null;
-      _selectedCar = null; // Reset selected car
+      _selectedCar = null;
       _imageFiles = null;
       _detailsController.clear();
     });
@@ -1692,6 +1685,7 @@ Future<void> _submitForm() async {
     print('Error details: $responseData');
   }
 }
+
 
 
 
@@ -1991,6 +1985,24 @@ DropdownButtonFormField<String>(
         return '';
     }
   }
+List<Map<String, dynamic>> _filteredRepairs() {
+  return _repairsHistory.where((repair) {
+    if (_searchType == 'description') {
+      return repair['description']
+          .toLowerCase()
+          .contains(_searchQuery.toLowerCase());
+    } else if (_searchType == 'selected_car') {
+      return repair['selected_car']
+          .toLowerCase()
+          .contains(_searchQuery.toLowerCase());
+    } else if (_searchType == 'date') {
+      return repair['date']
+          .toLowerCase()
+          .contains(_searchQuery.toLowerCase());
+    }
+    return true;
+  }).toList().cast<Map<String, dynamic>>(); // Cast the filtered list to List<Map<String, dynamic>>
+}
 
   Future<void> _fetchRepairsHistory() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -2008,6 +2020,10 @@ DropdownButtonFormField<String>(
     }
   }
 
+bool _isSearchVisible = false; // State to toggle search input visibility
+String _searchQuery = ''; // State for the search query
+String _searchType = 'description'; // Default search type
+
 @override
 Widget build(BuildContext context) {
   return Scaffold(
@@ -2016,7 +2032,7 @@ Widget build(BuildContext context) {
       backgroundColor: Colors.deepPurple,
       elevation: 10,
       title: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
           // Logo
           Container(
@@ -2036,7 +2052,7 @@ Widget build(BuildContext context) {
               width: 50,
             ),
           ),
-          const SizedBox(width: 15),
+          const SizedBox(width: 10),
           ShaderMask(
             shaderCallback: (Rect bounds) {
               return const LinearGradient(
@@ -2061,24 +2077,97 @@ Widget build(BuildContext context) {
               ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.search),
-            iconSize: 28,
-            color: Colors.white,
-            splashRadius: 25,
-            onPressed: () {
-              // Implement search functionality here
-            },
-            tooltip: 'Search',
-          ),
         ],
       ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.search),
+          iconSize: 28,
+          color: Colors.white,
+          splashRadius: 25,
+          onPressed: () {
+            setState(() {
+              _isSearchVisible = !_isSearchVisible; // Toggle search visibility
+            });
+          },
+          tooltip: 'Search',
+        ),
+      ],
     ),
     body: Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Search Input
+if (_isSearchVisible) ...[
+  Container(
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      boxShadow: [
+        BoxShadow(
+          color: Colors.grey.withOpacity(0.3),
+          blurRadius: 10,
+          spreadRadius: 2,
+        ),
+      ],
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.start,  // Adjust alignment to start if needed
+      children: [
+        // Dropdown field
+        Container(
+          width: 150, // Set a fixed width for the dropdown to prevent overflow
+          child: DropdownButtonFormField<String>(
+            value: _searchType,
+            items: const [
+              DropdownMenuItem(value: 'description', child: Text('Description')),
+              DropdownMenuItem(value: 'selected_car', child: Text('Selected Car')),
+              DropdownMenuItem(value: 'date', child: Text('Date')),
+            ],
+            onChanged: (value) {
+              setState(() {
+                _searchType = value!;
+              });
+            },
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(borderSide: BorderSide.none),
+              filled: true,
+              fillColor: Colors.white,
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        // Search field
+        Expanded(
+          flex: 2, // Adjust flex to make sure this takes up more space
+          child: TextField(
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value; // Update search query
+              });
+            },
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search, color: Colors.deepPurple),
+              hintText: 'Search here...',
+              filled: true,
+              fillColor: Colors.grey[100],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  ),
+  const SizedBox(height: 20),
+],
+
+          // Repairs History
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -2092,7 +2181,7 @@ Widget build(BuildContext context) {
               ),
               ElevatedButton.icon(
                 onPressed: () {
-                  _showReportDialog(); // Show dialog when button pressed
+                  _showReportDialog();
                 },
                 icon: const Icon(Icons.download, size: 18),
                 label: const Text(
@@ -2114,12 +2203,12 @@ Widget build(BuildContext context) {
           const SizedBox(height: 20),
           Expanded(
             child: ListView.builder(
-              itemCount: _repairsHistory.length,
+              itemCount: _filteredRepairs().length, // Use filtered repairs
               itemBuilder: (context, index) {
-                var repair = _repairsHistory[index];
+                var repair = _filteredRepairs()[index];
                 return _buildRepairCard(
                   date: repair['date'],
-                  description: repair['description'],
+                  description: '${repair['description']} - ${repair['selected_car']}',
                   cost: 'Ksh ${repair['cost'].toString()}',
                   repairId: repair['id'],
                 );
@@ -2330,47 +2419,52 @@ Future<void> _generateReport(String reportType) async {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  // Report Header with bold and vibrant styling
+                  // Dynamic Heading
                   pw.Text(
-                    'CAR REPAIR REPORT',
+                    '$reportType - CAR REPAIR REPORT',
                     style: pw.TextStyle(
-                      fontSize: 30,
+                      fontSize: 28,
                       fontWeight: pw.FontWeight.bold,
-                      color: PdfColor.fromHex('#FF5733'), // Vibrant color
+                      color: PdfColor.fromHex('#FF5733'), // Vibrant orange
                     ),
                   ),
-                  pw.Divider(color: PdfColor.fromHex('#FF5733')), // Divider
+                  pw.Divider(color: PdfColor.fromHex('#FF5733')),
 
-                  // Report Details with creative styling
+                  // Report Details Section
+                  pw.Text(
+                    'Report Details',
+                    style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+                  ),
+                  pw.SizedBox(height: 10),
                   _buildReportDetailSection(report),
 
                   // Repairs Section
-                  pw.SizedBox(height: 20),
-                  pw.Text(
-                    'Repairs:',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 20, color: PdfColor.fromHex('#1F618D')),
-                  ),
-                  pw.SizedBox(height: 10),
-                  ...report['repairs'].map<pw.Widget>((repair) {
-                    return _buildRepairItem(repair);
-                  }).toList(),
+                  if (report['repairs'] != null && report['repairs'].isNotEmpty) ...[
+                    pw.SizedBox(height: 20),
+                    pw.Text(
+                      'Repairs',
+                      style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+                    ),
+                    pw.SizedBox(height: 10),
+                    ...report['repairs'].map<pw.Widget>((repair) => _buildRepairItem(repair)),
+                  ],
 
                   // Additional Costs Section
-                  pw.SizedBox(height: 20),
-                  pw.Text(
-                    'Additional Costs:',
-                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 20, color: PdfColor.fromHex('#1F618D')),
-                  ),
-                  pw.SizedBox(height: 10),
-                  ...report['additional_costs'].map<pw.Widget>((cost) {
-                    return _buildAdditionalCostItem(cost);
-                  }).toList(),
+                  if (report['additional_costs'] != null && report['additional_costs'].isNotEmpty) ...[
+                    pw.SizedBox(height: 20),
+                    pw.Text(
+                      'Additional Costs',
+                      style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
+                    ),
+                    pw.SizedBox(height: 10),
+                    ...report['additional_costs'].map<pw.Widget>((cost) => _buildAdditionalCostItem(cost)),
+                  ],
 
-                  // Footer with dynamic content
-                  pw.SizedBox(height: 40),
+                  // Footer
+                  pw.SizedBox(height: 30),
                   pw.Text(
-                    'Generated at: ${report['created_at']}',
-                    style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#888888')),
+                      'Generated At: ${formatDate(report['created_at'])}', // Format the datetime
+                      style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#888888')),
                   ),
                 ],
               ),
@@ -2379,7 +2473,7 @@ Future<void> _generateReport(String reportType) async {
         ));
       }
 
-      // Request storage permission if needed
+      // Request storage permission
       await _requestPermission();
 
       // Get the download directory
@@ -2389,14 +2483,14 @@ Future<void> _generateReport(String reportType) async {
         await downloadDirectory.create(recursive: true);
       }
 
-      final filePath = '${downloadDirectory.path}/car_repair_report.pdf';
+      final filePath = '${downloadDirectory.path}/$reportType.pdf';
       final file = File(filePath);
 
-      // Save the PDF file
+      // Save the PDF
       await file.writeAsBytes(await pdf.save());
       print("Report saved at $filePath");
 
-      // Notify the user of the successful download
+      // Notify the user
       Fluttertoast.showToast(
         msg: "Report downloaded successfully!",
         toastLength: Toast.LENGTH_SHORT,
@@ -2404,7 +2498,7 @@ Future<void> _generateReport(String reportType) async {
         timeInSecForIosWeb: 1,
       );
 
-      // Open the PDF file after it's saved
+      // Open the PDF
       OpenFile.open(filePath);
     } else {
       print('Failed to generate report: ${response.statusCode}');
@@ -2419,15 +2513,67 @@ pw.Widget _buildReportDetailSection(dynamic report) {
   return pw.Column(
     crossAxisAlignment: pw.CrossAxisAlignment.start,
     children: [
-      _buildDetailItem('Report ID', report['id'].toString()), // Convert to String
       _buildDetailItem('Problem Type', report['problem_type']),
       _buildDetailItem('Urgency Level', report['urgency_level']),
       _buildDetailItem('Details', report['details']),
       _buildDetailItem('Car', report['selected_car']),
-      _buildDetailItem('Created At', report['created_at']),
-      _buildDetailItem('Total Cost', '\$${report['total_cost'].toString()}'), // Convert to String
+      _buildDetailItem('Total Cost', 'Ksh ${report['total_cost']}'),
+      _buildDetailItem('Date', report['created_at']),
     ],
   );
+}
+
+pw.Widget _buildRepairItem(dynamic repair) {
+  return pw.Container(
+    margin: const pw.EdgeInsets.symmetric(vertical: 5),
+    padding: const pw.EdgeInsets.all(8),
+    decoration: pw.BoxDecoration(
+      color: PdfColor.fromHex('#D5DBDB'), // Light grey
+      borderRadius: pw.BorderRadius.circular(5),
+    ),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        _buildDetailItem('Status', repair['repair_status']),
+        _buildDetailItem('Labor Cost', 'Ksh ${repair['labor_cost']}'),
+        if (repair['next_repair_date'] != null)
+          _buildDetailItem('Next Repair Date', repair['next_repair_date']),
+        if (repair['comments'] != null) _buildDetailItem('Comments', repair['comments']),
+        _buildDetailItem('Repair Date', repair['created_at']),
+      ],
+    ),
+  );
+}
+
+pw.Widget _buildAdditionalCostItem(dynamic cost) {
+  return pw.Container(
+    margin: const pw.EdgeInsets.symmetric(vertical: 5),
+    padding: const pw.EdgeInsets.all(8),
+    decoration: pw.BoxDecoration(
+      color: PdfColor.fromHex('#FAD7A0'), // Light yellow
+      borderRadius: pw.BorderRadius.circular(5),
+    ),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        _buildDetailItem('Cost Name', cost['cost_name']),
+        _buildDetailItem('Company', cost['company']),
+        _buildDetailItem('Value', 'Ksh ${cost['cost_value']}'),
+      ],
+    ),
+  );
+}
+
+
+
+String formatDate(String dateTime) {
+  try {
+    final parsedDate = DateTime.parse(dateTime); // Parse the ISO string
+    final formatter = DateFormat('yyyy-MM-dd hh:mm a'); // Format to desired style
+    return formatter.format(parsedDate); // Return formatted string
+  } catch (e) {
+    return dateTime; // Return original string if parsing fails
+  }
 }
 
 pw.Widget _buildDetailItem(String title, dynamic value) {
@@ -2437,45 +2583,12 @@ pw.Widget _buildDetailItem(String title, dynamic value) {
         '$title: ',
         style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1F618D')),
       ),
-      pw.Text(value is double ? value.toStringAsFixed(2) : value.toString()),
+      pw.Text(
+        (title.toLowerCase().contains('date') && value is String)
+            ? formatDate(value) // Format the datetime
+            : (value is double ? value.toStringAsFixed(2) : value.toString()),
+      ),
     ],
-  );
-}
-
-
-pw.Widget _buildRepairItem(dynamic repair) {
-  return pw.Container(
-    padding: const pw.EdgeInsets.all(8),
-    decoration: pw.BoxDecoration(
-      color: PdfColor.fromHex('#D5DBDB'), // Light grey background
-      borderRadius: pw.BorderRadius.circular(5),
-    ),
-    child: pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        _buildDetailItem('Repair ID', repair['repair_id'].toString()), // Convert to String
-        _buildDetailItem('Status', repair['repair_status']),
-        _buildDetailItem('Labor Cost', '\$${repair['labor_cost'].toString()}'), // Convert to String
-      ],
-    ),
-  );
-}
-
-pw.Widget _buildAdditionalCostItem(dynamic cost) {
-  return pw.Container(
-    padding: const pw.EdgeInsets.all(8),
-    decoration: pw.BoxDecoration(
-      color: PdfColor.fromHex('#FAD7A0'), // Light yellow background
-      borderRadius: pw.BorderRadius.circular(5),
-    ),
-    child: pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        _buildDetailItem('Cost Name', cost['cost_name']),
-        _buildDetailItem('Company', cost['company']),
-        _buildDetailItem('Value', '\$${cost['cost_value'].toString()}'), // Convert to String
-      ],
-    ),
   );
 }
 
@@ -2493,10 +2606,6 @@ Future<void> _requestPermission() async {
     return;
   }
 }
-
-
-
-
 
   Widget _buildRepairCard({
     required String date,
@@ -3609,7 +3718,7 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
   List<dynamic> mechanics = [];
   
   List<Map<String, dynamic>> messages = []; // Messages list
-  
+    List<dynamic> filteredMechanics = [];  // List for filtered mechanics
   late ChatService _chatService; // Declare ChatService instance
 
   @override
@@ -3619,6 +3728,7 @@ class _FindMechanicPageState extends State<FindMechanicPage> {
     _chatService.startLongPolling(_onMessagesReceived); // Start polling for messages
     _getUserLocation();
     _loadUserEmail(); // Load user email when the widget is initialized
+    filteredMechanics = mechanics;  // Initialize filtered mechanics with all mechanics
   }
 
   // Method to handle incoming messages
@@ -3826,24 +3936,25 @@ void _onMessagesReceived(List<Map<String, dynamic>> newMessages) {
                 _buildCurrentLocationSection(),
                 const SizedBox(height: 20),
                 // Mechanics List
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: mechanics.length,
-                    itemBuilder: (context, index) {
-                      final mechanic = mechanics[index];
-return _buildMechanicCard(
-  id: mechanic['id'],  // Add the mechanic's ID here
-  name: mechanic['name'],
-  rating: mechanic['rating'].toString(),  // Ensure rating is a string
-  distance: mechanic['distance'].toString(),  // Ensure distance is a string
-  phone: mechanic['phone'],
-  expertise: mechanic['expertise'],
-  profileImageUrl: 'https://expertstrials.xyz/Garifix_app/' + mechanic['profile_image'],  // Concatenate the base URL
-);
+Expanded(
+  child: ListView.builder(
+    itemCount: getFilteredMechanics().length, // Use the filtered list length
+    itemBuilder: (context, index) {
+      final mechanic = getFilteredMechanics()[index]; // Get filtered mechanic
+      return _buildMechanicCard(
+        id: mechanic['id'],  
+        name: mechanic['name'],
+        rating: mechanic['rating'].toString(),
+        distance: mechanic['distance'].toString(),
+        phone: mechanic['phone'],
+        expertise: mechanic['expertise'],
+        profileImageUrl: 'https://expertstrials.xyz/Garifix_app/' + mechanic['profile_image'],
+      );
+    },
+  ),
+)
 
-                    },
-                  ),
-                ),
+
               ],
             ),
           ),
@@ -3925,93 +4036,145 @@ return _buildMechanicCard(
     );
   }
 
-  // Dropdown UI for Distance Filter
-  Widget _buildDistanceDropdown() {
-    return Material(
-      elevation: 4,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 200,
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: DropdownButton<String>(
-          isExpanded: true,
-          value: selectedDistance,
-          onChanged: (String? value) {
-            setState(() {
-              selectedDistance = value;
-              showDistanceDropdown = false;
-            });
-          },
-          items: ['< 1 km', '1-3 km', '3-5 km', '> 5 km']
-              .map((distance) =>
-                  DropdownMenuItem(value: distance, child: Text(distance)))
-              .toList(),
-        ),
+// Dropdown UI for Distance Filter
+Widget _buildDistanceDropdown() {
+  return Material(
+    elevation: 4,
+    borderRadius: BorderRadius.circular(8),
+    child: Container(
+      width: 200,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
       ),
-    );
+      child: DropdownButton<String>(
+        isExpanded: true,
+        value: selectedDistance,
+        onChanged: (String? value) {
+          setState(() {
+            selectedDistance = value;
+            // Update the mechanic list based on the new distance filter
+            showDistanceDropdown = false;
+          });
+        },
+        items: ['< 1 km', '1-3 km', '3-5 km', '5 - 10 km']
+            .map((distance) => DropdownMenuItem(value: distance, child: Text(distance)))
+            .toList(),
+      ),
+    ),
+  );
+}
+
+
+List<String> getUniqueExpertise() {
+  Set<String> expertiseSet = {};
+  for (var mechanic in mechanics) {
+    if (mechanic['expertise'] != null) {
+      expertiseSet.add(mechanic['expertise']);
+    }
+  }
+  return expertiseSet.toList();
+}
+List<dynamic> getFilteredMechanics() {
+  List<dynamic> filteredMechanics = mechanics;
+
+  // Filter by expertise if selected
+  if (selectedExpertise != null && selectedExpertise!.isNotEmpty) {
+    filteredMechanics = filteredMechanics.where((mechanic) {
+      return mechanic['expertise'] == selectedExpertise;
+    }).toList();
   }
 
-  // Dropdown UI for Expertise Filter
-  Widget _buildExpertiseDropdown() {
-    return Material(
-      elevation: 4,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 200,
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: DropdownButton<String>(
-          isExpanded: true,
-          value: selectedExpertise,
-          onChanged: (String? value) {
-            setState(() {
-              selectedExpertise = value;
-              showExpertiseDropdown = false;
-            });
-          },
-          items: ['General Repair', 'Engine Specialist', 'Tire Specialist']
-              .map((expertise) =>
-                  DropdownMenuItem(value: expertise, child: Text(expertise)))
-              .toList(),
-        ),
-      ),
-    );
+  // Filter by distance if selected
+  if (selectedDistance != null && selectedDistance!.isNotEmpty) {
+    filteredMechanics = filteredMechanics.where((mechanic) {
+      double mechanicDistance = double.tryParse(mechanic['distance'].toString()) ?? 0.0;
+
+      // Define the distance ranges and filter accordingly
+      switch (selectedDistance) {
+        case '< 1 km':
+          return mechanicDistance < 1;
+        case '1-3 km':
+          return mechanicDistance >= 1 && mechanicDistance <= 3;
+        case '3-5 km':
+          return mechanicDistance >= 3 && mechanicDistance <= 5;
+        case '5 - 10 km':
+          return mechanicDistance >= 5 && mechanicDistance <= 10;
+        default:
+          return true; // No filtering if no distance is selected
+      }
+    }).toList();
   }
 
-  // Dropdown UI for Name Search
-  Widget _buildNameSearch() {
-    return Material(
-      elevation: 4,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        width: 200,
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: TextField(
-          decoration: const InputDecoration(
-            labelText: 'Search by Name',
-            border: OutlineInputBorder(),
-          ),
-          onChanged: (value) {
-            setState(() {
-              searchName = value;
-              showNameDropdown = false;
-            });
-          },
-        ),
-      ),
-    );
+  // Filter by name or expertise if searchName is not empty
+  if (searchName.isNotEmpty) {
+    filteredMechanics = filteredMechanics.where((mechanic) {
+      return mechanic['name'].toLowerCase().contains(searchName.toLowerCase()) || 
+             mechanic['expertise'].toLowerCase().contains(searchName.toLowerCase());
+    }).toList();
   }
+
+  return filteredMechanics;
+}
+
+
+
+Widget _buildExpertiseDropdown() {
+  return Material(
+    elevation: 4,
+    borderRadius: BorderRadius.circular(8),
+    child: Container(
+      width: 200,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButton<String>(
+        isExpanded: true,
+        value: selectedExpertise,
+        onChanged: (String? value) {
+          setState(() {
+            selectedExpertise = value; // Update the selected expertise
+            showExpertiseDropdown = false; // Close the dropdown
+          });
+        },
+        items: getUniqueExpertise().map((expertise) {
+          return DropdownMenuItem(value: expertise, child: Text(expertise));
+        }).toList(),
+      ),
+    ),
+  );
+}
+
+// Dropdown UI for Name Search
+Widget _buildNameSearch() {
+  return Material(
+    elevation: 4,
+    borderRadius: BorderRadius.circular(8),
+    child: Container(
+      width: 200,
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: TextField(
+        decoration: const InputDecoration(
+          labelText: 'Search by Name',
+          border: OutlineInputBorder(),
+        ),
+        onChanged: (value) {
+          setState(() {
+            searchName = value;  // Update searchName with the entered value
+          });
+        },
+      ),
+    ),
+  );
+}
+
 
 void _showMessageBottomSheet(
   BuildContext context,
