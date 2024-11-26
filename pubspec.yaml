@@ -35,6 +35,11 @@ dependencies:
   animate_do: ^2.0.0 # or the latest version
   animated_text_kit: ^4.2.1
   flutter_spinkit: ^5.1.0
+  path_provider: ^2.0.12  # Use the latest version from pub.dev
+  file_picker: ^5.2.5 # Use the latest version from pub.dev
+  open_file: ^3.2.0
+  fluttertoast: ^8.0.9  # Add this line
+  pdf: ^3.6.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

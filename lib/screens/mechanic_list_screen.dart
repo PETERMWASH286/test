@@ -851,16 +851,7 @@ void _handleUploadedImages(List<File> images) {
 Future<void> _submitData() async {
   // Retrieve the token from SharedPreferences
   SharedPreferences prefs = await SharedPreferences.getInstance();
-  String? token = prefs.getString('jwt_token'); // Retrieve the token
-  
-  // Check if token is retrieved correctly
-  if (token == null) {
-    print('Error: JWT token is missing.');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Error: JWT token is missing.')),
-    );
-    return;
-  }
+  String? token = prefs.getString('jwt_token');
   print('JWT token retrieved successfully: $token');
   
   // Prepare the data to be sent
@@ -927,7 +918,6 @@ if (response.statusCode == 200) {
 
 
 
-// QR Code scan function
 void _onQRCodeScanned(String qrData) async {
   setState(() {
     this.qrData = qrData;
@@ -939,17 +929,31 @@ void _onQRCodeScanned(String qrData) async {
   final String? repairId = uri.pathSegments.isNotEmpty ? uri.pathSegments.last : null;
 
   if (repairId != null) {
-    // Make the request to the backend to get repair details
-    final repairDetails = await _fetchRepairDetails(repairId, context);
-
-    // Display the details dialog with fetched repair details
-    if (repairDetails != null) {
+    // Check if the repair ID is Base64-encoded and decode it if necessary
+    String processedRepairId = repairId;
+    if (_isBase64(repairId)) {
+      try {
+        processedRepairId = utf8.decode(base64Decode(repairId));
+        print('Decoded Repair ID: $processedRepairId');
+      } catch (e) {
+        _showErrorDialog('Failed to decode Repair ID. Please scan a valid QR code.');
+        return;
+      }
     }
-    // No need for else case here, since errors are handled in _fetchRepairDetails
-  } else {
-    _showErrorDialog('Invalid QR code. Please scan a valid QR code.');
-  }
+
+
+    final repairDetails = await _fetchRepairDetails(processedRepairId, context);
+
+      if (repairDetails != null) {
+        // Close any previous dialogs before showing the details
+        Navigator.of(context).pop(); // Close Mechanic Dialog if open
+        _showDetailsDialog(repairDetails, context); // Show Repair Details Dialog
+      }
+    }
+
 }
+
+
 
 // Fetch repair details from the backend
 Future<Map<String, dynamic>?> _fetchRepairDetails(String repairId, BuildContext context) async {

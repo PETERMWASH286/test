@@ -17,6 +17,11 @@ import 'package:lottie/lottie.dart'; // Ensure you have this package in your pub
 import 'package:flutter_rating_bar/flutter_rating_bar.dart'; // Add flutter_rating_bar package for star rating bar
 // Import the newly created file
 import 'success_popup.dart'; // Import the newly created file
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart';
+import 'package:fluttertoast/fluttertoast.dart';
+import 'package:open_file/open_file.dart';
 
 class SocketService {
   late IO.Socket socket;
@@ -1644,12 +1649,8 @@ Future<void> _submitForm() async {
   // Retrieve and print email from preferences
   SharedPreferences prefs = await SharedPreferences.getInstance();
   String? email = prefs.getString('userEmail');
-  if (email != null) {
-    request.fields['email'] = email;
-    print('Email added to request: $email');
-  } else {
-    print('No email found in preferences');
-  }
+  request.fields['email'] = email;
+  print('Email added to request: $email');
 
   // Adding image files
   if (_imageFiles != null && _imageFiles!.isNotEmpty) {
@@ -2007,63 +2008,59 @@ DropdownButtonFormField<String>(
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false, // Removes the back arrow
-        backgroundColor: Colors.deepPurple,
-        elevation: 10, // Adds shadow for a more dynamic look
-        title: Row(
-          mainAxisAlignment:
-              MainAxisAlignment.start, // Aligns content to the far left
-          children: [
-            // Logo with a subtle glow effect
-            Container(
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.white.withOpacity(0.7),
-                    blurRadius: 10,
-                    spreadRadius: 3,
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(
+      automaticallyImplyLeading: false,
+      backgroundColor: Colors.deepPurple,
+      elevation: 10,
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Logo
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.7),
+                  blurRadius: 10,
+                  spreadRadius: 3,
+                ),
+              ],
+            ),
+            child: Image.asset(
+              'assets/logo/app_logo.png',
+              height: 50,
+              width: 50,
+            ),
+          ),
+          const SizedBox(width: 15),
+          ShaderMask(
+            shaderCallback: (Rect bounds) {
+              return const LinearGradient(
+                colors: [Color.fromARGB(255, 255, 171, 64), Colors.yellow],
+                tileMode: TileMode.mirror,
+              ).createShader(bounds);
+            },
+            child: const Text(
+              'Mecar',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 1.5,
+                shadows: [
+                  Shadow(
+                    offset: Offset(2.0, 2.0),
+                    blurRadius: 3.0,
+                    color: Colors.black26,
                   ),
                 ],
               ),
-              child: Image.asset(
-                'assets/logo/app_logo.png', // Path to the Mecar logo
-                height: 50,
-                width: 50,
-              ),
             ),
-            const SizedBox(width: 15), // Space between logo and name
-            ShaderMask(
-              shaderCallback: (Rect bounds) {
-                return const LinearGradient(
-                  colors: [Color.fromARGB(255, 255, 171, 64), Colors.yellow],
-                  tileMode: TileMode.mirror,
-                ).createShader(bounds);
-              },
-              child: const Text(
-                'Mecar',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                  letterSpacing: 1.5,
-                  shadows: [
-                    Shadow(
-                      offset: Offset(2.0, 2.0),
-                      blurRadius: 3.0,
-                      color: Colors.black26,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
+          ),
           IconButton(
             icon: const Icon(Icons.search),
             iconSize: 28,
@@ -2076,53 +2073,430 @@ DropdownButtonFormField<String>(
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Your Repairs History',
-              style: TextStyle(
+    ),
+    body: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Your Repairs History',
+                style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.deepPurple),
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: ListView.builder(
-                itemCount: _repairsHistory.length,
-                itemBuilder: (context, index) {
-                  var repair = _repairsHistory[index];
-                  return _buildRepairCard(
-                    date: repair['date'],
-                    description: repair['description'],
-                    cost: 'Ksh ${repair['cost'].toString()}',
-                    // Add ID to the repair object for internal use
-                    repairId: repair['id'], // Store ID internally if needed
-                  );
-                },
+                  color: Colors.deepPurple,
+                ),
               ),
+              ElevatedButton.icon(
+                onPressed: () {
+                  _showReportDialog(); // Show dialog when button pressed
+                },
+                icon: const Icon(Icons.download, size: 18),
+                label: const Text(
+                  'Download reports',
+                  style: TextStyle(fontSize: 12),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepPurple,
+                  foregroundColor: Colors.white,
+                  elevation: 5,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Expanded(
+            child: ListView.builder(
+              itemCount: _repairsHistory.length,
+              itemBuilder: (context, index) {
+                var repair = _repairsHistory[index];
+                return _buildRepairCard(
+                  date: repair['date'],
+                  description: repair['description'],
+                  cost: 'Ksh ${repair['cost'].toString()}',
+                  repairId: repair['id'],
+                );
+              },
             ),
-            const SizedBox(height: 20),
-          ],
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+    ),
+    floatingActionButton: FloatingActionButton(
+      onPressed: () {
+        setState(() {
+          _isFabClicked = !_isFabClicked;
+          _isFabClicked ? _animationController.forward() : _animationController.reverse();
+        });
+        _showProblemForm();
+      },
+      backgroundColor: const Color.fromRGBO(103, 58, 183, 1),
+      child: const Icon(Icons.add),
+    ),
+  );
+}
+
+void _showReportDialog() {
+  showDialog(
+    context: context,
+    barrierDismissible: false, // The dialog can only be dismissed by user selection
+    builder: (BuildContext context) {
+      return Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          setState(() {
-            _isFabClicked = !_isFabClicked;
-            _isFabClicked
-                ? _animationController.forward()
-                : _animationController.reverse();
-          });
-          _showProblemForm();
-        },
-        backgroundColor: const Color.fromRGBO(103, 58, 183, 1),
-        child: const Icon(Icons.add),
-      ),
+        elevation: 24,
+        backgroundColor: Colors.white,
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header with a title and an icon
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Select Report Type',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.deepPurple, size: 30),
+                    onPressed: () {
+                      Navigator.pop(context); // Close the dialog
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Report Options with Icons
+              Column(
+                children: [
+                  ..._carOptions.map((car) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.pop(context); // Close the dialog
+                          _generateReport(car); // Generate the selected report
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                          decoration: BoxDecoration(
+                            color: Colors.deepPurple[50],
+                            borderRadius: BorderRadius.circular(10),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 8,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.directions_car, color: Colors.deepPurple, size: 24),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Text(
+                                  car,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    color: Colors.deepPurple,
+                                  ),
+                                ),
+                              ),
+                              const Icon(Icons.arrow_forward_ios, color: Colors.deepPurple, size: 20),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                  
+                  // General Summary Report
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: InkWell(
+                      onTap: () {
+                        Navigator.pop(context); // Close the dialog
+                        _generateReport('General Summary Report'); // Generate summary report
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 12.0, horizontal: 16.0),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Colors.purpleAccent, Colors.deepPurple],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 8,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.report_gmailerrorred, color: Colors.white, size: 24),
+                            SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                'General Summary Report',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            Icon(Icons.arrow_forward_ios, color: Colors.white, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      );
+    },
+  );
+}
+
+
+
+
+Future<void> _generateReport(String reportType) async {
+  try {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token');
+
+    if (token == null) {
+      print('Token is null. User might not be authenticated.');
+      return;
+    }
+
+    final Map<String, dynamic> payload = {
+      'report_type': reportType,
+    };
+
+    final response = await http.post(
+      Uri.parse('https://expertstrials.xyz/Garifix_app/api/generate_report'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+      body: json.encode(payload),
     );
+
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      if (!data['success']) {
+        print('Failed to fetch report data: ${data['message']}');
+        return;
+      }
+
+      final reports = data['reports'] as List;
+
+      // Create the PDF document
+      final pdf = pw.Document();
+
+      for (var report in reports) {
+        pdf.addPage(pw.Page(
+          build: (pw.Context context) {
+            return pw.Padding(
+              padding: const pw.EdgeInsets.all(16),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  // Report Header with bold and vibrant styling
+                  pw.Text(
+                    'CAR REPAIR REPORT',
+                    style: pw.TextStyle(
+                      fontSize: 30,
+                      fontWeight: pw.FontWeight.bold,
+                      color: PdfColor.fromHex('#FF5733'), // Vibrant color
+                    ),
+                  ),
+                  pw.Divider(color: PdfColor.fromHex('#FF5733')), // Divider
+
+                  // Report Details with creative styling
+                  _buildReportDetailSection(report),
+
+                  // Repairs Section
+                  pw.SizedBox(height: 20),
+                  pw.Text(
+                    'Repairs:',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 20, color: PdfColor.fromHex('#1F618D')),
+                  ),
+                  pw.SizedBox(height: 10),
+                  ...report['repairs'].map<pw.Widget>((repair) {
+                    return _buildRepairItem(repair);
+                  }).toList(),
+
+                  // Additional Costs Section
+                  pw.SizedBox(height: 20),
+                  pw.Text(
+                    'Additional Costs:',
+                    style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 20, color: PdfColor.fromHex('#1F618D')),
+                  ),
+                  pw.SizedBox(height: 10),
+                  ...report['additional_costs'].map<pw.Widget>((cost) {
+                    return _buildAdditionalCostItem(cost);
+                  }).toList(),
+
+                  // Footer with dynamic content
+                  pw.SizedBox(height: 40),
+                  pw.Text(
+                    'Generated at: ${report['created_at']}',
+                    style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#888888')),
+                  ),
+                ],
+              ),
+            );
+          },
+        ));
+      }
+
+      // Request storage permission if needed
+      await _requestPermission();
+
+      // Get the download directory
+      final directory = await getExternalStorageDirectory();
+      final downloadDirectory = Directory('${directory?.path}/Download');
+      if (!await downloadDirectory.exists()) {
+        await downloadDirectory.create(recursive: true);
+      }
+
+      final filePath = '${downloadDirectory.path}/car_repair_report.pdf';
+      final file = File(filePath);
+
+      // Save the PDF file
+      await file.writeAsBytes(await pdf.save());
+      print("Report saved at $filePath");
+
+      // Notify the user of the successful download
+      Fluttertoast.showToast(
+        msg: "Report downloaded successfully!",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+      );
+
+      // Open the PDF file after it's saved
+      OpenFile.open(filePath);
+    } else {
+      print('Failed to generate report: ${response.statusCode}');
+      print('Response body: ${response.body}');
+    }
+  } catch (e) {
+    print('Error generating report: $e');
   }
+}
+
+pw.Widget _buildReportDetailSection(dynamic report) {
+  return pw.Column(
+    crossAxisAlignment: pw.CrossAxisAlignment.start,
+    children: [
+      _buildDetailItem('Report ID', report['id'].toString()), // Convert to String
+      _buildDetailItem('Problem Type', report['problem_type']),
+      _buildDetailItem('Urgency Level', report['urgency_level']),
+      _buildDetailItem('Details', report['details']),
+      _buildDetailItem('Car', report['selected_car']),
+      _buildDetailItem('Created At', report['created_at']),
+      _buildDetailItem('Total Cost', '\$${report['total_cost'].toString()}'), // Convert to String
+    ],
+  );
+}
+
+pw.Widget _buildDetailItem(String title, dynamic value) {
+  return pw.Row(
+    children: [
+      pw.Text(
+        '$title: ',
+        style: pw.TextStyle(fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#1F618D')),
+      ),
+      pw.Text(value is double ? value.toStringAsFixed(2) : value.toString()),
+    ],
+  );
+}
+
+
+pw.Widget _buildRepairItem(dynamic repair) {
+  return pw.Container(
+    padding: const pw.EdgeInsets.all(8),
+    decoration: pw.BoxDecoration(
+      color: PdfColor.fromHex('#D5DBDB'), // Light grey background
+      borderRadius: pw.BorderRadius.circular(5),
+    ),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        _buildDetailItem('Repair ID', repair['repair_id'].toString()), // Convert to String
+        _buildDetailItem('Status', repair['repair_status']),
+        _buildDetailItem('Labor Cost', '\$${repair['labor_cost'].toString()}'), // Convert to String
+      ],
+    ),
+  );
+}
+
+pw.Widget _buildAdditionalCostItem(dynamic cost) {
+  return pw.Container(
+    padding: const pw.EdgeInsets.all(8),
+    decoration: pw.BoxDecoration(
+      color: PdfColor.fromHex('#FAD7A0'), // Light yellow background
+      borderRadius: pw.BorderRadius.circular(5),
+    ),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        _buildDetailItem('Cost Name', cost['cost_name']),
+        _buildDetailItem('Company', cost['company']),
+        _buildDetailItem('Value', '\$${cost['cost_value'].toString()}'), // Convert to String
+      ],
+    ),
+  );
+}
+
+Future<void> _requestPermission() async {
+  // Request storage permission if not already granted
+  PermissionStatus status = await Permission.storage.request();
+  if (!status.isGranted) {
+    // If permission is denied, show a message and return
+    Fluttertoast.showToast(
+      msg: "Storage permission is required to download the report.",
+      toastLength: Toast.LENGTH_LONG,
+      gravity: ToastGravity.BOTTOM,
+      timeInSecForIosWeb: 2,
+    );
+    return;
+  }
+}
+
+
+
+
 
   Widget _buildRepairCard({
     required String date,
