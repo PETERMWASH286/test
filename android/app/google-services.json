@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "198672956079",
+    "project_id": "mecar-efe39",
+    "storage_bucket": "mecar-efe39.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:198672956079:android:18439673b644d8183f325a",
+        "android_client_info": {
+          "package_name": "com.comapany.mecar"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA22DlYFHwoHGJpCQ-tBQnULFWj-JGhbtc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

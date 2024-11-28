@@ -11,7 +11,6 @@ import 'package:geocoding/geocoding.dart';
 import 'post.dart'; // Make sure to import the Post model
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'dart:async';
 import 'package:lottie/lottie.dart'; // Ensure you have this package in your pubspec.yaml
 import 'package:flutter_rating_bar/flutter_rating_bar.dart'; // Add flutter_rating_bar package for star rating bar
@@ -23,48 +22,6 @@ import 'package:pdf/pdf.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
-
-class SocketService {
-  late IO.Socket socket;
-
-  void initializeSocket() {
-    // Configure the Socket.IO connection
-    socket = IO.io('http://localhost:5000', <String, dynamic>{
-      'transports': ['websocket'],
-      'autoConnect': false,
-    });
-
-    // Connect to the socket server
-    socket.connect();
-
-    // Event listeners
-    socket.onConnect((_) {
-      print('Connected to the socket server');
-    });
-
-    socket.onDisconnect((_) {
-      print('Disconnected from the socket server');
-    });
-
-    socket.on('message', (data) {
-      print('Message from server: $data');
-    });
-
-    socket.on('custom_response', (data) {
-      print('Custom response from server: ${data['data']}');
-    });
-  }
-
-  // Emit message to the server
-  void sendMessage(String msg) {
-    socket.emit('message', msg);
-  }
-
-  // Emit custom event to the server
-  void sendCustomEvent(Map<String, dynamic> data) {
-    socket.emit('custom_event', data);
-  }
-}
 
 void main() => runApp(const MyApp());
 List<XFile>? _imageFiles = [];
@@ -82,6 +39,8 @@ class MyApp extends StatelessWidget {
   }
 }
 
+
+
 class CarOwnerPage extends StatefulWidget {
   const CarOwnerPage({super.key});
 
@@ -94,6 +53,7 @@ class _CarOwnerScreenState extends State<CarOwnerPage> {
   String _userLocationName = '';
   String? userEmail; // Variable to hold user email
   Position? _previousPosition; // Variable to hold the previous location
+  late StreamController<String> _streamController;
 
   @override
   void initState() {
@@ -102,7 +62,55 @@ class _CarOwnerScreenState extends State<CarOwnerPage> {
       _checkLocationPermission();
     });
     _loadUserEmail(); // Load user email from SharedPreferences
+    _streamController = StreamController<String>();
+    _connectToSSE(); // Start SSE connection
   }
+
+  // Connect to SSE endpoint
+void _connectToSSE() async {
+  print('Attempting to connect to SSE endpoint...');
+  final client = http.Client();
+  final url = Uri.parse('https://expertstrials.xyz/Garifix_app/notifications'); // Your SSE server URL
+  final request = http.Request('GET', url);
+  request.headers['accept'] = 'text/event-stream';
+
+  try {
+    // Send the request to the server
+    final streamedResponse = await client.send(request);
+    print('Response received from SSE endpoint.');
+
+    // Check the status code of the response
+    print('Response status: ${streamedResponse.statusCode}');
+    print('Response headers: ${streamedResponse.headers}');
+
+    // If status is 200 OK, start listening to the stream
+    if (streamedResponse.statusCode == 200) {
+      print('Successfully connected to SSE endpoint.');
+
+      // Start listening to the stream and print each chunk of data received
+      streamedResponse.stream.transform(utf8.decoder).listen(
+        (data) {
+          print('Data received from SSE: $data');
+          if (data.isNotEmpty) {
+            _streamController.add(data); // Add the data to stream
+          }
+        },
+        onError: (error) {
+          print('Error in stream: $error');
+        },
+        onDone: () {
+          print('Stream closed');
+        },
+        cancelOnError: true,
+      );
+    } else {
+      print('Failed to connect to SSE endpoint. Status code: ${streamedResponse.statusCode}');
+    }
+  } catch (e) {
+    // Catch any other error in the try block
+    print('Failed to connect to SSE endpoint: $e');
+  }
+}
 
   Future<void> _loadUserEmail() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -183,6 +191,14 @@ class _CarOwnerScreenState extends State<CarOwnerPage> {
       print('Failed to post location: ${response.statusCode}');
     }
   }
+
+  @override
+  void dispose() {
+    _streamController.close();
+    super.dispose();
+  }
+
+
 
   void _showLocationPermissionDialog() {
     showDialog(
@@ -2118,7 +2134,7 @@ if (_isSearchVisible) ...[
       mainAxisAlignment: MainAxisAlignment.start,  // Adjust alignment to start if needed
       children: [
         // Dropdown field
-        Container(
+        SizedBox(
           width: 150, // Set a fixed width for the dropdown to prevent overflow
           child: DropdownButtonFormField<String>(
             value: _searchType,
