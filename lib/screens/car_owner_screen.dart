@@ -22,6 +22,8 @@ import 'package:pdf/pdf.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
+import 'login_screen.dart';
+import 'switch_signup.dart';
 
 void main() => runApp(const MyApp());
 List<XFile>? _imageFiles = [];
@@ -2427,6 +2429,9 @@ Future<void> _generateReport(String reportType) async {
       // Create the PDF document
       final pdf = pw.Document();
 
+      String emailSubject = '$reportType - CAR REPAIR REPORT';
+      String emailBody = 'The report contains details about the car repairs and any additional costs incurred. Below are the main details of the report:\n\n';
+
       for (var report in reports) {
         pdf.addPage(pw.Page(
           build: (pw.Context context) {
@@ -2435,26 +2440,21 @@ Future<void> _generateReport(String reportType) async {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  // Dynamic Heading
                   pw.Text(
                     '$reportType - CAR REPAIR REPORT',
                     style: pw.TextStyle(
                       fontSize: 28,
                       fontWeight: pw.FontWeight.bold,
-                      color: PdfColor.fromHex('#FF5733'), // Vibrant orange
+                      color: PdfColor.fromHex('#FF5733'),
                     ),
                   ),
                   pw.Divider(color: PdfColor.fromHex('#FF5733')),
-
-                  // Report Details Section
                   pw.Text(
                     'Report Details',
                     style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold),
                   ),
                   pw.SizedBox(height: 10),
                   _buildReportDetailSection(report),
-
-                  // Repairs Section
                   if (report['repairs'] != null && report['repairs'].isNotEmpty) ...[
                     pw.SizedBox(height: 20),
                     pw.Text(
@@ -2464,8 +2464,6 @@ Future<void> _generateReport(String reportType) async {
                     pw.SizedBox(height: 10),
                     ...report['repairs'].map<pw.Widget>((repair) => _buildRepairItem(repair)),
                   ],
-
-                  // Additional Costs Section
                   if (report['additional_costs'] != null && report['additional_costs'].isNotEmpty) ...[
                     pw.SizedBox(height: 20),
                     pw.Text(
@@ -2475,18 +2473,21 @@ Future<void> _generateReport(String reportType) async {
                     pw.SizedBox(height: 10),
                     ...report['additional_costs'].map<pw.Widget>((cost) => _buildAdditionalCostItem(cost)),
                   ],
-
-                  // Footer
                   pw.SizedBox(height: 30),
                   pw.Text(
-                      'Generated At: ${formatDate(report['created_at'])}', // Format the datetime
-                      style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#888888')),
+                    'Generated At: ${formatDate(report['created_at'])}',
+                    style: pw.TextStyle(fontSize: 14, color: PdfColor.fromHex('#888888')),
                   ),
                 ],
               ),
             );
           },
         ));
+
+        // Append report summary for email body
+        emailBody += 'Report Date: ${formatDate(report['created_at'])}\n';
+        emailBody += 'Total Repairs: ${report['repairs'].length}\n';
+        emailBody += 'Additional Costs: ${report['additional_costs'].length}\n\n';
       }
 
       // Request storage permission
@@ -2506,9 +2507,14 @@ Future<void> _generateReport(String reportType) async {
       await file.writeAsBytes(await pdf.save());
       print("Report saved at $filePath");
 
+      // Send the PDF and email to the backend
+_sendReportToEmail(filePath, emailSubject, emailBody)
+    .then((_) => print('Email sent successfully in the background'))
+    .catchError((error) => print('Error sending email: $error'));
+
       // Notify the user
       Fluttertoast.showToast(
-        msg: "Report downloaded successfully!",
+        msg: "Report downloaded and sent via email successfully!",
         toastLength: Toast.LENGTH_SHORT,
         gravity: ToastGravity.BOTTOM,
         timeInSecForIosWeb: 1,
@@ -2524,6 +2530,54 @@ Future<void> _generateReport(String reportType) async {
     print('Error generating report: $e');
   }
 }
+Future<void> _sendReportToEmail(String filePath, String subject, String body) async {
+  try {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token');
+
+    if (token == null) {
+      print('Token is null. User might not be authenticated.');
+      return;
+    }
+
+    final file = File(filePath);
+
+    if (!file.existsSync()) {
+      print('File does not exist at $filePath.');
+      return;
+    }
+
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('https://expertstrials.xyz/Garifix_app/api/send_report_email'),
+    );
+
+    request.headers['Authorization'] = 'Bearer $token';
+    request.files.add(await http.MultipartFile.fromPath('report', filePath));
+    
+    // Add subject and body to the request payload
+    request.fields['subject'] = subject;
+    request.fields['body'] = body;
+
+    final response = await request.send();
+
+    if (response.statusCode == 200) {
+      final responseData = await response.stream.bytesToString();
+      final data = json.decode(responseData);
+
+      if (data['success'] == true) {
+        print('Report sent successfully: ${data['message']}');
+      } else {
+        print('Failed to send report: ${data['message']}');
+      }
+    } else {
+      print('Failed to send report: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Error sending report: $e');
+  }
+}
+
 
 pw.Widget _buildReportDetailSection(dynamic report) {
   return pw.Column(
@@ -6176,13 +6230,358 @@ class _AnimatedTextState extends State<AnimatedText>
     );
   }
 }
+class UserDetails {
+  final int id;
+  final String fullName;
+  final String email;
+  final String? profilePicture;
+  final String? role;
 
+  UserDetails({
+    required this.id,
+    required this.fullName,
+    required this.email,
+    this.profilePicture,
+    this.role,
+  });
+
+  factory UserDetails.fromJson(Map<String, dynamic> json) {
+    return UserDetails(
+      id: json['id'],
+      fullName: json['full_name'],
+      email: json['email'],
+      profilePicture: json['profile_picture'],
+      role: json['role'],
+    );
+  }
+}
+
+Future<List<UserDetails>?> fetchUserDetails() async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final String? token = prefs.getString('jwt_token');
+
+  if (token == null) {
+    print("Token is missing");
+    return null;
+  }
+
+  try {
+    final response = await http.get(
+      Uri.parse('https://expertstrials.xyz/Garifix_app/api/get-user-details'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> jsonResponse = json.decode(response.body);
+
+      // Extract the list of accounts from the response
+      final List<dynamic> accountsData = jsonResponse['data'];
+      return accountsData.map((data) => UserDetails.fromJson(data)).toList();
+    } else {
+      print("Failed to fetch user details: ${response.statusCode}");
+      return null;
+    }
+  } catch (e) {
+    print("Error occurred while fetching user details: $e");
+    return null;
+  }
+}
+
+
+class SwitchAccountScreen extends StatelessWidget {
+  const SwitchAccountScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: const CustomAppBar(
+        logoPath: 'assets/logo/app_logo.png',
+        title: 'Switch Account',
+      ),
+body: FutureBuilder<List<UserDetails>?>(
+  future: fetchUserDetails(),
+  builder: (context, snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Center(child: CircularProgressIndicator());
+    } else if (snapshot.hasError) {
+      return Center(
+        child: Text('Error: ${snapshot.error}'),
+      );
+    } else if (!snapshot.hasData || snapshot.data == null || snapshot.data!.isEmpty) {
+      return const Center(child: Text('No user accounts found'));
+    } else {
+      final users = snapshot.data!;
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                itemCount: users.length,
+                itemBuilder: (context, index) {
+                  final user = users[index];
+                  return GestureDetector(
+                    onTap: () async {
+                      // Clear and set new account data in SharedPreferences
+                      SharedPreferences prefs = await SharedPreferences.getInstance();
+                      await prefs.remove('userEmail');
+                      await prefs.remove('user_role');
+                      await prefs.remove('jwt_token');
+
+                      await prefs.setString('userEmail', user.email);
+                      await prefs.setString('user_role', user.role ?? '');
+
+                      // Navigate to the login screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      );
+                    },
+                    child: Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 30,
+                              backgroundImage: user.profilePicture != null
+                                  ? NetworkImage('https://expertstrials.xyz/Garifix_app/${user.profilePicture}')
+                                  : const AssetImage('assets/logo/account.jpg') as ImageProvider,
+                              backgroundColor: Colors.grey[200],
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    user.fullName,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    user.email,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  if (user.role != null)
+                                    Text(
+                                      'Role: ${user.role}',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.blue,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () async {
+                // Navigate to the SignUpScreen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SignUpScreen()),
+                );
+              },
+              child: const Text(
+                'Add New Account',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  },
+),
+
+    );
+  }
+}
+
+
+
+class PrivacyPolicyScreen extends StatelessWidget {
+  const PrivacyPolicyScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      appBar: CustomAppBar(
+        logoPath: 'assets/logo/app_logo.png',
+        title: 'Privacy Policy',
+      ),
+      body: Center(child: Text('Privacy Policy Screen')),
+    );
+  }
+}
+
+class HelpScreen extends StatelessWidget {
+  const HelpScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      appBar: CustomAppBar(
+        logoPath: 'assets/logo/app_logo.png',
+        title: 'Help',
+      ),
+      body: Center(child: Text('Help Screen')),
+    );
+  }
+}
+
+class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final String logoPath;
+  final String title;
+
+  const CustomAppBar({super.key, required this.logoPath, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      backgroundColor: Colors.deepPurple,
+      automaticallyImplyLeading: false, // Removes the left arrow
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.start, // Aligns content to the left
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.7),
+                  blurRadius: 10,
+                  spreadRadius: 3,
+                ),
+              ],
+            ),
+            child: Image.asset(
+              logoPath, // Dynamic logo path
+              height: 50,
+              width: 50,
+            ),
+          ),
+          const SizedBox(width: 15), // Space between logo and title
+          ShaderMask(
+            shaderCallback: (Rect bounds) {
+              return const LinearGradient(
+                colors: [Color.fromARGB(255, 255, 171, 64), Colors.yellow],
+                tileMode: TileMode.mirror,
+              ).createShader(bounds);
+            },
+            child: Text(
+              title, // Dynamic title
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 1.5,
+                shadows: [
+                  Shadow(
+                    offset: Offset(2.0, 2.0),
+                    blurRadius: 3.0,
+                    color: Colors.black26,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.settings, color: Colors.white),
+          onSelected: (String value) async {
+            switch (value) {
+              case 'Switch Account':
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SwitchAccountScreen()),
+                );
+                break;
+              case 'Privacy Policy':
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
+                );
+                break;
+              case 'Help':
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HelpScreen()),
+                );
+                break;
+              case 'Logout':
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (Route<dynamic> route) => false,
+                );
+                break;
+            }
+          },
+          itemBuilder: (BuildContext context) {
+            return [
+              const PopupMenuItem(value: 'Switch Account', child: Text('Switch Account')),
+              const PopupMenuItem(value: 'Privacy Policy', child: Text('Privacy Policy')),
+              const PopupMenuItem(value: 'Help', child: Text('Help')),
+              const PopupMenuItem(value: 'Logout', child: Text('Logout')),
+            ];
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.exit_to_app, color: Colors.redAccent),
+          onPressed: () async {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
+              (Route<dynamic> route) => false,
+            );
+          },
+        ),
+      ],
+      elevation: 0,
+    );
+  }
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+}
 class AccountPage extends StatefulWidget {
   const AccountPage({super.key});
 
   @override
   _AccountPageState createState() => _AccountPageState();
 }
+
+
 
 // Car model class
 class Car {
@@ -6327,19 +6726,81 @@ class _AccountPageState extends State<AccountPage> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings, color: Colors.white),
-            onPressed: () {
-              // Navigate to account settings
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.exit_to_app, color: Colors.redAccent),
-            onPressed: () {
-              // Implement logout functionality
-            },
-          ),
+actions: [
+  PopupMenuButton<String>(
+    icon: const Icon(Icons.settings, color: Colors.white),
+    onSelected: (String value) async {
+      // Handle menu selection
+      switch (value) {
+        case 'Switch Account':
+          // Navigate to switch account screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SwitchAccountScreen()),
+          );
+          break;
+        case 'Privacy Policy':
+          // Navigate to privacy policy screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
+          );
+          break;
+        case 'Help':
+          // Navigate to help screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HelpScreen()),
+          );
+          break;
+        case 'Logout':
+          // Logout functionality
+          final SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.clear();
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (Route<dynamic> route) => false,
+          );
+          break;
+      }
+    },
+    itemBuilder: (BuildContext context) {
+      return [
+        const PopupMenuItem(
+          value: 'Switch Account',
+          child: Text('Switch Account'),
+        ),
+        const PopupMenuItem(
+          value: 'Privacy Policy',
+          child: Text('Privacy Policy'),
+        ),
+        const PopupMenuItem(
+          value: 'Help',
+          child: Text('Help'),
+        ),
+        const PopupMenuItem(
+          value: 'Logout',
+          child: Text('Logout'),
+        ),
+      ];
+    },
+  ),
+
+
+IconButton(
+  icon: const Icon(Icons.exit_to_app, color: Colors.redAccent),
+  onPressed: () async {
+    // Navigate to LoginScreen
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (Route<dynamic> route) => false, // Remove all previous routes
+    );
+  },
+),
+
         ],
         elevation: 0,
       ),

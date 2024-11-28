@@ -9,7 +9,352 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'login_screen.dart';
+import 'switch_signup.dart';
 
+class UserDetails {
+  final int id;
+  final String fullName;
+  final String email;
+  final String? profilePicture;
+  final String? role;
+
+  UserDetails({
+    required this.id,
+    required this.fullName,
+    required this.email,
+    this.profilePicture,
+    this.role,
+  });
+
+  factory UserDetails.fromJson(Map<String, dynamic> json) {
+    return UserDetails(
+      id: json['id'],
+      fullName: json['full_name'],
+      email: json['email'],
+      profilePicture: json['profile_picture'],
+      role: json['role'],
+    );
+  }
+}
+
+Future<List<UserDetails>?> fetchUserDetails() async {
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final String? token = prefs.getString('jwt_token');
+
+  if (token == null) {
+    print("Token is missing");
+    return null;
+  }
+
+  try {
+    final response = await http.get(
+      Uri.parse('https://expertstrials.xyz/Garifix_app/api/get-user-details'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> jsonResponse = json.decode(response.body);
+
+      // Extract the list of accounts from the response
+      final List<dynamic> accountsData = jsonResponse['data'];
+      return accountsData.map((data) => UserDetails.fromJson(data)).toList();
+    } else {
+      print("Failed to fetch user details: ${response.statusCode}");
+      return null;
+    }
+  } catch (e) {
+    print("Error occurred while fetching user details: $e");
+    return null;
+  }
+}
+
+
+class SwitchAccountScreen extends StatelessWidget {
+  const SwitchAccountScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: const CustomAppBar(
+        logoPath: 'assets/logo/app_logo.png',
+        title: 'Switch Account',
+      ),
+body: FutureBuilder<List<UserDetails>?>(
+  future: fetchUserDetails(),
+  builder: (context, snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Center(child: CircularProgressIndicator());
+    } else if (snapshot.hasError) {
+      return Center(
+        child: Text('Error: ${snapshot.error}'),
+      );
+    } else if (!snapshot.hasData || snapshot.data == null || snapshot.data!.isEmpty) {
+      return const Center(child: Text('No user accounts found'));
+    } else {
+      final users = snapshot.data!;
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            Expanded(
+              child: ListView.builder(
+                itemCount: users.length,
+                itemBuilder: (context, index) {
+                  final user = users[index];
+                  return GestureDetector(
+                    onTap: () async {
+                      // Clear and set new account data in SharedPreferences
+                      SharedPreferences prefs = await SharedPreferences.getInstance();
+                      await prefs.remove('userEmail');
+                      await prefs.remove('user_role');
+                      await prefs.remove('jwt_token');
+
+                      await prefs.setString('userEmail', user.email);
+                      await prefs.setString('user_role', user.role ?? '');
+
+                      // Navigate to the login screen
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const LoginScreen()),
+                      );
+                    },
+                    child: Card(
+                      elevation: 4,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 30,
+                              backgroundImage: user.profilePicture != null
+                                  ? NetworkImage('https://expertstrials.xyz/Garifix_app/${user.profilePicture}')
+                                  : const AssetImage('assets/logo/account.jpg') as ImageProvider,
+                              backgroundColor: Colors.grey[200],
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    user.fullName,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    user.email,
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  if (user.role != null)
+                                    Text(
+                                      'Role: ${user.role}',
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.blue,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () async {
+                // Navigate to the SignUpScreen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SignUpScreen()),
+                );
+              },
+              child: const Text(
+                'Add New Account',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  },
+),
+
+    );
+  }
+}
+
+
+class PrivacyPolicyScreen extends StatelessWidget {
+  const PrivacyPolicyScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      appBar: CustomAppBar(
+        logoPath: 'assets/logo/app_logo.png',
+        title: 'Privacy Policy',
+      ),
+      body: Center(child: Text('Privacy Policy Screen')),
+    );
+  }
+}
+
+class HelpScreen extends StatelessWidget {
+  const HelpScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      appBar: CustomAppBar(
+        logoPath: 'assets/logo/app_logo.png',
+        title: 'Help',
+      ),
+      body: Center(child: Text('Help Screen')),
+    );
+  }
+}
+
+class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
+  final String logoPath;
+  final String title;
+
+  const CustomAppBar({super.key, required this.logoPath, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return AppBar(
+      backgroundColor: Colors.deepPurple,
+      automaticallyImplyLeading: false, // Removes the left arrow
+      title: Row(
+        mainAxisAlignment: MainAxisAlignment.start, // Aligns content to the left
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.7),
+                  blurRadius: 10,
+                  spreadRadius: 3,
+                ),
+              ],
+            ),
+            child: Image.asset(
+              logoPath, // Dynamic logo path
+              height: 50,
+              width: 50,
+            ),
+          ),
+          const SizedBox(width: 15), // Space between logo and title
+          ShaderMask(
+            shaderCallback: (Rect bounds) {
+              return const LinearGradient(
+                colors: [Color.fromARGB(255, 255, 171, 64), Colors.yellow],
+                tileMode: TileMode.mirror,
+              ).createShader(bounds);
+            },
+            child: Text(
+              title, // Dynamic title
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                letterSpacing: 1.5,
+                shadows: [
+                  Shadow(
+                    offset: Offset(2.0, 2.0),
+                    blurRadius: 3.0,
+                    color: Colors.black26,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.settings, color: Colors.white),
+          onSelected: (String value) async {
+            switch (value) {
+              case 'Switch Account':
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SwitchAccountScreen()),
+                );
+                break;
+              case 'Privacy Policy':
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
+                );
+                break;
+              case 'Help':
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HelpScreen()),
+                );
+                break;
+              case 'Logout':
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (Route<dynamic> route) => false,
+                );
+                break;
+            }
+          },
+          itemBuilder: (BuildContext context) {
+            return [
+              const PopupMenuItem(value: 'Switch Account', child: Text('Switch Account')),
+              const PopupMenuItem(value: 'Privacy Policy', child: Text('Privacy Policy')),
+              const PopupMenuItem(value: 'Help', child: Text('Help')),
+              const PopupMenuItem(value: 'Logout', child: Text('Logout')),
+            ];
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.exit_to_app, color: Colors.redAccent),
+          onPressed: () async {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
+              (Route<dynamic> route) => false,
+            );
+          },
+        ),
+      ],
+      elevation: 0,
+    );
+  }
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kToolbarHeight);
+}
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -66,11 +411,74 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Welcome to Mecar App'),
         backgroundColor: Colors.deepPurple,
         elevation: 10,
-        actions: [
+actions: [
+  PopupMenuButton<String>(
+    icon: const Icon(Icons.settings, color: Colors.white),
+    onSelected: (String value) async {
+      // Handle menu selection
+      switch (value) {
+        case 'Switch Account':
+          // Navigate to switch account screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SwitchAccountScreen()),
+          );
+          break;
+        case 'Privacy Policy':
+          // Navigate to privacy policy screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
+          );
+          break;
+        case 'Help':
+          // Navigate to help screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HelpScreen()),
+          );
+          break;
+        case 'Logout':
+          // Logout functionality
+          final SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.clear();
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (Route<dynamic> route) => false,
+          );
+          break;
+      }
+    },
+    itemBuilder: (BuildContext context) {
+      return [
+        const PopupMenuItem(
+          value: 'Switch Account',
+          child: Text('Switch Account'),
+        ),
+        const PopupMenuItem(
+          value: 'Privacy Policy',
+          child: Text('Privacy Policy'),
+        ),
+        const PopupMenuItem(
+          value: 'Help',
+          child: Text('Help'),
+        ),
+        const PopupMenuItem(
+          value: 'Logout',
+          child: Text('Logout'),
+        ),
+      ];
+    },
+  ),
+
+
           IconButton(
             icon: const Icon(Icons.help_outline),
             onPressed: _showHelpDialog,
           ),
+
         ],
       ),
       body: Container(
