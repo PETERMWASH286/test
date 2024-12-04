@@ -77,54 +77,6 @@ Future<void> _authenticateWithFingerprint() async {
 
 
 
-void _loginWithPin() async {
-  String pin = _pinController.text;
-
-  // Retrieve user email from SharedPreferences
-  SharedPreferences prefs = await SharedPreferences.getInstance();
-  String? userEmail = prefs.getString('userEmail');
-  String? userRole = prefs.getString('user_role'); // Retrieve user role
-
-  // Debugging logs
-  print('User Email: $userEmail');
-  print('User Role: $userRole');
-  print('PIN: $pin');
-
-  try {
-    final response = await http.post(
-      Uri.parse('https://expertstrials.xyz/Garifix_app/validate_pin'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'email': userEmail, 'pin': pin}),
-    );
-
-    // Check for response status
-    if (response.statusCode == 200) {
-      // Extract the token from the response
-      final responseData = jsonDecode(response.body);
-      String? token = responseData['token']; // Assuming 'token' is the key in the JSON response
-
-      if (token != null) {
-        // Save the JWT token in SharedPreferences
-        await prefs.setString('jwt_token', token);
-        print('Token stored: $token');
-
-        // Redirect based on the user role
-        _redirectUser(userRole);
-      } else {
-        print('Error: No token in the response.');
-        _showErrorSnackbar('Failed to retrieve token. Please try again.');
-      }
-    } else {
-      // Print response body for debugging
-      print('Error response: ${response.statusCode} - ${response.body}');
-      _showErrorSnackbar('Invalid PIN. Please try again.');
-    }
-  } catch (e) {
-    // Handle exceptions
-    print('Error occurred: $e');
-    _showErrorSnackbar('An error occurred while validating the PIN. Please try again.');
-  }
-}
 
 
 
@@ -171,109 +123,157 @@ void _showErrorSnackbar(String message) {
 }
 
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.lightBlueAccent[100],
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20.0),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  spreadRadius: 5,
-                  blurRadius: 10,
-                  offset: const Offset(0, 3),
-                ),
+  final List<TextEditingController> _pinControllers =
+      List.generate(4, (index) => TextEditingController());
+
+  void _loginWithPin() async {
+    String pin = _pinControllers.map((controller) => controller.text).join();
+
+    // Retrieve user email from SharedPreferences
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? userEmail = prefs.getString('userEmail');
+    String? userRole = prefs.getString('user_role');
+
+    print('User Email: $userEmail');
+    print('User Role: $userRole');
+    print('PIN: $pin');
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://expertstrials.xyz/Garifix_app/validate_pin'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'email': userEmail, 'pin': pin}),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        String? token = responseData['token'];
+
+        if (token != null) {
+          await prefs.setString('jwt_token', token);
+          print('Token stored: $token');
+          _redirectUser(userRole);
+        } else {
+          print('Error: No token in the response.');
+          _showErrorSnackbar('Failed to retrieve token. Please try again.');
+        }
+      } else {
+        print('Error response: ${response.statusCode} - ${response.body}');
+        _showErrorSnackbar('Invalid PIN. Please try again.');
+      }
+    } catch (e) {
+      print('Error occurred: $e');
+      _showErrorSnackbar('An error occurred while validating the PIN. Please try again.');
+    }
+  }
+
+
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: Colors.blue.shade100,
+    body: Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(20.0),
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Colors.blue.shade50,
+                Colors.blue.shade200,
               ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
-            padding: const EdgeInsets.all(30),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Welcome Back!',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
+            borderRadius: BorderRadius.circular(30),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                spreadRadius: 5,
+                blurRadius: 15,
+                offset: const Offset(0, 3),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Welcome Back!',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blueAccent,
                 ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Please login using your fingerprint or PIN.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
+              ),
+              const SizedBox(height: 15),
+              const Text(
+                'Enter your 4-digit PIN to login',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.grey,
                 ),
-                const SizedBox(height: 30),
-                if (_isBiometricsSupported) ...[
-                  ElevatedButton(
-                    onPressed: _authenticateWithFingerprint,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 50, vertical: 15),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
+              ),
+              const SizedBox(height: 30),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: List.generate(4, (index) {
+                  return SizedBox(
+                    width: 60,
+                    child: TextFormField(
+                      controller: _pinControllers[index],
+                      autofocus: index == 0,
+                      keyboardType: TextInputType.number,
+                      textAlign: TextAlign.center,
+                      obscureText: true,
+                      maxLength: 1,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
                       ),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.fingerprint, color: Colors.white),
-                        SizedBox(width: 10),
-                        Text(
-                          'Login with Fingerprint',
-                          style: TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        counterText: '',
+                        filled: true,
+                        fillColor: Colors.white,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: BorderSide.none,
                         ),
-                      ],
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: const BorderSide(
+                            color: Colors.blueAccent,
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(15),
+                          borderSide: const BorderSide(
+                            color: Colors.blue,
+                            width: 2,
+                          ),
+                        ),
+                      ),
+                      onChanged: (value) {
+                        if (value.isNotEmpty) {
+                          if (index < 3) {
+                            FocusScope.of(context).nextFocus();
+                          } else {
+                            _loginWithPin();
+                          }
+                        }
+                      },
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-                TextField(
-                  controller: _pinController,
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: 'Enter your PIN',
-                    filled: true,
-                    fillColor: Colors.grey[200],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(30),
-                      borderSide: BorderSide.none,
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 15),
-                  ),
-                  obscureText: true,
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton(
-                  onPressed: _loginWithPin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.blue,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 50, vertical: 15),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                  child: const Text(
-                    'Login with PIN',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-            ),
+                  );
+                }),
+              ),
+            ],
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

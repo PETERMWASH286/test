@@ -296,10 +296,71 @@ appBar: AppBar(
                     ),
                     const SizedBox(height: 10),
                     // Google Sign Up Button
-                    _buildSocialButton('Google', 'assets/icons/google.svg', Colors.white, Colors.black),
-                    const SizedBox(height: 10),
-                    // Facebook Sign Up Button
-                    _buildSocialButton('Facebook', 'assets/icons/facebook.svg', Colors.blue, Colors.white),
+// Google Sign-In Button
+_buildSocialButton(
+  'Google',
+  'assets/icons/google.svg',
+  Colors.white,
+  Colors.black,
+  () async {
+    print('Google Sign-In button pressed');
+
+    final Uri redirectUri = Uri.parse('https://expertstrials.xyz/Garifix_app/oauth2callback');
+    final Uri authUri = Uri.parse(
+      'https://accounts.google.com/o/oauth2/auth?response_type=code&client_id=270912228656-nj92685ammrcls6f5j87ejb1mid5dbv9.apps.googleusercontent.com&redirect_uri=${Uri.encodeComponent(redirectUri.toString())}&scope=email profile',
+    );
+
+    print('Google authentication URL: $authUri');
+
+    final response = await http.get(authUri);
+
+    print('Google Sign-In response status: ${response.statusCode}');
+    print('Google Sign-In response body: ${response.body}');
+    print('Google Sign-In response headers: ${response.headers}');
+
+    if (response.statusCode == 200) {
+      print('Google Sign-In success');
+      // Implement the token exchange and user verification here
+    } else {
+      print('Error signing in with Google');
+      print('Google Sign-In failed with response: ${response.body}');
+    }
+  },
+),
+
+// Facebook Sign-In Button
+_buildSocialButton(
+  'Facebook',
+  'assets/icons/facebook.svg',
+  Colors.blue,
+  Colors.white,
+  () async {
+    print('Facebook Sign-In button pressed');
+
+    final Uri redirectUri = Uri.parse('https://expertstrials.xyz/Garifix_app/oauth2callback');
+    final Uri authUri = Uri.parse(
+      'https://www.facebook.com/v13.0/dialog/oauth?client_id=882912884000400&redirect_uri=${Uri.encodeComponent(redirectUri.toString())}&scope=email',
+    );
+
+    print('Facebook authentication URL: $authUri');
+
+    final response = await http.get(authUri);
+
+    print('Facebook Sign-In response status: ${response.statusCode}');
+    print('Facebook Sign-In response body: ${response.body}');
+    print('Facebook Sign-In response headers: ${response.headers}');
+
+    if (response.statusCode == 200) {
+      print('Facebook Sign-In success');
+      // Implement the token exchange and user verification here
+    } else {
+      print('Error signing in with Facebook');
+      print('Facebook Sign-In failed with response: ${response.body}');
+    }
+  },
+),
+
+
                     const SizedBox(height: 20),
                     // Already have an account
                     Row(
@@ -345,26 +406,31 @@ appBar: AppBar(
     );
   }
 
-  Widget _buildSocialButton(String platform, String assetPath, Color bgColor, Color fgColor) {
-    return ElevatedButton.icon(
-      onPressed: () {
-        // Implement social signup logic
-      },
-      icon: SvgPicture.asset(
-        assetPath,
-        height: 24.0,
-        width: 24.0,
+Widget _buildSocialButton(
+  String platform,
+  String assetPath,
+  Color bgColor,
+  Color fgColor,
+  Future<void> Function() onPressed, // Add this parameter for the callback
+) {
+  return ElevatedButton.icon(
+    onPressed: onPressed, // Call the callback when pressed
+    icon: SvgPicture.asset(
+      assetPath,
+      height: 24.0,
+      width: 24.0,
+    ),
+    label: Text(platform),
+    style: ElevatedButton.styleFrom(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+      backgroundColor: bgColor,
+      foregroundColor: fgColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(15),
+        side: BorderSide(color: fgColor.withOpacity(0.4)),
       ),
-      label: Text(platform),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
-        backgroundColor: bgColor,
-        foregroundColor: fgColor,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(15),
-          side: BorderSide(color: fgColor.withOpacity(0.4)),
-        ),
-      ),
-    );
-  }
+    ),
+  );
+}
+
 }

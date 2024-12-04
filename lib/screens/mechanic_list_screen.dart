@@ -3916,27 +3916,401 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      appBar: CustomAppBar(
+    return Scaffold(
+      appBar: const CustomAppBar(
         logoPath: 'assets/logo/app_logo.png',
         title: 'Privacy Policy',
       ),
-      body: Center(child: Text('Privacy Policy Screen')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Privacy Policy',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueAccent,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            _buildSection(
+              context,
+              FontAwesomeIcons.shieldAlt,
+              'Our Commitment',
+              'Your trust matters to us. We prioritize safeguarding your personal information and ensuring transparency.',
+            ),
+
+            _buildSection(
+              context,
+              FontAwesomeIcons.database,
+              'Data We Collect',
+              'Personal details you share (name, email, phone) and technical data (IP address, usage stats) for improving your experience.',
+            ),
+
+            _buildSection(
+              context,
+              FontAwesomeIcons.userCheck,
+              'How We Use Data',
+              'We enhance your experience and protect the platform. Your data helps us personalize services and ensure security.',
+            ),
+
+            _buildSection(
+              context,
+              FontAwesomeIcons.peopleArrows,
+              'Sharing Your Information',
+              'We don’t sell your data. Limited sharing occurs with trusted partners or when required by law.',
+            ),
+
+            _buildSection(
+              context,
+              FontAwesomeIcons.userShield,
+              'Your Rights',
+              'Access, update, or delete your data anytime. Adjust your preferences or contact support for help.',
+            ),
+
+            const SizedBox(height: 24),
+            const Row(
+              children: [
+                Icon(FontAwesomeIcons.infoCircle, color: Colors.blueAccent, size: 28),
+                SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    'For more details, visit our website or contact support.',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection(BuildContext context, IconData icon, String title, String description) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: Colors.blue, size: 28),
+            const SizedBox(width: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.only(left: 40),
+          child: Text(
+            description,
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
     );
   }
 }
+
+
+
+
 
 class HelpScreen extends StatelessWidget {
   const HelpScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      appBar: CustomAppBar(
+    return Scaffold(
+      appBar: const CustomAppBar(
         logoPath: 'assets/logo/app_logo.png',
         title: 'Help',
       ),
-      body: Center(child: Text('Help Screen')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'How Can We Help You?',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueAccent,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Frequently Asked Questions Section
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Frequently Asked Questions',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    ExpansionTile(
+                      leading: Icon(Icons.question_answer, color: Colors.blue),
+                      title: Text('How do I reset my password?'),
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Text(
+                            'Go to the login page and click on "Forgot Password". Follow the instructions sent to your email.',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                    ExpansionTile(
+                      leading: Icon(Icons.question_answer, color: Colors.blue),
+                      title: Text('Where can I find my account settings?'),
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Text(
+                            'Navigate to the "Settings" section in your profile menu to manage your account preferences.',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                    ExpansionTile(
+                      leading: Icon(Icons.question_answer, color: Colors.blue),
+                      title: Text('Who can I contact for support?'),
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Text(
+                            'You can contact our support team by using the chat feature below or emailing us at support@example.com.',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Contact Support Section
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Contact Support',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.email, color: Colors.green),
+                        SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Email: support@example.com',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Icon(Icons.phone, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Phone: +123 456 7890',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ChatbotScreen()),
+          );
+        },
+        backgroundColor: Colors.blueAccent,
+        label: const Text('Chat Assistant'),
+        icon: const Icon(Icons.chat),
+      ),
+    );
+  }
+}
+
+
+
+class ChatbotScreen extends StatelessWidget {
+  const ChatbotScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Chat Assistant',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blueAccent, Colors.lightBlue],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        elevation: 4.0,
+      ),
+      body: Column(
+        children: [
+          // Chat messages list
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16.0),
+              children: const [
+                ChatBubble(
+                  text: 'Hi! How can I assist you today?',
+                  isUser: false,
+                ),
+                ChatBubble(
+                  text: 'I need help with my account settings.',
+                  isUser: true,
+                ),
+                ChatBubble(
+                  text: 'Sure! What specifically would you like to know?',
+                  isUser: false,
+                ),
+              ],
+            ),
+          ),
+
+          // Divider
+          const Divider(height: 1.0),
+
+          // Message input area
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Type your message...',
+                      filled: true,
+                      fillColor: Colors.grey.shade200,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20.0),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 12.0,
+                        horizontal: 16.0,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.send, color: Colors.blueAccent),
+                  onPressed: () {
+                    // Handle message sending
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ChatBubble extends StatelessWidget {
+  final String text;
+  final bool isUser;
+
+  const ChatBubble({required this.text, required this.isUser, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6.0),
+        padding: const EdgeInsets.all(12.0),
+        decoration: BoxDecoration(
+          color: isUser ? Colors.blue.shade100 : Colors.grey.shade300,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(12.0),
+            topRight: const Radius.circular(12.0),
+            bottomLeft: Radius.circular(isUser ? 12.0 : 0.0),
+            bottomRight: Radius.circular(isUser ? 0.0 : 12.0),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              offset: const Offset(0, 2),
+              blurRadius: 4.0,
+            ),
+          ],
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: isUser ? Colors.black87 : Colors.black54,
+            fontSize: 15.0,
+          ),
+        ),
+      ),
     );
   }
 }

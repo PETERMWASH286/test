@@ -24,6 +24,7 @@ import 'package:open_file/open_file.dart';
 import 'package:intl/intl.dart';
 import 'login_screen.dart';
 import 'switch_signup.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 void main() => runApp(const MyApp());
 List<XFile>? _imageFiles = [];
@@ -5365,17 +5366,17 @@ class _ProductScreenState extends State<ProductScreen> {
                               itemCount: filteredProducts.length,
                               itemBuilder: (context, index) {
                                 final product = filteredProducts[index];
-                                return ProductCard(
-                                  imageUrl: product['imageUrl'] ?? '',
-                                  title: product['title'] ?? 'No Title',
-                                  price: product['price'] ?? '\$0.00',
-                                  description: product['description'] ??
-                                      'No Description',
-                                  companyName: product['companyName'] ??
-                                      'Unknown Company',
-                                  location:
-                                      product['location'] ?? 'Unknown Location',
-                                );
+return ProductCard(
+  imageUrl: product['imageUrl'] ?? '',
+  title: product['title'] ?? 'No Title',
+  price: product['price'] ?? '\$0.00',
+  description: product['description'] ?? 'No Description',
+  companyName: product['companyName'] ?? 'Unknown Company',
+  location: product['location'] ?? 'Unknown Location',
+  productId: int.tryParse(product['id']?.toString() ?? '0') ?? 0,
+);
+
+
                               },
                             ),
             ),
@@ -5393,6 +5394,7 @@ class ProductCard extends StatelessWidget {
   final String description;
   final String companyName;
   final String location;
+  final int productId; // Added productId field
 
   const ProductCard({
     required this.imageUrl,
@@ -5401,6 +5403,7 @@ class ProductCard extends StatelessWidget {
     required this.description,
     required this.companyName,
     required this.location,
+    required this.productId, // Marked productId as required
     super.key,
   });
 
@@ -5417,6 +5420,7 @@ class ProductCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Card content
             Row(
               children: [
                 CircleAvatar(
@@ -5517,22 +5521,37 @@ class ProductCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
-            Text(
-              price,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-                color: Colors.deepOrange,
-              ),
-            ),
+Text(
+  'Ksh ${NumberFormat('#,##0.00').format(double.parse(price))}',
+  style: const TextStyle(
+    fontSize: 14,
+    fontWeight: FontWeight.bold,
+    color: Colors.deepOrange,
+  ),
+),
+
+
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 ElevatedButton.icon(
-                  onPressed: () {
-                    // Implement buy functionality
-                  },
+onPressed: () {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (context) => CheckoutPage(
+        title: title,
+        price: price,
+        imageUrl: imageUrl,
+        companyName: companyName,
+        description: description,
+        productId: productId, // Pass the id here
+      ),
+    ),
+  );
+},
+
                   icon: const Icon(Icons.shopping_cart, color: Colors.white),
                   label: const Text(
                     'Buy Now',
@@ -5573,6 +5592,1043 @@ class ProductCard extends StatelessWidget {
   }
 }
 
+
+class CheckoutPage extends StatefulWidget {
+  final String title;
+  final String price;
+  final String imageUrl;
+  final String companyName;
+  final String description;
+  final int productId;
+
+  const CheckoutPage({
+    required this.title,
+    required this.price,
+    required this.imageUrl,
+    required this.companyName,
+    required this.description,
+    required this.productId,
+    super.key,
+  });
+
+  @override
+  _CheckoutPageState createState() => _CheckoutPageState();
+}
+
+class _CheckoutPageState extends State<CheckoutPage> {
+  int quantity = 1;
+
+double get totalPrice {
+  // Print the original widget.price for debugging
+  print("Original price from widget: ${widget.price}");
+
+  // Remove all non-numeric characters, including dollar signs
+  String cleanedPrice = widget.price.replaceAll(RegExp(r'[^0-9.]'), '');  
+  print("Cleaned price: $cleanedPrice");
+
+  // Calculate and print the total price
+  double calculatedTotal = quantity * double.parse(cleanedPrice);
+  print("Total price: $calculatedTotal");
+
+  return calculatedTotal;
+}
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.deepPurple,
+        elevation: 10,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.7),
+                    blurRadius: 10,
+                    spreadRadius: 3,
+                  ),
+                ],
+              ),
+              child: Image.asset(
+                'assets/logo/app_logo.png',
+                height: 50,
+                width: 50,
+              ),
+            ),
+            const SizedBox(width: 15),
+            ShaderMask(
+              shaderCallback: (Rect bounds) {
+                return const LinearGradient(
+                  colors: [Color.fromARGB(255, 255, 171, 64), Colors.yellow],
+                  tileMode: TileMode.mirror,
+                ).createShader(bounds);
+              },
+              child: const Text(
+                'Mecar',
+                style: TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1.5,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(2.0, 2.0),
+                      blurRadius: 3.0,
+                      color: Colors.black26,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+actions: [
+  PopupMenuButton<String>(
+    icon: const Icon(Icons.settings, color: Colors.white),
+    onSelected: (String value) async {
+      // Handle menu selection
+      switch (value) {
+        case 'Switch Account':
+          // Navigate to switch account screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SwitchAccountScreen()),
+          );
+          break;
+        case 'Privacy Policy':
+          // Navigate to privacy policy screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
+          );
+          break;
+        case 'Help':
+          // Navigate to help screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HelpScreen()),
+          );
+          break;
+        case 'Logout':
+          // Logout functionality
+          final SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.clear();
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (Route<dynamic> route) => false,
+          );
+          break;
+      }
+    },
+    itemBuilder: (BuildContext context) {
+      return [
+        const PopupMenuItem(
+          value: 'Switch Account',
+          child: Text('Switch Account'),
+        ),
+        const PopupMenuItem(
+          value: 'Privacy Policy',
+          child: Text('Privacy Policy'),
+        ),
+        const PopupMenuItem(
+          value: 'Help',
+          child: Text('Help'),
+        ),
+        const PopupMenuItem(
+          value: 'Logout',
+          child: Text('Logout'),
+        ),
+      ];
+    },
+  ),
+
+
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black26,
+                      blurRadius: 10,
+                      offset: Offset(0, 5),
+                    ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: Image.network(
+                    widget.imageUrl,
+                    height: 220,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) =>
+                        const Center(child: Icon(Icons.error, size: 80, color: Colors.red)),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                widget.title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurple,
+                ),
+              ),
+              const SizedBox(height: 12),
+Row(
+  mainAxisAlignment: MainAxisAlignment.center,
+  children: [
+    Text(
+      'Ksh ${NumberFormat('#,##0.00').format(totalPrice)}',
+      style: const TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+        color: Colors.deepOrange,
+      ),
+    ),
+  ],
+),
+
+
+              const SizedBox(height: 20),
+              Card(
+                elevation: 3,
+                margin: EdgeInsets.zero,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.business, color: Colors.black87, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Company: ${widget.companyName}',
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.description, color: Colors.black54, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              widget.description,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Quantity:',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.remove_circle_outline, size: 28),
+                        onPressed: () {
+                          if (quantity > 1) {
+                            setState(() {
+                              quantity--;
+                            });
+                          }
+                        },
+                        color: Colors.deepPurple,
+                      ),
+                      Text(
+                        '$quantity',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.add_circle_outline, size: 28),
+                        onPressed: () {
+                          setState(() {
+                            quantity++;
+                          });
+                        },
+                        color: Colors.deepPurple,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 30),
+ElevatedButton.icon(
+  onPressed: () {
+    // Navigate to the PaymentSummaryPage with the necessary data
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => PaymentSummaryPage(
+          productId: widget.productId,
+          imageUrl: widget.imageUrl,
+          title: widget.title,
+          quantity: quantity,
+          totalPrice: totalPrice,
+        ),
+      ),
+    );
+  },
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.deepPurple,
+    padding: const EdgeInsets.symmetric(vertical: 16),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(10),
+    ),
+  ),
+  icon: const Icon(Icons.payment, size: 24, color: Colors.white),
+  label: const Text(
+    'Proceed to Payment',
+    style: TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.bold,
+      color: Colors.white,
+    ),
+  ),
+),
+
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+
+class PaymentSummaryPage extends StatelessWidget {
+  final String title; // Product name
+  final int productId;
+  final String imageUrl;
+  final int quantity;
+  final double totalPrice;
+
+  const PaymentSummaryPage({
+    required this.title,
+    required this.productId,
+    required this.imageUrl,
+    required this.quantity,
+    required this.totalPrice,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.deepPurple,
+        elevation: 10,
+        title: Row(
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.white.withOpacity(0.7),
+                    blurRadius: 10,
+                    spreadRadius: 3,
+                  ),
+                ],
+              ),
+              child: Image.asset(
+                'assets/logo/app_logo.png',
+                height: 50,
+                width: 50,
+              ),
+            ),
+            const SizedBox(width: 15),
+            ShaderMask(
+              shaderCallback: (Rect bounds) {
+                return const LinearGradient(
+                  colors: [Color.fromARGB(255, 255, 171, 64), Colors.yellow],
+                  tileMode: TileMode.mirror,
+                ).createShader(bounds);
+              },
+              child: const Text(
+                'Make Payments',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                  letterSpacing: 1.5,
+                  shadows: [
+                    Shadow(
+                      offset: Offset(2.0, 2.0),
+                      blurRadius: 3.0,
+                      color: Colors.black26,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+actions: [
+  PopupMenuButton<String>(
+    icon: const Icon(Icons.settings, color: Colors.white),
+    onSelected: (String value) async {
+      // Handle menu selection
+      switch (value) {
+        case 'Switch Account':
+          // Navigate to switch account screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const SwitchAccountScreen()),
+          );
+          break;
+        case 'Privacy Policy':
+          // Navigate to privacy policy screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
+          );
+          break;
+        case 'Help':
+          // Navigate to help screen
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const HelpScreen()),
+          );
+          break;
+        case 'Logout':
+          // Logout functionality
+          final SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.clear();
+
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (context) => const LoginScreen()),
+            (Route<dynamic> route) => false,
+          );
+          break;
+      }
+    },
+    itemBuilder: (BuildContext context) {
+      return [
+        const PopupMenuItem(
+          value: 'Switch Account',
+          child: Text('Switch Account'),
+        ),
+        const PopupMenuItem(
+          value: 'Privacy Policy',
+          child: Text('Privacy Policy'),
+        ),
+        const PopupMenuItem(
+          value: 'Help',
+          child: Text('Help'),
+        ),
+        const PopupMenuItem(
+          value: 'Logout',
+          child: Text('Logout'),
+        ),
+      ];
+    },
+  ),
+
+
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Card(
+              elevation: 3,
+              margin: EdgeInsets.zero,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Table(
+                      border: TableBorder.all(
+                        color: Colors.grey,
+                        width: 1,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      columnWidths: {
+                        0: FixedColumnWidth(50), // Set width for image column
+                        1: FlexColumnWidth(), // Flex for text
+                        2: FixedColumnWidth(50), // Set width for quantity
+                        3: FixedColumnWidth(80), // Set width for total price
+                      },
+                      children: [
+                        // Header Row
+                        TableRow(
+                          decoration: BoxDecoration(
+                            color: Colors.deepPurple[100], // Header background color
+                          ),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                'Image',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.deepPurple,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                'Product',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.deepPurple,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                'Quantity',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.deepPurple,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(8.0),
+                              child: Text(
+                                'Total Price (ksh)',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.deepPurple,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        // Data Row
+                        TableRow(
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.all(4.0),
+                              child: Image.network(
+                                imageUrl,
+                                height: 40,
+                                width: 40,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    const Center(child: Icon(Icons.error, size: 30, color: Colors.red)),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(4.0),
+                              child: Text(
+                                title,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(4.0),
+                              child: Text(
+                                '$quantity',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                ),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.all(4.0),
+                              child: Text(
+                                '${NumberFormat('#,##0.00').format(totalPrice)}',
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.deepOrange,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+Row(
+  children: [
+    const Icon(
+      Icons.payment, // Icon for payment method
+      color: Colors.deepPurple,
+      size: 30,
+    ),
+    const SizedBox(width: 8), // Space between the icon and text
+    const Text(
+      'Payment Method',
+      style: TextStyle(
+        fontSize: 20, // Slightly larger font size for emphasis
+        fontWeight: FontWeight.bold,
+        color: Colors.deepPurple,
+        letterSpacing: 1.2, // Adds some spacing between the letters for elegance
+      ),
+    ),
+  ],
+),
+const SizedBox(height: 12),
+
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceAround,
+  children: [
+    ElevatedButton.icon(
+      onPressed: () {
+showDialog(
+  context: context,
+  builder: (context) => AlertDialog(
+    contentPadding: EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+    title: const Text(
+      'Card Payment',
+      style: TextStyle(
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+        color: Colors.deepPurple,
+      ),
+    ),
+    content: Container(
+      width: 600, // Increased the width for a wider dialog
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Total Amount to Pay Input Field
+            TextField(
+              controller: TextEditingController(
+                text: '${NumberFormat('#,##0.00').format(totalPrice)}',
+              ),
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'Total Price (Ksh)',
+                labelStyle: TextStyle(
+                  color: Colors.deepPurple,
+                  fontWeight: FontWeight.w600,
+                ),
+                prefixIcon: Icon(Icons.attach_money, color: Colors.deepPurple),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                filled: true,
+                fillColor: Colors.grey[200],
+              ),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+
+            // Card Number Input Field
+            TextField(
+              decoration: InputDecoration(
+                labelText: 'Card Number',
+                prefixIcon: Icon(Icons.credit_card, color: Colors.deepPurple),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                hintText: '1234 5678 9876 5432',
+                filled: true,
+                fillColor: Colors.grey[200],
+              ),
+              keyboardType: TextInputType.number,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Row for Expiry Date and CVV
+            Row(
+              children: [
+                // Expiry Date Input Field
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      labelText: 'Expiry Date',
+                      prefixIcon: Icon(Icons.calendar_today, color: Colors.deepPurple),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      hintText: 'MM/YY',
+                      filled: true,
+                      fillColor: Colors.grey[200],
+                    ),
+                    keyboardType: TextInputType.datetime,
+                    style: TextStyle(
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // CVV Input Field
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      labelText: 'CVV',
+                      prefixIcon: Icon(Icons.security, color: Colors.deepPurple),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      hintText: '123',
+                      filled: true,
+                      fillColor: Colors.grey[200],
+                    ),
+                    keyboardType: TextInputType.number,
+                    obscureText: true,
+                    style: TextStyle(
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Cardholder Name Input Field
+            TextField(
+              decoration: InputDecoration(
+                labelText: 'Cardholder Name',
+                prefixIcon: Icon(Icons.person, color: Colors.deepPurple),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                hintText: 'John Doe',
+                filled: true,
+                fillColor: Colors.grey[200],
+              ),
+              style: TextStyle(
+                fontSize: 18,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Submit Button
+            ElevatedButton(
+              onPressed: () {
+                // Handle the form submission logic here
+                Navigator.pop(context);
+              },
+              child: const Text(
+                'Pay Now',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                elevation: 6,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () {
+          Navigator.pop(context);
+        },
+        child: const Text(
+          'Cancel',
+          style: TextStyle(
+            color: Colors.red,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        ),
+      ),
+    ],
+  ),
+);
+
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.green,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        elevation: 5, // Adds depth with shadow
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+      icon: const Icon(
+        Icons.credit_card, // Icon for card payment
+        color: Colors.white,
+        size: 20,
+      ),
+      label: const Text(
+        'Card Payment',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ),
+    ElevatedButton.icon(
+      onPressed: () {
+showDialog(
+  context: context,
+  builder: (context) => AlertDialog(
+    title: const Text(
+      'Payment Details',
+      style: TextStyle(
+        color: Colors.deepPurple,
+        fontSize: 24,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+    content: SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 8,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: TextField(
+              controller: TextEditingController(
+                text: '${NumberFormat('#,##0.00').format(totalPrice)}',
+              ),
+              readOnly: true,
+              decoration: InputDecoration(
+                labelText: 'Total Price (Ksh)',
+                labelStyle: TextStyle(
+                  color: Colors.deepPurple,
+                  fontWeight: FontWeight.w600,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                prefixIcon: Icon(Icons.attach_money, color: Colors.deepPurple),
+              ),
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepOrange,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.2),
+                  blurRadius: 8,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: TextField(
+              decoration: InputDecoration(
+                labelText: 'Phone Number',
+                labelStyle: TextStyle(
+                  color: Colors.deepPurple,
+                  fontWeight: FontWeight.w600,
+                ),
+                prefixIcon: Icon(Icons.phone, color: Colors.deepPurple),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              keyboardType: TextInputType.phone,
+              style: const TextStyle(
+                fontSize: 16,
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+actions: [
+  // Cancel Button with Gradient and Custom Styling
+  TextButton(
+    onPressed: () {
+      Navigator.pop(context);
+    },
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.cancel, color: Colors.white, size: 20),
+        const SizedBox(width: 8),
+        const Text(
+          'Cancel',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      ],
+    ),
+    style: TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      backgroundColor: Colors.redAccent, // Bright background color
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      elevation: 4,
+    ).copyWith(
+      overlayColor: MaterialStateProperty.all(Colors.red.shade700.withOpacity(0.1)),
+    ),
+  ),
+  
+  // Confirm Button with Gradient and Custom Styling
+  ElevatedButton(
+    onPressed: () {
+      // Handle submission or continue logic here
+      Navigator.pop(context);
+    },
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.check_circle, color: Colors.white, size: 20),
+        const SizedBox(width: 8),
+        const Text(
+          'Confirm',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      ],
+    ),
+    style: ElevatedButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      backgroundColor: Colors.deepPurple, // Base color
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      elevation: 6, // Subtle shadow for depth
+    ).copyWith(
+      shadowColor: MaterialStateProperty.all(Colors.deepPurple.withOpacity(0.5)),
+      overlayColor: MaterialStateProperty.all(Colors.deepPurple.shade700.withOpacity(0.1)),
+    ),
+  ),
+],
+
+  ),
+);
+
+      },
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.blue,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        elevation: 5, // Adds depth with shadow
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+      ),
+      icon: const Icon(
+        Icons.phone_iphone, // Icon for M-PESA payment
+        color: Colors.white,
+        size: 20,
+      ),
+      label: const Text(
+        'M-PESA',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ),
+  ],
+),
+
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 
 class MessagesSection extends StatefulWidget {
@@ -6427,35 +7483,413 @@ body: FutureBuilder<List<UserDetails>?>(
 
 
 
+
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      appBar: CustomAppBar(
+    return Scaffold(
+      appBar: const CustomAppBar(
         logoPath: 'assets/logo/app_logo.png',
         title: 'Privacy Policy',
       ),
-      body: Center(child: Text('Privacy Policy Screen')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Privacy Policy',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueAccent,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            _buildSection(
+              context,
+              FontAwesomeIcons.shieldAlt,
+              'Our Commitment',
+              'Your trust matters to us. We prioritize safeguarding your personal information and ensuring transparency.',
+            ),
+
+            _buildSection(
+              context,
+              FontAwesomeIcons.database,
+              'Data We Collect',
+              'Personal details you share (name, email, phone) and technical data (IP address, usage stats) for improving your experience.',
+            ),
+
+            _buildSection(
+              context,
+              FontAwesomeIcons.userCheck,
+              'How We Use Data',
+              'We enhance your experience and protect the platform. Your data helps us personalize services and ensure security.',
+            ),
+
+            _buildSection(
+              context,
+              FontAwesomeIcons.peopleArrows,
+              'Sharing Your Information',
+              'We don’t sell your data. Limited sharing occurs with trusted partners or when required by law.',
+            ),
+
+            _buildSection(
+              context,
+              FontAwesomeIcons.userShield,
+              'Your Rights',
+              'Access, update, or delete your data anytime. Adjust your preferences or contact support for help.',
+            ),
+
+            const SizedBox(height: 24),
+            const Row(
+              children: [
+                Icon(FontAwesomeIcons.infoCircle, color: Colors.blueAccent, size: 28),
+                SizedBox(width: 12),
+                Flexible(
+                  child: Text(
+                    'For more details, visit our website or contact support.',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSection(BuildContext context, IconData icon, String title, String description) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, color: Colors.blue, size: 28),
+            const SizedBox(width: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.only(left: 40),
+          child: Text(
+            description,
+            style: const TextStyle(fontSize: 16, color: Colors.black87),
+          ),
+        ),
+        const SizedBox(height: 20),
+      ],
     );
   }
 }
+
+
+
+
 
 class HelpScreen extends StatelessWidget {
   const HelpScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      appBar: CustomAppBar(
+    return Scaffold(
+      appBar: const CustomAppBar(
         logoPath: 'assets/logo/app_logo.png',
         title: 'Help',
       ),
-      body: Center(child: Text('Help Screen')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'How Can We Help You?',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueAccent,
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Frequently Asked Questions Section
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Frequently Asked Questions',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    ExpansionTile(
+                      leading: Icon(Icons.question_answer, color: Colors.blue),
+                      title: Text('How do I reset my password?'),
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Text(
+                            'Go to the login page and click on "Forgot Password". Follow the instructions sent to your email.',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                    ExpansionTile(
+                      leading: Icon(Icons.question_answer, color: Colors.blue),
+                      title: Text('Where can I find my account settings?'),
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Text(
+                            'Navigate to the "Settings" section in your profile menu to manage your account preferences.',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                    ExpansionTile(
+                      leading: Icon(Icons.question_answer, color: Colors.blue),
+                      title: Text('Who can I contact for support?'),
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16.0),
+                          child: Text(
+                            'You can contact our support team by using the chat feature below or emailing us at support@example.com.',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Contact Support Section
+            Card(
+              elevation: 3,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Contact Support',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Icon(Icons.email, color: Colors.green),
+                        SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Email: support@example.com',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    Row(
+                      children: [
+                        Icon(Icons.phone, color: Colors.orange),
+                        SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Phone: +123 456 7890',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ChatbotScreen()),
+          );
+        },
+        backgroundColor: Colors.blueAccent,
+        label: const Text('Chat Assistant'),
+        icon: const Icon(Icons.chat),
+      ),
     );
   }
 }
+
+
+
+class ChatbotScreen extends StatelessWidget {
+  const ChatbotScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Chat Assistant',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Colors.blueAccent, Colors.lightBlue],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        elevation: 4.0,
+      ),
+      body: Column(
+        children: [
+          // Chat messages list
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.all(16.0),
+              children: const [
+                ChatBubble(
+                  text: 'Hi! How can I assist you today?',
+                  isUser: false,
+                ),
+                ChatBubble(
+                  text: 'I need help with my account settings.',
+                  isUser: true,
+                ),
+                ChatBubble(
+                  text: 'Sure! What specifically would you like to know?',
+                  isUser: false,
+                ),
+              ],
+            ),
+          ),
+
+          // Divider
+          const Divider(height: 1.0),
+
+          // Message input area
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Type your message...',
+                      filled: true,
+                      fillColor: Colors.grey.shade200,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20.0),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        vertical: 12.0,
+                        horizontal: 16.0,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  icon: const Icon(Icons.send, color: Colors.blueAccent),
+                  onPressed: () {
+                    // Handle message sending
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ChatBubble extends StatelessWidget {
+  final String text;
+  final bool isUser;
+
+  const ChatBubble({required this.text, required this.isUser, super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 6.0),
+        padding: const EdgeInsets.all(12.0),
+        decoration: BoxDecoration(
+          color: isUser ? Colors.blue.shade100 : Colors.grey.shade300,
+          borderRadius: BorderRadius.only(
+            topLeft: const Radius.circular(12.0),
+            topRight: const Radius.circular(12.0),
+            bottomLeft: Radius.circular(isUser ? 12.0 : 0.0),
+            bottomRight: Radius.circular(isUser ? 0.0 : 12.0),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              offset: const Offset(0, 2),
+              blurRadius: 4.0,
+            ),
+          ],
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: isUser ? Colors.black87 : Colors.black54,
+            fontSize: 15.0,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+
+
 
 class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String logoPath;
