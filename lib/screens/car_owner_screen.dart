@@ -25,6 +25,7 @@ import 'package:intl/intl.dart';
 import 'login_screen.dart';
 import 'switch_signup.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:animated_text_kit/animated_text_kit.dart'; // For text animation
 
 void main() => runApp(const MyApp());
 List<XFile>? _imageFiles = [];
@@ -4581,14 +4582,14 @@ class ExplorePage extends StatefulWidget {
 class _ExplorePageState extends State<ExplorePage> {
   int _selectedNavIndex = 0;
 
-  // List of widgets for different sections
-  final List<Widget> _navPages = [
-    const HomeSection(),
-    const ProductScreen(),
-    const MessagesSection(),
-    const ExploreSection(),
-  ];
-
+// List of widgets for different sections
+final List<Widget> _navPages = [
+  const HomeSection(),
+  const ProductScreen(),
+  const MessagesSection(),
+  const OrdersSection(), // Add the Orders section here
+  const ExploreSection(),
+];
   void _onNavItemTapped(int index) {
     setState(() {
       _selectedNavIndex = index;
@@ -4652,53 +4653,467 @@ class _ExplorePageState extends State<ExplorePage> {
             ),
           ],
         ),
-        actions: [
-          // Animated search icon on the far right
-          IconButton(
-            icon: const Icon(Icons.search),
-            iconSize: 28,
-            color: Colors.white,
-            splashRadius: 25,
-            onPressed: () {
-              // Implement search functionality here
-            },
-            tooltip: 'Search', // Tooltip on hover for better UX
-          ),
+      actions: [
+        PopupMenuButton<String>(
+          icon: const Icon(Icons.settings, color: Colors.white),
+          onSelected: (String value) async {
+            switch (value) {
+              case 'Switch Account':
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SwitchAccountScreen()),
+                );
+                break;
+              case 'Privacy Policy':
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
+                );
+                break;
+              case 'Help':
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HelpScreen()),
+                );
+                break;
+              case 'Logout':
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const LoginScreen()),
+                  (Route<dynamic> route) => false,
+                );
+                break;
+            }
+          },
+          itemBuilder: (BuildContext context) {
+            return [
+              const PopupMenuItem(value: 'Switch Account', child: Text('Switch Account')),
+              const PopupMenuItem(value: 'Privacy Policy', child: Text('Privacy Policy')),
+              const PopupMenuItem(value: 'Help', child: Text('Help')),
+              const PopupMenuItem(value: 'Logout', child: Text('Logout')),
+            ];
+          },
+        ),
+        IconButton(
+          icon: const Icon(Icons.exit_to_app, color: Colors.redAccent),
+          onPressed: () async {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const LoginScreen()),
+              (Route<dynamic> route) => false,
+            );
+          },
+        ),
         ],
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(
               60.0), // Set height for the bottom navigation
-          child: BottomNavigationBar(
-            items: const <BottomNavigationBarItem>[
-              BottomNavigationBarItem(
-                icon: Icon(Icons.home),
-                label: 'Home',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.store),
-                label: 'Products',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.message),
-                label: 'Messages',
-              ),
-              BottomNavigationBarItem(
-                icon: Icon(Icons.explore),
-                label: 'Explore',
-              ),
-            ],
-            currentIndex: _selectedNavIndex,
-            selectedItemColor:
-                const Color.fromARGB(255, 255, 171, 64), // Single color
-            unselectedItemColor: Colors.grey,
-            onTap: _onNavItemTapped,
-            type: BottomNavigationBarType.fixed,
-          ),
+child: BottomNavigationBar(
+  items: const <BottomNavigationBarItem>[
+    BottomNavigationBarItem(
+      icon: Icon(Icons.home),
+      label: 'Home',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.store),
+      label: 'Products',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.message),
+      label: 'Messages',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.shopping_cart), // Icon for Orders
+      label: 'Orders',
+    ),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.explore),
+      label: 'Explore',
+    ),
+  ],
+  currentIndex: _selectedNavIndex,
+  selectedItemColor: const Color.fromARGB(255, 255, 171, 64), // Single color
+  unselectedItemColor: Colors.grey,
+  onTap: _onNavItemTapped,
+  type: BottomNavigationBarType.fixed,
+),
+
         ),
       ),
       body: IndexedStack(
         index: _selectedNavIndex, // Show the selected page
         children: _navPages,
+      ),
+    );
+  }
+}
+
+
+
+class OrdersSection extends StatelessWidget {
+  const OrdersSection({super.key});
+
+  Future<List<dynamic>> fetchOrders() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token');
+
+    if (token == null) {
+      print("Debug: JWT token is null. User is not authenticated.");
+      throw Exception('User is not authenticated.');
+    }
+
+    try {
+      final response = await http.get(
+        Uri.parse('https://expertstrials.xyz/Garifix_app/api/orders'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final orders = jsonDecode(response.body);
+        return orders;
+      } else {
+        throw Exception('Failed to fetch orders.');
+      }
+    } catch (e) {
+      print("Error: Exception occurred while fetching orders: $e");
+      throw Exception('An error occurred while fetching orders.');
+    }
+  }
+
+  Future<void> _checkImageLoaded(String imageUrl) async {
+    try {
+      final response = await http.get(Uri.parse(imageUrl));
+      if (response.statusCode == 200) {
+        print('Image URL is valid and returned status 200.');
+      } else {
+        print('Error: Image returned status ${response.statusCode}.');
+      }
+    } catch (e) {
+      print('Failed to fetch image: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+appBar: AppBar(
+  title: const Text(
+    'My Orders',
+    style: TextStyle(
+      fontWeight: FontWeight.bold,
+      fontSize: 22,
+      color: Colors.white,
+      letterSpacing: 1.2,
+    ),
+  ),
+  backgroundColor: Colors.blueAccent,
+  elevation: 4.0,
+  shape: const RoundedRectangleBorder(
+    borderRadius: BorderRadius.vertical(
+      bottom: Radius.circular(30),
+    ),
+  ),
+  actions: [
+    IconButton(
+      icon: const Icon(
+        Icons.shopping_cart,
+        color: Colors.white,
+      ),
+      onPressed: () {
+        // Add your action here
+      },
+    ),
+  ],
+  flexibleSpace: Container(
+    decoration: const BoxDecoration(
+      gradient: LinearGradient(
+        colors: [Colors.blueAccent, Colors.purpleAccent],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+    ),
+  ),
+),
+
+body: FutureBuilder<List<dynamic>>(
+  future: fetchOrders(),
+  builder: (context, snapshot) {
+    if (snapshot.connectionState == ConnectionState.waiting) {
+      return const Center(child: CircularProgressIndicator());
+    } else if (snapshot.hasError) {
+      return Center(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                spreadRadius: 2,
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.shopping_bag_outlined,
+                color: Colors.blueAccent,
+                size: 100,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No orders yet!',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blueAccent,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Start shopping now to see your orders here.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[700],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+      // Display a beautiful "No orders yet" message with an icon
+      return Center(
+        child: Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                spreadRadius: 2,
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.shopping_bag_outlined,
+                color: Colors.blueAccent,
+                size: 100,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No orders yet!',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blueAccent,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Start shopping now to see your orders here.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[700],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+
+          final orders = snapshot.data!;
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: ListView.builder(
+              itemCount: orders.length,
+              itemBuilder: (context, index) {
+                final order = orders[index];
+                return Card(
+                  elevation: 6,
+                  margin: const EdgeInsets.symmetric(vertical: 10.0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Order ID: #${order['id']}',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              'Ksh ${order['total_amount'].toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+const SizedBox(height: 8),
+Row(
+  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  children: [
+    Expanded(
+      child: Text(
+        'Product: ${order['product_name']}',
+        style: const TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    ),
+    Text(
+      'Quantity: ${order['quantity']}',
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w500,
+        color: Colors.blueAccent, // Optional: change color to highlight
+      ),
+    ),
+  ],
+),
+
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Text(
+                              'Order Date: ${order['created_at']}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            order['product_image_path'] != null
+                                ? ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: Image.network(
+                                      'https://expertstrials.xyz/Garifix_app/' + order['product_image_path'],
+                                      width: 100,
+                                      height: 100,
+                                      fit: BoxFit.cover,
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) {
+                                          return child;
+                                        } else {
+                                          return Center(
+                                            child: CircularProgressIndicator(
+                                              value: loadingProgress.expectedTotalBytes != null
+                                                  ? loadingProgress.cumulativeBytesLoaded / (loadingProgress.expectedTotalBytes ?? 1)
+                                                  : null,
+                                            ),
+                                          );
+                                        }
+                                      },
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return const Icon(Icons.error, size: 50);
+                                      },
+                                    ),
+                                  )
+                                : Container(
+                                    color: Colors.grey[300],
+                                    width: 100,
+                                    height: 100,
+                                    child: const Icon(Icons.image, color: Colors.grey, size: 50),
+                                  ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(Icons.check_circle, color: Colors.green, size: 18),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Paid',
+                                      style: TextStyle(
+                                        color: Colors.green,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Company: ${order['company_full_name']}',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Status: ${order['status']}',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Colors.blue,
+                                  ),
+                                ),
+                                                        const SizedBox(height: 4),
+
+                                                        Row(
+                          children: [
+                            if (order['company_phone_number'] != null)
+                              const Icon(Icons.phone, color: Colors.blue),
+                            if (order['company_phone_number'] != null)
+                              const SizedBox(width: 4),
+                            if (order['company_phone_number'] != null)
+                              Text(
+                                order['company_phone_number'],
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blueAccent,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                          ],
+                        ),
+                              ],
+                            ),
+                          ],
+                        ),
+
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+        },
       ),
     );
   }
@@ -4795,17 +5210,22 @@ class _HomeSectionState extends State<HomeSection> {
                                 locationText = 'Error fetching location';
                               }
 
-                              return _buildExplorePost(
-                                mechanicName: post.fullName,
-                                description: post.description,
-                                datePosted: post.createdAt.toString(),
-                                imagePath:
-                                    'https://expertstrials.xyz/Garifix_app/${post.imagePath}',
-                                userProfilePic:
-                                    'https://expertstrials.xyz/Garifix_app/${post.profileImage}' ??
-                                        'assets/default_user.png',
-                                location: locationText,
-                              );
+return _buildExplorePost(
+  postId: post.id, // Pass the post ID here
+  mechanicName: post.fullName,
+  description: post.description,
+  datePosted: post.createdAt.toString(),
+  imagePath: 'https://expertstrials.xyz/Garifix_app/${post.imagePath}',
+  userProfilePic: post.profileImage != null
+      ? 'https://expertstrials.xyz/Garifix_app/${post.profileImage}'
+      : 'assets/default_user.png',
+  location: locationText,
+  isLiked: post.isLiked, // Pass the isLiked status
+  isSaved: post.isSaved, // Pass the isSaved status
+  totalLikes: post.totalLikes, // Pass the totalLikes count
+);
+
+
                             },
                           );
                         },
@@ -5069,144 +5489,206 @@ void _showCustomSnackBar(BuildContext context, bool isSuccess, String message) {
 }
 
 
-  Widget _buildExplorePost({
-    required String mechanicName,
-    required String description,
-    required String datePosted,
-    required String imagePath,
-    required String userProfilePic,
-    required String location,
-  }) {
-    int likeCount = 0;
-    bool isLiked = false;
-    bool isSaved = false;
 
-    return StatefulBuilder(
-      builder: (context, setState) {
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 10),
-          elevation: 4,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(15),
-                  topRight: Radius.circular(15),
-                ),
-                child: Image.network(
-                  imagePath,
-                  height: 180,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  loadingBuilder: (context, child, loadingProgress) {
-                    if (loadingProgress == null) return child;
-                    return Center(
-                      child: CircularProgressIndicator(
-                        value: loadingProgress.expectedTotalBytes != null
-                            ? loadingProgress.cumulativeBytesLoaded /
-                                (loadingProgress.expectedTotalBytes ?? 1)
-                            : null,
-                      ),
-                    );
-                  },
-                  errorBuilder: (context, error, stackTrace) {
-                    return const Center(child: Icon(Icons.error));
-                  },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundImage: NetworkImage(
-                            userProfilePic.isNotEmpty
-                                ? userProfilePic
-                                : 'https://example.com/default_user.png', // Default image URL if needed
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              mechanicName,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: Colors.deepPurple,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              location,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Text(description, style: const TextStyle(fontSize: 14)),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(datePosted,
-                            style: const TextStyle(color: Colors.grey)),
-                        Row(
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                isLiked
-                                    ? Icons.favorite
-                                    : Icons.favorite_border,
-                                color: isLiked ? Colors.red : Colors.deepPurple,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  isLiked = !isLiked;
-                                  likeCount += isLiked ? 1 : -1;
-                                });
-                              },
-                            ),
-                            Text(likeCount.toString()),
-                            IconButton(
-                              icon: Icon(
-                                isSaved
-                                    ? Icons.bookmark
-                                    : Icons.bookmark_border,
-                                color: Colors.deepPurple,
-                              ),
-                              onPressed: () {
-                                setState(() {
-                                  isSaved = !isSaved;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+Widget _buildExplorePost({
+  required int postId, // Added postId
+  required String mechanicName,
+  required String description,
+  required String datePosted,
+  required String imagePath,
+  required String userProfilePic,
+  required String location,
+  required bool isLiked, // Added isLiked
+  required bool isSaved, // Added isSaved
+  required int totalLikes, // Added totalLikes
+}) {
+  Future<void> updateLikeStatus(bool isLiked) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('jwt_token');
+
+      if (token == null) {
+        throw Exception("User not authenticated");
+      }
+
+      final response = await http.post(
+        Uri.parse('https://expertstrials.xyz/Garifix_app/like'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'post_id': postId,
+          'is_liked': isLiked,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception("Failed to update like status");
+      }
+    } catch (e) {
+      print("Error updating like status: $e");
+    }
   }
+
+  Future<void> updateWishlistStatus(bool isSaved) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('jwt_token');
+
+      if (token == null) {
+        throw Exception("User not authenticated");
+      }
+
+      final response = await http.post(
+        Uri.parse('https://expertstrials.xyz/Garifix_app/wishlist'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'post_id': postId,
+          'is_saved': isSaved,
+        }),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception("Failed to update wishlist status");
+      }
+    } catch (e) {
+      print("Error updating wishlist status: $e");
+    }
+  }
+
+  return StatefulBuilder(
+    builder: (context, setState) {
+      return Card(
+        margin: const EdgeInsets.symmetric(vertical: 10),
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15)),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ClipRRect(
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(15),
+                topRight: Radius.circular(15),
+              ),
+              child: Image.network(
+                imagePath,
+                height: 180,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Center(
+                    child: CircularProgressIndicator(
+                      value: loadingProgress.expectedTotalBytes != null
+                          ? loadingProgress.cumulativeBytesLoaded /
+                              (loadingProgress.expectedTotalBytes ?? 1)
+                          : null,
+                    ),
+                  );
+                },
+                errorBuilder: (context, error, stackTrace) {
+                  return const Center(child: Icon(Icons.error));
+                },
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundImage: NetworkImage(
+                          userProfilePic.isNotEmpty
+                              ? userProfilePic
+                              : 'https://example.com/default_user.png',
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            mechanicName,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.deepPurple,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            location,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Text(description, style: const TextStyle(fontSize: 14)),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(datePosted,
+                          style: const TextStyle(color: Colors.grey)),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: Icon(
+                              isLiked
+                                  ? Icons.favorite
+                                  : Icons.favorite_border,
+                              color: isLiked ? Colors.red : Colors.deepPurple,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                isLiked = !isLiked;
+                                totalLikes += isLiked ? 1 : -1;
+                              });
+                              updateLikeStatus(isLiked);
+                            },
+                          ),
+                          Text(totalLikes.toString()),
+                          IconButton(
+                            icon: Icon(
+                              isSaved
+                                  ? Icons.bookmark
+                                  : Icons.bookmark_border,
+                              color: Colors.deepPurple,
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                isSaved = !isSaved;
+                              });
+                              updateWishlistStatus(isSaved);
+                            },
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 }
 
 class ProductScreen extends StatefulWidget {
@@ -5221,11 +5703,14 @@ class _ProductScreenState extends State<ProductScreen> {
   bool isLoading = true; // Loading indicator
   bool isSearchVisible = false;
   String errorMessage = ""; // Store error messages
-
+  late ChatService _chatService; // Declare ChatService instance
+  bool isAddedToWishlist = false; // State to track if the icon is active
+  
   @override
   void initState() {
     super.initState();
     _initializeProducts(); // Call the data initializer
+    _chatService = ChatService(); // Initialize ChatService
   }
 
   Future<void> _initializeProducts() async {
@@ -5241,61 +5726,84 @@ class _ProductScreenState extends State<ProductScreen> {
     }
   }
 
-  Future<void> fetchProducts() async {
-    setState(() {
-      isLoading = true; // Start loading state
-      errorMessage = ""; // Clear previous errors
-    });
+Future<void> fetchProducts() async {
+  setState(() {
+    isLoading = true; // Start loading state
+    errorMessage = ""; // Clear previous errors
+  });
 
-    print("fetchProducts called");
+  print("fetchProducts called");
 
-    try {
-      print("Making API request...");
-      final response = await http
-          .get(Uri.parse('https://expertstrials.xyz/Garifix_app/api/products'));
+  try {
+    // Get the token from shared preferences
+    final prefs = await SharedPreferences.getInstance();
+    final String? token = prefs.getString('jwt_token');
 
-      print('Response status code: ${response.statusCode}');
-
-      if (response.statusCode == 200) {
-        final List<dynamic> productList = json.decode(response.body);
-
-        // Print the entire response data for debugging
-        print("Response body: $productList");
-
-        // Log and update the state with the fetched products
-        print("Products fetched successfully, count: ${productList.length}");
-
-        // Convert location coordinates to addresses
-        for (var product in productList) {
-          if (product['location'] != 'Location unavailable') {
-            var coordinates = product['location'].split(',');
-            double latitude = double.parse(coordinates[0].trim());
-            double longitude = double.parse(coordinates[1].trim());
-            List<Placemark> placemarks =
-                await placemarkFromCoordinates(latitude, longitude);
-            String address = placemarks.isNotEmpty
-                ? placemarks.first.street ?? 'Address not found'
-                : 'Address not found';
-            product['location'] = address;
-          }
-        }
-
-        setState(() {
-          filteredProducts = productList;
-          isLoading = false;
-        });
-      } else {
-        print("Failed to load products with status: ${response.statusCode}");
-        throw Exception('Failed to load products');
-      }
-    } catch (e) {
-      print("Error fetching products: $e");
+    if (token == null) {
+      // Handle missing token
+      print("Error: User token not found.");
       setState(() {
         isLoading = false;
-        errorMessage = "Error fetching products.";
+        errorMessage = "User not authenticated.";
       });
+      return;
     }
+
+    print("Token retrieved: $token");
+    print("Making API request...");
+
+    // Make the API request with the Authorization header
+    final response = await http.get(
+      Uri.parse('https://expertstrials.xyz/Garifix_app/api/products'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+
+    print('Response status code: ${response.statusCode}');
+
+    if (response.statusCode == 200) {
+      final List<dynamic> productList = json.decode(response.body);
+
+      // Print the entire response data for debugging
+      print("Response body: $productList");
+
+      // Log and update the state with the fetched products
+      print("Products fetched successfully, count: ${productList.length}");
+
+      // Convert location coordinates to addresses
+      for (var product in productList) {
+        if (product['location'] != 'Location unavailable') {
+          var coordinates = product['location'].split(',');
+          double latitude = double.parse(coordinates[0].trim());
+          double longitude = double.parse(coordinates[1].trim());
+          List<Placemark> placemarks =
+              await placemarkFromCoordinates(latitude, longitude);
+          String address = placemarks.isNotEmpty
+              ? placemarks.first.street ?? 'Address not found'
+              : 'Address not found';
+          product['location'] = address;
+        }
+      }
+
+      setState(() {
+        filteredProducts = productList;
+        isLoading = false;
+      });
+    } else {
+      print("Failed to load products with status: ${response.statusCode}");
+      throw Exception('Failed to load products');
+    }
+  } catch (e) {
+    print("Error fetching products: $e");
+    setState(() {
+      isLoading = false;
+      errorMessage = "Error fetching products.";
+    });
   }
+}
+
 
   void filterProducts(String query) {
     final filtered = filteredProducts.where((product) {
@@ -5374,6 +5882,7 @@ return ProductCard(
   companyName: product['companyName'] ?? 'Unknown Company',
   location: product['location'] ?? 'Unknown Location',
   productId: int.tryParse(product['id']?.toString() ?? '0') ?? 0,
+  isBookmarked: product['isBookmarked'] ?? false, // Added bookmark status
 );
 
 
@@ -5387,14 +5896,15 @@ return ProductCard(
   }
 }
 
-class ProductCard extends StatelessWidget {
+class ProductCard extends StatefulWidget {
   final String imageUrl;
   final String title;
   final String price;
   final String description;
   final String companyName;
   final String location;
-  final int productId; // Added productId field
+  final int productId;
+  final bool isBookmarked; // Added parameter
 
   const ProductCard({
     required this.imageUrl,
@@ -5403,9 +5913,90 @@ class ProductCard extends StatelessWidget {
     required this.description,
     required this.companyName,
     required this.location,
-    required this.productId, // Marked productId as required
+    required this.productId,
+    required this.isBookmarked, // Added parameter
     super.key,
   });
+
+  @override
+  _ProductCardState createState() => _ProductCardState();
+}
+
+class _ProductCardState extends State<ProductCard> {
+  late bool isBookmarked; // Use late initialization
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize isBookmarked with the value from the widget
+    isBookmarked = widget.isBookmarked;
+  }
+
+  Future<void> _toggleBookmark() async {
+    // Toggle the bookmark state locally
+    setState(() {
+      isBookmarked = !isBookmarked;
+    });
+
+    try {
+      // Get token from shared preferences
+      final prefs = await SharedPreferences.getInstance();
+      final String? token = prefs.getString('jwt_token');
+      print('Retrieved token: $token');
+
+      if (token == null) {
+        // Handle missing token
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("User not authenticated")),
+        );
+        return;
+      }
+
+      // Send request to backend
+      final response = await http.post(
+        Uri.parse('https://expertstrials.xyz/Garifix_app/bookmark'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          'product_id': widget.productId,
+          'is_bookmarked': isBookmarked,
+        }),
+      );
+
+      print('Request sent with body:');
+      print({
+        'product_id': widget.productId,
+        'is_bookmarked': isBookmarked,
+      });
+
+      print('Response status: ${response.statusCode}');
+      print('Response body: ${response.body}');
+
+      if (response.statusCode != 200) {
+        // Revert state if the request fails
+        setState(() {
+          isBookmarked = !isBookmarked;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to update bookmark status")),
+        );
+      }
+    } catch (e) {
+      // Catch and log any errors
+      print('Error occurred: $e');
+      setState(() {
+        isBookmarked = !isBookmarked; // Revert state on error
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("An error occurred")),
+      );
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -5425,7 +6016,7 @@ class ProductCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundImage: NetworkImage(imageUrl),
+                  backgroundImage: NetworkImage(widget.imageUrl),
                   onBackgroundImageError: (error, stackTrace) =>
                       const Icon(Icons.error),
                 ),
@@ -5435,7 +6026,7 @@ class ProductCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        companyName,
+                        widget.companyName,
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
@@ -5445,7 +6036,7 @@ class ProductCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        location,
+                        widget.location,
                         style: const TextStyle(
                           fontSize: 12,
                           color: Colors.grey,
@@ -5475,7 +6066,7 @@ class ProductCard extends StatelessWidget {
               child: Stack(
                 children: [
                   Image.network(
-                    imageUrl,
+                    widget.imageUrl,
                     height: 200,
                     width: double.infinity,
                     fit: BoxFit.contain,
@@ -5501,7 +6092,7 @@ class ProductCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              title,
+              widget.title,
               style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.bold,
@@ -5512,7 +6103,7 @@ class ProductCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              description,
+              widget.description,
               style: const TextStyle(
                 fontSize: 12,
                 color: Colors.grey,
@@ -5521,37 +6112,34 @@ class ProductCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
-Text(
-  'Ksh ${NumberFormat('#,##0.00').format(double.parse(price))}',
-  style: const TextStyle(
-    fontSize: 14,
-    fontWeight: FontWeight.bold,
-    color: Colors.deepOrange,
-  ),
-),
-
-
+            Text(
+              'Ksh ${NumberFormat('#,##0.00').format(double.parse(widget.price))}',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.deepOrange,
+              ),
+            ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 ElevatedButton.icon(
-onPressed: () {
-  Navigator.push(
-    context,
-    MaterialPageRoute(
-      builder: (context) => CheckoutPage(
-        title: title,
-        price: price,
-        imageUrl: imageUrl,
-        companyName: companyName,
-        description: description,
-        productId: productId, // Pass the id here
-      ),
-    ),
-  );
-},
-
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CheckoutPage(
+                          title: widget.title,
+                          price: widget.price,
+                          imageUrl: widget.imageUrl,
+                          companyName: widget.companyName,
+                          description: widget.description,
+                          productId: widget.productId,
+                        ),
+                      ),
+                    );
+                  },
                   icon: const Icon(Icons.shopping_cart, color: Colors.white),
                   label: const Text(
                     'Buy Now',
@@ -5573,15 +6161,22 @@ onPressed: () {
                 IconButton(
                   icon: const Icon(Icons.message, color: Colors.deepPurple),
                   onPressed: () {
-                    // Implement message functionality
+                    _showMessageBottomSheet(
+                      context,
+                      widget.productId,
+                      widget.companyName,
+                      widget.imageUrl,
+                    );
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.bookmark_border,
-                      color: Colors.deepPurple),
-                  onPressed: () {
-                    // Implement wishlist functionality
-                  },
+                  icon: Icon(
+                    isBookmarked
+                        ? Icons.bookmark
+                        : Icons.bookmark_border, // Toggle icon
+                    color: isBookmarked ? Colors.purple : Colors.deepPurple,
+                  ),
+      onPressed: _toggleBookmark,
                 ),
               ],
             ),
@@ -5592,6 +6187,215 @@ onPressed: () {
   }
 }
 
+
+void _showMessageBottomSheet(
+  BuildContext context,
+  int id,  // Mechanic ID
+  String mechanicName,
+  String profileImageUrl,
+) {
+  List<Map<String, dynamic>> messages = [];
+  String newMessage = '';
+  bool isTyping = false;
+  double keyboardHeight = 0;
+
+  showModalBottomSheet(
+    context: context,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
+    ),
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, setState) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (MediaQuery.of(context).viewInsets.bottom != keyboardHeight) {
+              setState(() {
+                keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+              });
+            }
+          });
+
+          return GestureDetector(
+            onTap: () {
+              FocusScope.of(context).unfocus(); // Dismiss keyboard when tapping outside
+            },
+            child: AnimatedPadding(
+              padding: EdgeInsets.only(bottom: keyboardHeight),
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(25)),
+                  color: Colors.grey[50],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Header
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          backgroundImage: NetworkImage(profileImageUrl),
+                          radius: 30,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            mechanicName,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Divider(color: Colors.grey[300]),
+                    const SizedBox(height: 10),
+
+                    // Messages List
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          final message = messages[index];
+                          return MessageCard(
+                            avatar: message['avatar'],
+                            sender: message['sender'],
+                            text: message['text'],
+                            time: message['time'],
+                            isRead: true,
+                            unreadCount: 0,
+                          );
+                        },
+                      ),
+                    ),
+
+                    // Typing Indicator
+                    if (isTyping)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Row(
+                          children: [
+                            const CircularProgressIndicator(strokeWidth: 2),
+                            const SizedBox(width: 10),
+                            Text('Typing...', style: TextStyle(color: Colors.grey[600])),
+                          ],
+                        ),
+                      ),
+
+                    const SizedBox(height: 10),
+
+                    // Message Input Field
+                    _buildMessageInput(
+                      onChanged: (value) {
+                        setState(() {
+                          newMessage = value;
+                          isTyping = value.isNotEmpty;
+                        });
+                      },
+                      onSend: () {
+                        if (newMessage.isNotEmpty) {
+                          setState(() {
+                            messages.add({
+                              'avatar': profileImageUrl,
+                              'sender': 'You',
+                              'text': newMessage,
+                              'time': TimeOfDay.now().format(context),
+                            });
+                            newMessage = '';
+                            isTyping = false;
+                          });
+                        }
+                      },
+                      newMessage: newMessage,
+                    ),
+
+                    // Quick Replies
+                    _buildQuickReplySuggestions((reply) {
+                      setState(() {
+                        messages.add({
+                          'avatar': profileImageUrl,
+                          'sender': 'You',
+                          'text': reply,
+                          'time': TimeOfDay.now().format(context),
+                        });
+                      });
+                    }),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
+    },
+  );
+}
+
+
+
+  Widget _buildMessageInput(
+      {required ValueChanged<String> onChanged,
+      required VoidCallback onSend,
+      required String newMessage}) {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              hintText: 'Type your message...',
+              filled: true,
+              fillColor: Colors.grey[200],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(30),
+                borderSide: BorderSide.none,
+              ),
+              prefixIcon: const Icon(Icons.message, color: Colors.deepPurple),
+              contentPadding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            maxLines: null,
+          ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          icon: const Icon(Icons.send, color: Colors.deepPurple),
+          onPressed: onSend,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickReplySuggestions(Function(String) onSelectReply) {
+    final List<String> quickReplies = [
+      "👍",
+      "👋",
+      "🤔",
+      "🚗"
+    ]; // Sample quick replies
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: quickReplies.map((reply) {
+        return GestureDetector(
+          onTap: () => onSelectReply(reply),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              color: Colors.deepPurple[100],
+            ),
+            child: Text(reply, style: const TextStyle(fontSize: 18)),
+          ),
+        );
+      }).toList(),
+    );
+  }
 
 class CheckoutPage extends StatefulWidget {
   final String title;
@@ -5761,7 +6565,7 @@ actions: [
               Container(
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
+                  boxShadow: const [
                     BoxShadow(
                       color: Colors.black26,
                       blurRadius: 10,
@@ -5941,7 +6745,7 @@ ElevatedButton.icon(
 }
 
 
-
+  final TextEditingController phoneController = TextEditingController();
 class PaymentSummaryPage extends StatelessWidget {
   final String title; // Product name
   final int productId;
@@ -5957,6 +6761,70 @@ class PaymentSummaryPage extends StatelessWidget {
     required this.totalPrice,
     super.key,
   });
+
+Future<Map<String, String>> fetchUserShippingDetails() async {
+  final prefs = await SharedPreferences.getInstance();
+  final String? token = prefs.getString('jwt_token');
+
+  if (token == null) {
+    print('Error: Authentication token is missing');
+    throw Exception('Authentication token is missing');
+  }
+
+  try {
+    final response = await http.get(
+      Uri.parse('https://expertstrials.xyz/Garifix_app/api/get_shipping_details'),
+      headers: {
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('Response status code: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      try {
+        final Map<String, dynamic> jsonResponse = json.decode(response.body);
+        print('Decoded JSON response: $jsonResponse');
+
+        if (jsonResponse.containsKey('shipping_details') &&
+            jsonResponse['shipping_details'] is List &&
+            (jsonResponse['shipping_details'] as List).isNotEmpty) {
+          
+          final shippingDetail = jsonResponse['shipping_details'][0]; // Get the first item
+          print('Shipping details found: $shippingDetail');
+
+          if (shippingDetail is Map<String, dynamic>) {
+            // Return the relevant fields in a Map<String, String>
+            return {
+              'full_name': shippingDetail['full_name'] ?? '',
+              'address_line_1': shippingDetail['address_line_1'] ?? '',
+              'address_line_2': shippingDetail['address_line_2'] ?? '',
+              'city': shippingDetail['city'] ?? '',
+              'state': shippingDetail['state'] ?? '',
+              'postal_code': shippingDetail['postal_code'] ?? '',
+              'phone_number': shippingDetail['phone_number'] ?? '',
+            };
+          } else {
+            throw Exception('Unexpected structure for shipping details');
+          }
+        } else {
+          print('Error: Shipping details not found or empty');
+          throw Exception('Shipping details not found or empty');
+        }
+      } catch (e) {
+        print('Error parsing JSON: ${e.toString()}');
+        throw Exception('Error parsing shipping details: ${e.toString()}');
+      }
+    } else {
+      print('Error: Failed to load shipping details, status code: ${response.statusCode}');
+      throw Exception('Failed to load shipping details, status code: ${response.statusCode}');
+    }
+  } catch (e) {
+    print('Error making the HTTP request: ${e.toString()}');
+    throw Exception('Error making the HTTP request: ${e.toString()}');
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -6099,7 +6967,7 @@ actions: [
                         width: 1,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      columnWidths: {
+                      columnWidths: const {
                         0: FixedColumnWidth(50), // Set width for image column
                         1: FlexColumnWidth(), // Flex for text
                         2: FixedColumnWidth(50), // Set width for quantity
@@ -6111,9 +6979,9 @@ actions: [
                           decoration: BoxDecoration(
                             color: Colors.deepPurple[100], // Header background color
                           ),
-                          children: [
+                          children: const [
                             Padding(
-                              padding: const EdgeInsets.all(8.0),
+                              padding: EdgeInsets.all(8.0),
                               child: Text(
                                 'Image',
                                 style: TextStyle(
@@ -6124,7 +6992,7 @@ actions: [
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.all(8.0),
+                              padding: EdgeInsets.all(8.0),
                               child: Text(
                                 'Product',
                                 style: TextStyle(
@@ -6135,7 +7003,7 @@ actions: [
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.all(8.0),
+                              padding: EdgeInsets.all(8.0),
                               child: Text(
                                 'Quantity',
                                 style: TextStyle(
@@ -6146,7 +7014,7 @@ actions: [
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.all(8.0),
+                              padding: EdgeInsets.all(8.0),
                               child: Text(
                                 'Total Price (ksh)',
                                 style: TextStyle(
@@ -6194,7 +7062,7 @@ actions: [
                             Padding(
                               padding: const EdgeInsets.all(4.0),
                               child: Text(
-                                '${NumberFormat('#,##0.00').format(totalPrice)}',
+                                NumberFormat('#,##0.00').format(totalPrice),
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
@@ -6207,15 +7075,383 @@ actions: [
                       ],
                     ),
                     const SizedBox(height: 16),
+                    // New Row for Shipping Details
 Row(
+  crossAxisAlignment: CrossAxisAlignment.start,
   children: [
     const Icon(
+      Icons.local_shipping, // Icon for shipping
+      color: Colors.blue,
+      size: 30,
+    ),
+    const SizedBox(width: 8), // Space between the icon and text
+    Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Shipping Details',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 8),
+GestureDetector(
+  onTap: () async {
+    // Fetch user shipping details before showing the dialog
+    Map<String, String> userShippingDetails = {};
+
+    try {
+      userShippingDetails = await fetchUserShippingDetails();
+    } catch (e) {
+      // Handle error (e.g., show an error message)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to load shipping details: ${e.toString()}'),
+        ),
+      );
+    }
+
+    // Create TextEditingController instances and pre-populate them with user data
+    TextEditingController fullNameController = TextEditingController(text: userShippingDetails['full_name'] ?? '');
+    TextEditingController addressLine1Controller = TextEditingController(text: userShippingDetails['address_line_1'] ?? '');
+    TextEditingController addressLine2Controller = TextEditingController(text: userShippingDetails['address_line_2'] ?? '');
+    TextEditingController cityController = TextEditingController(text: userShippingDetails['city'] ?? '');
+    TextEditingController stateController = TextEditingController(text: userShippingDetails['state'] ?? '');
+    TextEditingController postalCodeController = TextEditingController(text: userShippingDetails['postal_code'] ?? '');
+    TextEditingController phoneNumberController = TextEditingController(text: userShippingDetails['phone_number'] ?? '');
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.local_shipping, color: Colors.blue, size: 28),
+                      SizedBox(width: 8),
+                      Text(
+                        'Edit Shipping Details',
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: fullNameController,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.person, color: Colors.blue),
+                      hintText: 'Full Name',
+                      labelText: 'Full Name',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: cityController,
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.location_city, color: Colors.blue),
+                            hintText: 'City',
+                            labelText: 'City',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: stateController,
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.map, color: Colors.blue),
+                            hintText: 'State/Province',
+                            labelText: 'State/Province',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: addressLine1Controller,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.location_on, color: Colors.blue),
+                      hintText: 'Address Line 1',
+                      labelText: 'Address Line 1',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: addressLine2Controller,
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.location_on, color: Colors.blue),
+                      hintText: 'Address Line 2 (Optional)',
+                      labelText: 'Address Line 2',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: postalCodeController,
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.local_post_office, color: Colors.blue),
+                            hintText: 'Postal Code',
+                            labelText: 'Postal Code',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: phoneNumberController,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.phone, color: Colors.blue),
+                            hintText: 'Phone Number',
+                            labelText: 'Phone Number',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+Row(
+  mainAxisAlignment: MainAxisAlignment.end,
+  children: [
+    TextButton(
+      onPressed: () {
+        Navigator.of(context).pop();
+      },
+      style: TextButton.styleFrom(
+        foregroundColor: Colors.red,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        shadowColor: Colors.red.withOpacity(0.5),
+        elevation: 5,
+        backgroundColor: Colors.red.shade50,
+      ),
+      child: const Text(
+        'Cancel',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    ),
+    const SizedBox(width: 16),
+    ElevatedButton.icon(
+
+// The onPressed function
+onPressed: () async {
+  // Get token from SharedPreferences
+  final prefs = await SharedPreferences.getInstance();
+  final String? token = prefs.getString('jwt_token');
+
+  if (token == null) {
+    // Handle missing token
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.red, size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: AnimatedTextKit(
+                animatedTexts: [
+                  TypewriterAnimatedText(
+                    'Authentication token is missing!',
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.red,
+                    ),
+                    speed: const Duration(milliseconds: 50),
+                  ),
+                ],
+                isRepeatingAnimation: false,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.black,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+    return;
+  }
+
+  // Prepare the data
+// Prepare the data using TextEditingController values
+Map<String, dynamic> formData = {
+  'full_name': fullNameController.text,
+  'address_line1': addressLine1Controller.text,
+  'address_line2': addressLine2Controller.text,
+  'city': cityController.text,
+  'state': stateController.text,
+  'postal_code': postalCodeController.text,
+  'phone_number': phoneNumberController.text,
+};
+
+// Print the formData to the console
+print('Form Data: $formData');
+
+  // Send data to Flask backend
+  final response = await http.post(
+    Uri.parse('https://expertstrials.xyz/Garifix_app/api/save_shipping_details'),
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer $token',
+    },
+    body: json.encode(formData),
+  );
+
+  if (response.statusCode == 200) {
+    // Handle success
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.green, size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: AnimatedTextKit(
+                animatedTexts: [
+                  TypewriterAnimatedText(
+                    'Shipping details saved successfully!',
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.green,
+                    ),
+                    speed: const Duration(milliseconds: 50),
+                  ),
+                ],
+                isRepeatingAnimation: false,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.black,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+    Navigator.of(context).pop();
+  } else {
+    // Handle error
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.warning, color: Colors.orange, size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: AnimatedTextKit(
+                animatedTexts: [
+                  TypewriterAnimatedText(
+                    'Failed to save shipping details!',
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.orange,
+                    ),
+                    speed: const Duration(milliseconds: 50),
+                  ),
+                ],
+                isRepeatingAnimation: false,
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Colors.black,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+},
+
+      icon: const Icon(Icons.save, color: Colors.white),
+      label: const Text(
+        'Save',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.blue,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+        shadowColor: Colors.blue.withOpacity(0.5),
+        elevation: 8,
+      ),
+    ),
+  ],
+),
+
+            ],
+          ),
+        ),
+      ),
+    );
+  },
+);
+
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: const Text(
+                'Tap here to add or edit your shipping details.',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontStyle: FontStyle.italic,
+                  color: Colors.blueAccent,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  ],
+),
+const SizedBox(height: 16),
+const Row(
+  children: [
+    Icon(
       Icons.payment, // Icon for payment method
       color: Colors.deepPurple,
       size: 30,
     ),
-    const SizedBox(width: 8), // Space between the icon and text
-    const Text(
+    SizedBox(width: 8), // Space between the icon and text
+    Text(
       'Payment Method',
       style: TextStyle(
         fontSize: 20, // Slightly larger font size for emphasis
@@ -6236,7 +7472,7 @@ Row(
 showDialog(
   context: context,
   builder: (context) => AlertDialog(
-    contentPadding: EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+    contentPadding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
     title: const Text(
       'Card Payment',
       style: TextStyle(
@@ -6245,7 +7481,7 @@ showDialog(
         color: Colors.deepPurple,
       ),
     ),
-    content: Container(
+    content: SizedBox(
       width: 600, // Increased the width for a wider dialog
       child: SingleChildScrollView(
         child: Column(
@@ -6254,23 +7490,23 @@ showDialog(
             // Total Amount to Pay Input Field
             TextField(
               controller: TextEditingController(
-                text: '${NumberFormat('#,##0.00').format(totalPrice)}',
+                text: NumberFormat('#,##0.00').format(totalPrice),
               ),
               readOnly: true,
               decoration: InputDecoration(
                 labelText: 'Total Price (Ksh)',
-                labelStyle: TextStyle(
+                labelStyle: const TextStyle(
                   color: Colors.deepPurple,
                   fontWeight: FontWeight.w600,
                 ),
-                prefixIcon: Icon(Icons.attach_money, color: Colors.deepPurple),
+                prefixIcon: const Icon(Icons.attach_money, color: Colors.deepPurple),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 filled: true,
                 fillColor: Colors.grey[200],
               ),
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -6282,7 +7518,7 @@ showDialog(
             TextField(
               decoration: InputDecoration(
                 labelText: 'Card Number',
-                prefixIcon: Icon(Icons.credit_card, color: Colors.deepPurple),
+                prefixIcon: const Icon(Icons.credit_card, color: Colors.deepPurple),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -6291,7 +7527,7 @@ showDialog(
                 fillColor: Colors.grey[200],
               ),
               keyboardType: TextInputType.number,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -6306,7 +7542,7 @@ showDialog(
                   child: TextField(
                     decoration: InputDecoration(
                       labelText: 'Expiry Date',
-                      prefixIcon: Icon(Icons.calendar_today, color: Colors.deepPurple),
+                      prefixIcon: const Icon(Icons.calendar_today, color: Colors.deepPurple),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -6315,7 +7551,7 @@ showDialog(
                       fillColor: Colors.grey[200],
                     ),
                     keyboardType: TextInputType.datetime,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 18,
                     ),
                   ),
@@ -6326,7 +7562,7 @@ showDialog(
                   child: TextField(
                     decoration: InputDecoration(
                       labelText: 'CVV',
-                      prefixIcon: Icon(Icons.security, color: Colors.deepPurple),
+                      prefixIcon: const Icon(Icons.security, color: Colors.deepPurple),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -6336,7 +7572,7 @@ showDialog(
                     ),
                     keyboardType: TextInputType.number,
                     obscureText: true,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 18,
                     ),
                   ),
@@ -6349,7 +7585,7 @@ showDialog(
             TextField(
               decoration: InputDecoration(
                 labelText: 'Cardholder Name',
-                prefixIcon: Icon(Icons.person, color: Colors.deepPurple),
+                prefixIcon: const Icon(Icons.person, color: Colors.deepPurple),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -6357,7 +7593,7 @@ showDialog(
                 filled: true,
                 fillColor: Colors.grey[200],
               ),
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 18,
               ),
             ),
@@ -6369,14 +7605,6 @@ showDialog(
                 // Handle the form submission logic here
                 Navigator.pop(context);
               },
-              child: const Text(
-                'Pay Now',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.deepPurple,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -6384,6 +7612,14 @@ showDialog(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 elevation: 6,
+              ),
+              child: const Text(
+                'Pay Now',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
             ),
           ],
@@ -6395,6 +7631,9 @@ showDialog(
         onPressed: () {
           Navigator.pop(context);
         },
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        ),
         child: const Text(
           'Cancel',
           style: TextStyle(
@@ -6402,9 +7641,6 @@ showDialog(
             fontWeight: FontWeight.bold,
             fontSize: 16,
           ),
-        ),
-        style: TextButton.styleFrom(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         ),
       ),
     ],
@@ -6460,25 +7696,25 @@ showDialog(
                 BoxShadow(
                   color: Colors.black.withOpacity(0.2),
                   blurRadius: 8,
-                  offset: Offset(0, 4),
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: TextField(
               controller: TextEditingController(
-                text: '${NumberFormat('#,##0.00').format(totalPrice)}',
+                text: NumberFormat('#,##0.00').format(totalPrice),
               ),
               readOnly: true,
               decoration: InputDecoration(
                 labelText: 'Total Price (Ksh)',
-                labelStyle: TextStyle(
+                labelStyle: const TextStyle(
                   color: Colors.deepPurple,
                   fontWeight: FontWeight.w600,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
-                prefixIcon: Icon(Icons.attach_money, color: Colors.deepPurple),
+                prefixIcon: const Icon(Icons.attach_money, color: Colors.deepPurple),
               ),
               style: const TextStyle(
                 fontSize: 18,
@@ -6497,22 +7733,23 @@ showDialog(
                 BoxShadow(
                   color: Colors.black.withOpacity(0.2),
                   blurRadius: 8,
-                  offset: Offset(0, 4),
+                  offset: const Offset(0, 4),
                 ),
               ],
             ),
             child: TextField(
               decoration: InputDecoration(
                 labelText: 'Phone Number',
-                labelStyle: TextStyle(
+                labelStyle: const TextStyle(
                   color: Colors.deepPurple,
                   fontWeight: FontWeight.w600,
                 ),
-                prefixIcon: Icon(Icons.phone, color: Colors.deepPurple),
+                prefixIcon: const Icon(Icons.phone, color: Colors.deepPurple),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
+              controller: phoneController,
               keyboardType: TextInputType.phone,
               style: const TextStyle(
                 fontSize: 16,
@@ -6528,12 +7765,22 @@ actions: [
     onPressed: () {
       Navigator.pop(context);
     },
-    child: Row(
+    style: TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      backgroundColor: Colors.redAccent, // Bright background color
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+      ),
+      elevation: 4,
+    ).copyWith(
+      overlayColor: WidgetStateProperty.all(Colors.red.shade700.withOpacity(0.1)),
+    ),
+    child: const Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.cancel, color: Colors.white, size: 20),
-        const SizedBox(width: 8),
-        const Text(
+        SizedBox(width: 8),
+        Text(
           'Cancel',
           style: TextStyle(
             color: Colors.white,
@@ -6543,39 +7790,87 @@ actions: [
         ),
       ],
     ),
-    style: TextButton.styleFrom(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      backgroundColor: Colors.redAccent, // Bright background color
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-      ),
-      elevation: 4,
-    ).copyWith(
-      overlayColor: MaterialStateProperty.all(Colors.red.shade700.withOpacity(0.1)),
-    ),
   ),
   
   // Confirm Button with Gradient and Custom Styling
   ElevatedButton(
-    onPressed: () {
-      // Handle submission or continue logic here
-      Navigator.pop(context);
-    },
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(Icons.check_circle, color: Colors.white, size: 20),
-        const SizedBox(width: 8),
-        const Text(
-          'Confirm',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-      ],
-    ),
+onPressed: () async {
+  String formatPhoneNumber(String phoneNumber) {
+  // Check if the phone number starts with 07 or 01
+  if (phoneNumber.startsWith('07')) {
+    return '254${phoneNumber.substring(1)}';
+  } else if (phoneNumber.startsWith('01')) {
+    return '254${phoneNumber.substring(1)}';
+  } else {
+    // If it doesn't start with 07 or 01, return the original number or handle as needed
+    return phoneNumber;
+  }
+}
+
+  String phoneNumber = phoneController.text;
+  phoneNumber = formatPhoneNumber(phoneNumber);
+  
+  if (phoneNumber.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please enter your phone number')),
+    );
+    return;
+  }
+
+  final SharedPreferences prefs = await SharedPreferences.getInstance();
+  final String authToken = prefs.getString('jwt_token') ?? '';
+
+  if (authToken.isEmpty) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Authentication token is missing')),
+    );
+    return;
+  }
+
+  try {
+    // Log the request payload
+    print('Sending payment request with payload:');
+    print('Phone: $phoneNumber');
+    print('Total Amount: ${totalPrice.toString()}');
+    print('Quantity: ${quantity.toString()}');
+    print('Product ID: ${productId.toString()}');
+
+    final response = await http.post(
+      Uri.parse('https://expertstrials.xyz/Garifix_app/make-payment'), // Replace with your Flask endpoint
+      headers: {
+        'Authorization': 'Bearer $authToken', // Include the token in the headers
+      },
+      body: {
+        'phone': phoneNumber,
+        'total_amount': '1',//totalPrice.toInt().toString(), // Convert to integer and then to string
+        'quantity': quantity.toString(),
+        'product_id': productId.toString(),
+      },
+    );
+
+    // Log the response status and body
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Payment request sent successfully')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to send payment request')),
+      );
+    }
+  } catch (e) {
+    // Log the exception details
+    print('Error occurred: ${e.toString()}');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error: ${e.toString()}')),
+    );
+  }
+},
+
+
     style: ElevatedButton.styleFrom(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       backgroundColor: Colors.deepPurple, // Base color
@@ -6584,8 +7879,23 @@ actions: [
       ),
       elevation: 6, // Subtle shadow for depth
     ).copyWith(
-      shadowColor: MaterialStateProperty.all(Colors.deepPurple.withOpacity(0.5)),
-      overlayColor: MaterialStateProperty.all(Colors.deepPurple.shade700.withOpacity(0.1)),
+      shadowColor: WidgetStateProperty.all(Colors.deepPurple.withOpacity(0.5)),
+      overlayColor: WidgetStateProperty.all(Colors.deepPurple.shade700.withOpacity(0.1)),
+    ),
+    child: const Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.check_circle, color: Colors.white, size: 20),
+        SizedBox(width: 8),
+        Text(
+          'Confirm',
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      ],
     ),
   ),
 ],
@@ -7136,6 +8446,8 @@ class MessageCard extends StatelessWidget {
     );
   }
 }
+
+
 
 
 class ExploreSection extends StatelessWidget {

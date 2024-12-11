@@ -49,6 +49,7 @@ dependencies:
   rate_my_app:
     git:
       url: https://github.com/Skyost/RateMyApp.git
+  cached_network_image: ^3.2.0  # Replace with the latest version if needed
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -8,6 +8,9 @@ class Post {
   final String? profileImage; // Added for profile image
   final double? latitude; // Added for latitude
   final double? longitude; // Added for longitude
+  final bool isLiked; // Added for like status
+  final bool isSaved; // Added for saved status
+  final int totalLikes; // Added for total likes
 
   Post({
     required this.id,
@@ -19,6 +22,9 @@ class Post {
     this.profileImage, // Added to constructor
     this.latitude, // Added to constructor
     this.longitude, // Added to constructor
+    required this.isLiked, // Added to constructor
+    required this.isSaved, // Added to constructor
+    required this.totalLikes, // Added to constructor
   });
 
   factory Post.fromJson(Map<String, dynamic> json) {
@@ -32,6 +38,9 @@ class Post {
       profileImage: json['profile_image'], // Added profile image
       latitude: json['latitude'], // Added latitude
       longitude: json['longitude'], // Added longitude
+      isLiked: json['is_liked'] ?? false, // Added isLiked
+      isSaved: json['is_saved'] ?? false, // Added isSaved
+      totalLikes: json['total_likes'] ?? 0, // Added totalLikes
     );
   }
 }
