@@ -9473,66 +9473,156 @@ class _AccountPageState extends State<AccountPage> {
           ],
         ),
 actions: [
-  PopupMenuButton<String>(
-    icon: const Icon(Icons.settings, color: Colors.white),
-    onSelected: (String value) async {
-      // Handle menu selection
-      switch (value) {
-        case 'Switch Account':
-          // Navigate to switch account screen
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const SwitchAccountScreen()),
-          );
-          break;
-        case 'Privacy Policy':
-          // Navigate to privacy policy screen
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
-          );
-          break;
-        case 'Help':
-          // Navigate to help screen
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => const HelpScreen()),
-          );
-          break;
-        case 'Logout':
-          // Logout functionality
-          final SharedPreferences prefs = await SharedPreferences.getInstance();
-          await prefs.clear();
+PopupMenuButton<String>(
+  icon: const Icon(Icons.settings, color: Colors.white),
+onSelected: (String value) async {
+  print("Action selected: $value"); // Debugging the selected action
+  switch (value) {
+    case 'Switch Account':
+      print("Navigating to Switch Account screen...");
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const SwitchAccountScreen()),
+      );
+      break;
+    case 'Privacy Policy':
+      print("Navigating to Privacy Policy screen...");
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
+      );
+      break;
+    case 'Help':
+      print("Navigating to Help screen...");
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const HelpScreen()),
+      );
+      break;
+    case 'Logout':
+      print("Logging out user...");
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.clear();
+      print("User preferences cleared!");
 
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
-            (Route<dynamic> route) => false,
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (Route<dynamic> route) => false,
+      );
+      print("Navigated to Login screen.");
+      break;
+    case 'Update App':
+      print("Update App process started...");
+      try {
+        print("Displaying loading indicator...");
+        // Show loading indicator
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (BuildContext context) {
+            return const Center(child: CircularProgressIndicator());
+          },
+        );
+
+        print("Sending request to download the APK...");
+        final response = await http.get(Uri.parse('https://expertstrials.xyz/Garifix_app/api/download-apk'));
+        print("Response received! Status Code: ${response.statusCode}");
+
+        Navigator.pop(context); // Close the loading indicator
+        print("Loading indicator closed.");
+
+        if (response.statusCode == 200) {
+          print("APK download successful. Preparing to save locally...");
+          // Save the APK file locally
+          final Directory tempDir = await getTemporaryDirectory();
+          print("Temporary directory: ${tempDir.path}");
+
+          final String filePath = '${tempDir.path}/app-release.apk';
+          print("Saving APK to: $filePath");
+
+          final File file = File(filePath);
+          await file.writeAsBytes(response.bodyBytes);
+          print("APK saved successfully!");
+
+          // Trigger APK installation
+          print("Triggering APK installation...");
+          OpenFile.open(filePath);
+        } else {
+          print("APK download failed. Status Code: ${response.statusCode}");
+          // Show error if the download failed
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Update Failed'),
+                content: Text(
+                  'Failed to download the update. Please try again later. [Status Code: ${response.statusCode}]',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK'),
+                  ),
+                ],
+              );
+            },
           );
-          break;
+        }
+      } catch (e, stacktrace) {
+        Navigator.pop(context); // Close the loading indicator
+        print("Error occurred during Update App process!");
+        print("Error Details: $e");
+        print("Stacktrace: $stacktrace");
+
+        // Show error message
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Error'),
+              content: Text('An error occurred: $e'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
       }
-    },
-    itemBuilder: (BuildContext context) {
-      return [
-        const PopupMenuItem(
-          value: 'Switch Account',
-          child: Text('Switch Account'),
-        ),
-        const PopupMenuItem(
-          value: 'Privacy Policy',
-          child: Text('Privacy Policy'),
-        ),
-        const PopupMenuItem(
-          value: 'Help',
-          child: Text('Help'),
-        ),
-        const PopupMenuItem(
-          value: 'Logout',
-          child: Text('Logout'),
-        ),
-      ];
-    },
-  ),
+      break;
+    default:
+      print("Unhandled action: $value");
+  }
+},
+
+  itemBuilder: (BuildContext context) {
+    return [
+      const PopupMenuItem(
+        value: 'Switch Account',
+        child: Text('Switch Account'),
+      ),
+      const PopupMenuItem(
+        value: 'Privacy Policy',
+        child: Text('Privacy Policy'),
+      ),
+      const PopupMenuItem(
+        value: 'Help',
+        child: Text('Help'),
+      ),
+      const PopupMenuItem(
+        value: 'Logout',
+        child: Text('Logout'),
+      ),
+      const PopupMenuItem(
+        value: 'Update App',
+        child: Text('Update App'),
+      ),
+    ];
+  },
+),
 
 
 IconButton(
