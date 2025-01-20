@@ -132,6 +132,7 @@ void _connectToSSE() async {
     }
   }
 
+
   Future<void> _getUserLocation() async {
     try {
       Position position = await Geolocator.getCurrentPosition(
@@ -9492,6 +9493,9 @@ onSelected: (String value) async {
         MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
       );
       break;
+    case 'info':
+      print("Navigating to Privacy Policy screen...");
+      break;
     case 'Help':
       print("Navigating to Help screen...");
       Navigator.push(
@@ -9512,89 +9516,109 @@ onSelected: (String value) async {
       );
       print("Navigated to Login screen.");
       break;
-    case 'Update App':
-      print("Update App process started...");
-      try {
-        print("Displaying loading indicator...");
-        // Show loading indicator
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (BuildContext context) {
-            return const Center(child: CircularProgressIndicator());
-          },
-        );
+case 'Update App':
+  print("Update App process started...");
 
-        print("Sending request to download the APK...");
-        final response = await http.get(Uri.parse('https://expertstrials.xyz/Garifix_app/api/download-apk'));
-        print("Response received! Status Code: ${response.statusCode}");
+  try {
+    print("Displaying loading indicator...");
+    // Show loading indicator
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
 
-        Navigator.pop(context); // Close the loading indicator
-        print("Loading indicator closed.");
+    // Log request URL
+    const String url = 'https://expertstrials.xyz/Garifix_app/api/download-apk';
+    print("Sending request to download the APK from URL: $url");
 
-        if (response.statusCode == 200) {
-          print("APK download successful. Preparing to save locally...");
-          // Save the APK file locally
-          final Directory tempDir = await getTemporaryDirectory();
-          print("Temporary directory: ${tempDir.path}");
+    // Make the HTTP request
+    final response = await http.get(Uri.parse(url));
+    print("Response received! Status Code: ${response.statusCode}");
 
-          final String filePath = '${tempDir.path}/app-release.apk';
-          print("Saving APK to: $filePath");
+    // Log response headers
+    print("Response Headers: ${response.headers}");
 
-          final File file = File(filePath);
-          await file.writeAsBytes(response.bodyBytes);
-          print("APK saved successfully!");
+    Navigator.pop(context); // Close the loading indicator
+    print("Loading indicator closed.");
 
-          // Trigger APK installation
-          print("Triggering APK installation...");
-          OpenFile.open(filePath);
+    if (response.statusCode == 200) {
+      print("APK download successful. Preparing to save locally...");
+
+      // Save the APK file locally
+      final Directory tempDir = await getTemporaryDirectory();
+      print("Temporary directory: ${tempDir.path}");
+
+      final String filePath = '${tempDir.path}/app-release.apk';
+      print("Saving APK to: $filePath");
+
+final File file = File(filePath);
+
+// Log file size before saving
+print("Downloaded file size: ${response.bodyBytes.length} bytes");
+
+// Save APK
+await file.writeAsBytes(response.bodyBytes);
+print("APK saved at $filePath with size: ${await file.length()} bytes");
+
+// Verify file integrity
+if (response.bodyBytes.length == await file.length()) {
+  print("File integrity check passed. Triggering installation...");
+        await triggerApkInstallation(filePath);
         } else {
-          print("APK download failed. Status Code: ${response.statusCode}");
-          // Show error if the download failed
-          showDialog(
-            context: context,
-            builder: (BuildContext context) {
-              return AlertDialog(
-                title: const Text('Update Failed'),
-                content: Text(
-                  'Failed to download the update. Please try again later. [Status Code: ${response.statusCode}]',
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('OK'),
-                  ),
-                ],
-              );
-            },
-          );
-        }
-      } catch (e, stacktrace) {
-        Navigator.pop(context); // Close the loading indicator
-        print("Error occurred during Update App process!");
-        print("Error Details: $e");
-        print("Stacktrace: $stacktrace");
+  print("File integrity check failed! File might be corrupted.");
+}
 
-        // Show error message
-        showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Error'),
-              content: Text('An error occurred: $e'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('OK'),
-                ),
-              ],
-            );
-          },
+
+      // Show error if the download failed
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Update Failed'),
+            content: Text(
+              'Failed to download the update. Please try again later.\n[Status Code: ${response.statusCode}]',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK'),
+              ),
+            ],
+          );
+        },
+      );
+    }
+  } catch (e, stacktrace) {
+    Navigator.pop(context); // Close the loading indicator
+    print("Error occurred during Update App process!");
+    print("Error Details: $e");
+    print("Stacktrace: $stacktrace");
+
+    // Show error message
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Error'),
+          content: Text('An error occurred: $e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
         );
-      }
-      break;
-    default:
-      print("Unhandled action: $value");
+      },
+    );
+  }
+  break;
+
+default:
+  print("Unhandled action: $value");
+
   }
 },
 
@@ -9709,7 +9733,53 @@ IconButton(
       ),
     );
   }
+Future<void> triggerApkInstallation(String filePath) async {
+  // Validate the APK file path
+  if (!isFileValid(filePath)) {
+    print("Invalid file path or APK file not found.");
+    return;
+  }
 
+  // Check and request install packages permission
+  bool permissionGranted = await checkAndRequestInstallPermission();
+  if (!permissionGranted) {
+    print("Permission denied. Cannot install APK.");
+    // Open settings to allow user to manually enable the permission
+    await openInstallUnknownAppsSettings();
+    return;
+  }
+
+  // Proceed with the installation
+  print("Opening APK file for installation...");
+  OpenFile.open(filePath).then((result) {
+    if (result.type == ResultType.done) {
+      print("APK installation initiated successfully.");
+    } else {
+      print("Failed to open APK file: ${result.message}");
+    }
+  });
+}
+
+bool isFileValid(String filePath) {
+  File file = File(filePath);
+  return file.existsSync();
+}
+
+Future<bool> checkAndRequestInstallPermission() async {
+  if (await Permission.requestInstallPackages.isDenied) {
+    await Permission.requestInstallPackages.request();
+    return await Permission.requestInstallPackages.isGranted;
+  }
+  return true; // Permission is already granted
+}
+
+// Function to open the Install Unknown Apps settings
+Future<void> openInstallUnknownAppsSettings() async {
+  if (!await Permission.requestInstallPackages.isGranted) {
+    print("Opening settings to allow 'Install unknown apps'...");
+    await openAppSettings();
+  }
+}
   Future<void> _changeProfilePicture() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
     if (image != null) {

@@ -304,7 +304,7 @@ Future<void> _submitPaymentData(
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? token = prefs.getString('jwt_token');
 
-if (token == null || token.isEmpty) {
+if (token!.isEmpty) {
   print("Error: Token is missing.");
   return;
 }
